@@ -1,0 +1,887 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ─── SUPABASE CONFIG (plug your keys) ───
+const SUPABASE_URL = "https://yresgunnnazzjexbajyk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZXNndW5ubmF6empleGJhanlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MzI4MzcsImV4cCI6MjA5MTEwODgzN30.ve_S3ji2mYOYycr6MizRKMzeHnNqBK-o5TiPc9Qymy0";
+// Tables needed: users, companies, accounts, transactions, purchases, reports, profiles
+
+// ─── ICONS ───
+const Icon = ({ name, size = 20 }) => {
+  const icons = {
+    dashboard: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>,
+    wallet: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="15" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/></svg>,
+    cart: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>,
+    chart: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+    user: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    users: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+    plus: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+    download: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+    search: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+    filter: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+    bell: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
+    settings: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+    logout: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+    whatsapp: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>,
+    arrow_up: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>,
+    arrow_down: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>,
+    check: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+    x: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    menu: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+    calendar: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    file: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+    trash: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
+    edit: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+    eye: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+    infinity: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"/></svg>,
+    tag: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+  };
+  return icons[name] || null;
+};
+
+// ─── SAMPLE DATA ───
+const sampleTransactions = [
+  { id: 1, desc: "Pagamento Fornecedor A", category: "Fornecedores", type: "saida", value: 4500, date: "2026-04-01", status: "pago" },
+  { id: 2, desc: "Venda Produto X", category: "Vendas", type: "entrada", value: 12800, date: "2026-04-02", status: "recebido" },
+  { id: 3, desc: "Aluguel Escritório", category: "Fixas", type: "saida", value: 3200, date: "2026-04-03", status: "pago" },
+  { id: 4, desc: "Consultoria Projeto Y", category: "Serviços", type: "entrada", value: 8500, date: "2026-04-04", status: "pendente" },
+  { id: 5, desc: "Material de Escritório", category: "Operacional", type: "saida", value: 780, date: "2026-04-05", status: "pago" },
+  { id: 6, desc: "Venda Serviço Z", category: "Vendas", type: "entrada", value: 6200, date: "2026-03-28", status: "recebido" },
+  { id: 7, desc: "Internet + Telefone", category: "Fixas", type: "saida", value: 450, date: "2026-03-15", status: "pago" },
+  { id: 8, desc: "Salários Equipe", category: "Folha", type: "saida", value: 22000, date: "2026-03-05", status: "pago" },
+  { id: 9, desc: "Venda Lote B", category: "Vendas", type: "entrada", value: 18500, date: "2026-03-10", status: "recebido" },
+  { id: 10, desc: "Imposto DAS", category: "Impostos", type: "saida", value: 1890, date: "2026-03-20", status: "pago" },
+];
+
+const samplePurchases = [
+  { id: 1, item: "Notebook Dell Inspiron", supplier: "Dell Brasil", qty: 3, unitPrice: 4200, total: 12600, date: "2026-04-01", status: "entregue" },
+  { id: 2, item: "Cadeiras Ergonômicas", supplier: "Flexform", qty: 10, unitPrice: 890, total: 8900, date: "2026-04-03", status: "em_transito" },
+  { id: 3, item: "Licença Adobe Creative", supplier: "Adobe", qty: 5, unitPrice: 320, total: 1600, date: "2026-03-28", status: "ativo" },
+  { id: 4, item: "Papel A4 (caixa)", supplier: "Kalunga", qty: 20, unitPrice: 45, total: 900, date: "2026-03-15", status: "entregue" },
+];
+
+const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const cashFlowData = [
+  { m: "Jan", in: 32000, out: 28000 }, { m: "Fev", in: 38000, out: 31000 },
+  { m: "Mar", in: 45000, out: 35000 }, { m: "Abr", in: 27500, out: 22000 },
+];
+
+// ─── FORMATTERS ───
+const fmt = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtDate = (d) => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
+
+// ─── ANIMATIONS CSS ───
+const globalCSS = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+:root {
+  --cream: #FAF7F2;
+  --beige: #F0EBE3;
+  --sand: #E8E0D5;
+  --warm-gray: #C4BAA8;
+  --taupe: #9C8E7C;
+  --brown: #6B5B4E;
+  --dark: #3D3229;
+  --accent: #B8926A;
+  --accent-light: #D4B896;
+  --success: #7BA387;
+  --danger: #C4716C;
+  --warning: #D4A843;
+  --white: #FFFFFF;
+  --shadow-sm: 0 1px 3px rgba(61,50,41,0.06);
+  --shadow-md: 0 4px 16px rgba(61,50,41,0.08);
+  --shadow-lg: 0 8px 32px rgba(61,50,41,0.12);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 8px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--dark); }
+
+@keyframes fadeScaleIn {
+  from { opacity:0; transform:scale(0.95); }
+  to { opacity:1; transform:scale(1); }
+}
+@keyframes slideUp {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@keyframes slideLeft {
+  from { opacity:0; transform:translateX(30px); }
+  to { opacity:1; transform:translateX(0); }
+}
+@keyframes expandIn {
+  from { opacity:0; transform:scale(0.9) translateY(10px); }
+  to { opacity:1; transform:scale(1) translateY(0); }
+}
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.03)} }
+
+.anim-fade { animation: fadeScaleIn 0.4s cubic-bezier(.22,1,.36,1) both; }
+.anim-slide { animation: slideUp 0.45s cubic-bezier(.22,1,.36,1) both; }
+.anim-expand { animation: expandIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+
+.btn-press { transition: all 0.15s ease; cursor:pointer; user-select:none; }
+.btn-press:active { transform: scale(0.96); }
+.btn-press:hover { filter: brightness(0.97); }
+
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(200,190,175,0.25);
+}
+.card:hover { box-shadow: var(--shadow-md); }
+
+input, select, textarea {
+  font-family: 'DM Sans', sans-serif;
+  border: 1.5px solid var(--sand);
+  border-radius: var(--radius-xs);
+  padding: 10px 14px;
+  font-size: 14px;
+  background: var(--cream);
+  color: var(--dark);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(184,146,106,0.15);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--sand); border-radius: 3px; }
+
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+`;
+
+// ─── MINI CHART ───
+const MiniBarChart = ({ data, height = 160 }) => {
+  const max = Math.max(...data.flatMap(d => [d.in, d.out]));
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height, padding: "10px 0" }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, animation: `slideUp 0.5s ${i * 0.1}s both` }}>
+          <div style={{ display: "flex", gap: 3, alignItems: "flex-end", width: "100%", justifyContent: "center", height: height - 30 }}>
+            <div style={{ width: "40%", background: "linear-gradient(to top, var(--success), #9DBDA7)", borderRadius: "6px 6px 2px 2px", height: `${(d.in / max) * 100}%`, transition: "height 0.6s ease", minHeight: 4 }} />
+            <div style={{ width: "40%", background: "linear-gradient(to top, var(--danger), #D49A96)", borderRadius: "6px 6px 2px 2px", height: `${(d.out / max) * 100}%`, transition: "height 0.6s ease", minHeight: 4 }} />
+          </div>
+          <span style={{ fontSize: 11, color: "var(--taupe)", fontWeight: 500 }}>{d.m}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ─── DONUT CHART ───
+const DonutChart = ({ segments, size = 140 }) => {
+  const total = segments.reduce((a, s) => a + s.value, 0);
+  let cum = 0;
+  const r = size / 2 - 15;
+  const c = size / 2;
+  const circumference = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      {segments.map((s, i) => {
+        const pct = s.value / total;
+        const dash = pct * circumference;
+        const offset = cum * circumference;
+        cum += pct;
+        return (
+          <circle key={i} cx={c} cy={c} r={r} fill="none" stroke={s.color} strokeWidth="18" strokeDasharray={`${dash} ${circumference - dash}`} strokeDashoffset={-offset} strokeLinecap="round" style={{ animation: `fadeScaleIn 0.6s ${i * 0.15}s both` }} />
+        );
+      })}
+      <text x={c} y={c} textAnchor="middle" dominantBaseline="central" style={{ transform: "rotate(90deg)", transformOrigin: "center", fontSize: 16, fontWeight: 600, fill: "var(--dark)" }}>{fmt(total)}</text>
+    </svg>
+  );
+};
+
+// ─── MODAL ───
+const Modal = ({ open, onClose, title, children, width = 520 }) => {
+  if (!open) return null;
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(61,50,41,0.35)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} className="card anim-expand" style={{ width: "100%", maxWidth: width, maxHeight: "85vh", overflow: "auto", padding: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--beige)" }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600 }}>{title}</h3>
+          <div onClick={onClose} className="btn-press" style={{ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--beige)" }}><Icon name="x" size={16} /></div>
+        </div>
+        <div style={{ padding: 24 }}>{children}</div>
+      </div>
+    </div>
+  );
+};
+
+// ─── BUTTON ───
+const Btn = ({ children, variant = "primary", onClick, icon, style: s, full }) => {
+  const styles = {
+    primary: { background: "var(--accent)", color: "var(--white)" },
+    secondary: { background: "var(--beige)", color: "var(--dark)" },
+    danger: { background: "var(--danger)", color: "var(--white)" },
+    ghost: { background: "transparent", color: "var(--taupe)", border: "1.5px solid var(--sand)" },
+    success: { background: "var(--success)", color: "var(--white)" },
+  };
+  return (
+    <button onClick={onClick} className="btn-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 8, border: "none", fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", width: full ? "100%" : "auto", justifyContent: full ? "center" : "flex-start", ...styles[variant], ...s }}>
+      {icon && <Icon name={icon} size={16} />}{children}
+    </button>
+  );
+};
+
+// ─── STAT CARD ───
+const StatCard = ({ label, value, icon, trend, delay = 0 }) => (
+  <div className="card anim-expand" style={{ padding: 22, animationDelay: `${delay}s`, display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontSize: 13, color: "var(--taupe)", fontWeight: 500, letterSpacing: 0.3 }}>{label}</span>
+      <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--beige)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)" }}><Icon name={icon} size={18} /></div>
+    </div>
+    <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "'Playfair Display', serif", letterSpacing: -0.5 }}>{value}</div>
+    {trend && <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 500, color: trend > 0 ? "var(--success)" : "var(--danger)" }}>
+      <Icon name={trend > 0 ? "arrow_up" : "arrow_down"} size={14} />{Math.abs(trend)}% vs mês anterior
+    </div>}
+  </div>
+);
+
+// ─── STATUS BADGE ───
+const Badge = ({ status }) => {
+  const map = {
+    pago: { bg: "#E8F5E9", color: "#2E7D32", label: "Pago" },
+    recebido: { bg: "#E8F5E9", color: "#2E7D32", label: "Recebido" },
+    pendente: { bg: "#FFF8E1", color: "#F57F17", label: "Pendente" },
+    entregue: { bg: "#E8F5E9", color: "#2E7D32", label: "Entregue" },
+    em_transito: { bg: "#E3F2FD", color: "#1565C0", label: "Em Trânsito" },
+    ativo: { bg: "#F3E5F5", color: "#7B1FA2", label: "Ativo" },
+    atrasado: { bg: "#FFEBEE", color: "#C62828", label: "Atrasado" },
+  };
+  const s = map[status] || map.pendente;
+  return <span style={{ padding: "4px 12px", borderRadius: 20, background: s.bg, color: s.color, fontSize: 12, fontWeight: 600 }}>{s.label}</span>;
+};
+
+// ════════════════════════════════════════
+// ═══ MAIN APP ═══
+// ════════════════════════════════════════
+export default function InfinityApp() {
+  const [page, setPage] = useState("dashboard");
+  const [sideOpen, setSideOpen] = useState(false);
+  const [isAuth, setIsAuth] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
+  const [loginForm, setLoginForm] = useState({ email: "", password: "", company: "" });
+  const [transactions, setTransactions] = useState(sampleTransactions);
+  const [purchases, setPurchases] = useState(samplePurchases);
+  const [modalOpen, setModalOpen] = useState(null);
+  const [monthFilter, setMonthFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [newTx, setNewTx] = useState({ desc: "", category: "", type: "saida", value: "", date: "", status: "pendente" });
+  const [newPurchase, setNewPurchase] = useState({ item: "", supplier: "", qty: 1, unitPrice: "", date: "", status: "em_transito" });
+  const [profiles, setProfiles] = useState([
+    { id: 1, name: "Wessilon Marques", email: "wessilon@equilibrium.com", role: "admin", avatar: "W" },
+    { id: 2, name: "Ana Silva", email: "ana@empresa.com", role: "editor", avatar: "A" },
+    { id: 3, name: "Carlos Souza", email: "carlos@empresa.com", role: "viewer", avatar: "C" },
+  ]);
+  const [whatsappModal, setWhatsappModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(profiles[0]);
+
+  // ─── AUTH SCREEN ───
+  if (!isAuth) {
+    return (
+      <>
+        <style>{globalCSS}</style>
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding: 20 }}>
+          <div className="card anim-expand" style={{ width: "100%", maxWidth: 440, padding: 0, overflow: "hidden" }}>
+            <div style={{ background: "linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding: "40px 32px 32px", textAlign: "center" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <div style={{ color: "var(--accent-light)" }}><Icon name="infinity" size={36} /></div>
+                <span style={{ fontSize: 28, fontWeight: 700, color: "var(--white)", fontFamily: "'Playfair Display', serif", letterSpacing: 1 }}>Infinity</span>
+              </div>
+              <p style={{ color: "var(--warm-gray)", fontSize: 13, marginTop: 4 }}>Gestão financeira inteligente</p>
+            </div>
+            <div style={{ padding: "32px 32px 28px" }}>
+              <div style={{ display: "flex", marginBottom: 24, borderRadius: 8, overflow: "hidden", border: "1.5px solid var(--sand)" }}>
+                {["login", "register"].map(m => (
+                  <button key={m} onClick={() => setAuthMode(m)} className="btn-press" style={{ flex: 1, padding: "10px 0", border: "none", background: authMode === m ? "var(--accent)" : "transparent", color: authMode === m ? "var(--white)" : "var(--taupe)", fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                    {m === "login" ? "Entrar" : "Cadastrar"}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {authMode === "register" && (
+                  <div className="anim-slide">
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Nome da Empresa</label>
+                    <input placeholder="Minha Empresa Ltda" value={loginForm.company} onChange={e => setLoginForm({ ...loginForm, company: e.target.value })} />
+                  </div>
+                )}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Email</label>
+                  <input type="email" placeholder="seu@email.com" value={loginForm.email} onChange={e => setLoginForm({ ...loginForm, email: e.target.value })} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Senha</label>
+                  <input type="password" placeholder="••••••••" value={loginForm.password} onChange={e => setLoginForm({ ...loginForm, password: e.target.value })} />
+                </div>
+                <button onClick={() => setIsAuth(true)} className="btn-press" style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: "var(--accent)", color: "var(--white)", fontSize: 15, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginTop: 6, transition: "all 0.2s" }}>
+                  {authMode === "login" ? "Entrar" : "Criar Conta"}
+                </button>
+              </div>
+              <p style={{ textAlign: "center", fontSize: 12, color: "var(--warm-gray)", marginTop: 16 }}>
+                {/* Supabase Auth ready */}
+                Protegido com criptografia de ponta a ponta
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ─── COMPUTED ───
+  const filteredTx = transactions.filter(t => {
+    const matchMonth = monthFilter === "all" || new Date(t.date + "T12:00:00").getMonth() === parseInt(monthFilter);
+    const matchSearch = !searchTerm || t.desc.toLowerCase().includes(searchTerm.toLowerCase()) || t.category.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchMonth && matchSearch;
+  });
+  const totalIn = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + t.value, 0);
+  const totalOut = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + t.value, 0);
+  const balance = totalIn - totalOut;
+  const pendingCount = transactions.filter(t => t.status === "pendente").length;
+
+  const expenseCategories = {};
+  filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category] = (expenseCategories[t.category] || 0) + t.value; });
+  const catColors = ["#B8926A", "#7BA387", "#C4716C", "#D4A843", "#9C8E7C", "#6B5B4E"];
+  const donutSegments = Object.entries(expenseCategories).map(([k, v], i) => ({ label: k, value: v, color: catColors[i % catColors.length] }));
+
+  const addTransaction = () => {
+    if (!newTx.desc || !newTx.value) return;
+    setTransactions(prev => [{ ...newTx, id: Date.now(), value: parseFloat(newTx.value) }, ...prev]);
+    setNewTx({ desc: "", category: "", type: "saida", value: "", date: "", status: "pendente" });
+    setModalOpen(null);
+  };
+  const addPurchase = () => {
+    if (!newPurchase.item || !newPurchase.unitPrice) return;
+    const total = newPurchase.qty * parseFloat(newPurchase.unitPrice);
+    setPurchases(prev => [{ ...newPurchase, id: Date.now(), unitPrice: parseFloat(newPurchase.unitPrice), total }, ...prev]);
+    setNewPurchase({ item: "", supplier: "", qty: 1, unitPrice: "", date: "", status: "em_transito" });
+    setModalOpen(null);
+  };
+  const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
+  const deletePurchase = (id) => setPurchases(prev => prev.filter(p => p.id !== id));
+
+  // ─── NAV ITEMS ───
+  const navItems = [
+    { id: "dashboard", icon: "dashboard", label: "Dashboard" },
+    { id: "contas", icon: "wallet", label: "Contas" },
+    { id: "compras", icon: "cart", label: "Compras" },
+    { id: "relatorios", icon: "chart", label: "Relatórios" },
+    { id: "perfis", icon: "users", label: "Perfis" },
+    { id: "perfil", icon: "user", label: "Meu Perfil" },
+    { id: "whatsapp", icon: "whatsapp", label: "WhatsApp" },
+    { id: "config", icon: "settings", label: "Configurações" },
+  ];
+
+  // ─── PAGE RENDERERS ───
+  const renderDashboard = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        <StatCard label="RECEITAS" value={fmt(totalIn)} icon="arrow_up" trend={12} delay={0} />
+        <StatCard label="DESPESAS" value={fmt(totalOut)} icon="arrow_down" trend={-5} delay={0.08} />
+        <StatCard label="SALDO" value={fmt(balance)} icon="wallet" delay={0.16} />
+        <StatCard label="PENDENTES" value={pendingCount} icon="bell" delay={0.24} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+        <div className="card anim-expand" style={{ padding: 24, animationDelay: "0.3s" }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Fluxo de Caixa</h3>
+          <MiniBarChart data={cashFlowData} height={170} />
+          <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--taupe)" }}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: "var(--success)" }} />Entradas
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--taupe)" }}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: "var(--danger)" }} />Saídas
+            </div>
+          </div>
+        </div>
+        <div className="card anim-expand" style={{ padding: 24, animationDelay: "0.38s" }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Despesas por Categoria</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 24, justifyContent: "center", flexWrap: "wrap" }}>
+            {donutSegments.length > 0 ? (
+              <>
+                <DonutChart segments={donutSegments} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {donutSegments.map((s, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />
+                      <span style={{ color: "var(--taupe)" }}>{s.label}</span>
+                      <span style={{ fontWeight: 600, marginLeft: "auto" }}>{fmt(s.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : <p style={{ color: "var(--warm-gray)", fontSize: 13 }}>Sem dados para o período</p>}
+          </div>
+        </div>
+      </div>
+      <div className="card anim-expand" style={{ padding: 24, animationDelay: "0.45s" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600 }}>Últimas Movimentações</h3>
+          <Btn icon="plus" onClick={() => { setModalOpen("addTx"); }} variant="primary">Nova</Btn>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 6px" }}>
+            <thead><tr style={{ fontSize: 12, color: "var(--taupe)", textAlign: "left" }}>
+              <th style={{ padding: "8px 12px", fontWeight: 600 }}>Descrição</th>
+              <th style={{ padding: "8px 12px", fontWeight: 600 }} className="desktop-only">Categoria</th>
+              <th style={{ padding: "8px 12px", fontWeight: 600 }}>Valor</th>
+              <th style={{ padding: "8px 12px", fontWeight: 600 }} className="desktop-only">Data</th>
+              <th style={{ padding: "8px 12px", fontWeight: 600 }}>Status</th>
+            </tr></thead>
+            <tbody>{filteredTx.slice(0, 5).map((t, i) => (
+              <tr key={t.id} className="btn-press" style={{ background: i % 2 === 0 ? "var(--cream)" : "transparent", borderRadius: 8, animation: `slideUp 0.3s ${i * 0.06}s both` }}>
+                <td style={{ padding: "12px", borderRadius: "8px 0 0 8px", fontSize: 14 }}>{t.desc}</td>
+                <td style={{ padding: "12px", fontSize: 13, color: "var(--taupe)" }} className="desktop-only">{t.category}</td>
+                <td style={{ padding: "12px", fontWeight: 600, color: t.type === "entrada" ? "var(--success)" : "var(--danger)" }}>{t.type === "entrada" ? "+" : "-"}{fmt(t.value)}</td>
+                <td style={{ padding: "12px", fontSize: 13, color: "var(--taupe)" }} className="desktop-only">{fmtDate(t.date)}</td>
+                <td style={{ padding: "12px", borderRadius: "0 8px 8px 0" }}><Badge status={t.status} /></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderContas = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Gestão de Contas</h2>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Btn icon="plus" onClick={() => setModalOpen("addTx")}>Nova Conta</Btn>
+          <Btn icon="download" variant="ghost" onClick={() => alert("PDF gerado! (Integrar com Supabase Storage)")}>PDF</Btn>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
+          <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--warm-gray)" }}><Icon name="search" size={16} /></div>
+          <input placeholder="Buscar por descrição ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ paddingLeft: 38 }} />
+        </div>
+        <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width: "auto", minWidth: 140 }}>
+          <option value="all">Todos os meses</option>
+          {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+        </select>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+        <div className="card anim-fade" style={{ padding: 18, borderLeft: "4px solid var(--success)" }}>
+          <span style={{ fontSize: 12, color: "var(--taupe)" }}>Total Entradas</span>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "var(--success)", marginTop: 4 }}>{fmt(totalIn)}</p>
+        </div>
+        <div className="card anim-fade" style={{ padding: 18, borderLeft: "4px solid var(--danger)", animationDelay: "0.08s" }}>
+          <span style={{ fontSize: 12, color: "var(--taupe)" }}>Total Saídas</span>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "var(--danger)", marginTop: 4 }}>{fmt(totalOut)}</p>
+        </div>
+        <div className="card anim-fade" style={{ padding: 18, borderLeft: "4px solid var(--accent)", animationDelay: "0.16s" }}>
+          <span style={{ fontSize: 12, color: "var(--taupe)" }}>Saldo Período</span>
+          <p style={{ fontSize: 22, fontWeight: 700, color: balance >= 0 ? "var(--success)" : "var(--danger)", marginTop: 4 }}>{fmt(balance)}</p>
+        </div>
+      </div>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr style={{ background: "var(--beige)", fontSize: 12, color: "var(--taupe)", textAlign: "left" }}>
+              <th style={{ padding: "12px 16px", fontWeight: 600 }}>Descrição</th>
+              <th style={{ padding: "12px 16px", fontWeight: 600 }} className="desktop-only">Categoria</th>
+              <th style={{ padding: "12px 16px", fontWeight: 600 }}>Tipo</th>
+              <th style={{ padding: "12px 16px", fontWeight: 600 }}>Valor</th>
+              <th style={{ padding: "12px 16px", fontWeight: 600 }} className="desktop-only">Data</th>
+              <th style={{ padding: "12px 16px", fontWeight: 600 }}>Status</th>
+              <th style={{ padding: "12px 16px", fontWeight: 600 }}>Ações</th>
+            </tr></thead>
+            <tbody>{filteredTx.map((t, i) => (
+              <tr key={t.id} style={{ borderBottom: "1px solid var(--beige)", animation: `slideUp 0.3s ${i * 0.04}s both` }}>
+                <td style={{ padding: "14px 16px", fontSize: 14 }}>{t.desc}</td>
+                <td style={{ padding: "14px 16px", fontSize: 13, color: "var(--taupe)" }} className="desktop-only">{t.category}</td>
+                <td style={{ padding: "14px 16px" }}><span style={{ padding: "3px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, background: t.type === "entrada" ? "#E8F5E9" : "#FFEBEE", color: t.type === "entrada" ? "#2E7D32" : "#C62828" }}>{t.type === "entrada" ? "Entrada" : "Saída"}</span></td>
+                <td style={{ padding: "14px 16px", fontWeight: 600, color: t.type === "entrada" ? "var(--success)" : "var(--danger)" }}>{fmt(t.value)}</td>
+                <td style={{ padding: "14px 16px", fontSize: 13, color: "var(--taupe)" }} className="desktop-only">{fmtDate(t.date)}</td>
+                <td style={{ padding: "14px 16px" }}><Badge status={t.status} /></td>
+                <td style={{ padding: "14px 16px" }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <div className="btn-press" onClick={() => deleteTransaction(t.id)} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", color: "var(--danger)", cursor: "pointer" }}><Icon name="trash" size={14} /></div>
+                  </div>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+        {filteredTx.length === 0 && <div style={{ padding: 40, textAlign: "center", color: "var(--warm-gray)" }}>Nenhuma transação encontrada</div>}
+      </div>
+    </div>
+  );
+
+  const renderCompras = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Compras & Fornecedores</h2>
+        <Btn icon="plus" onClick={() => setModalOpen("addPurchase")}>Nova Compra</Btn>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+        {purchases.map((p, i) => (
+          <div key={p.id} className="card anim-expand btn-press" style={{ padding: 20, animationDelay: `${i * 0.08}s`, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <h4 style={{ fontSize: 15, fontWeight: 600 }}>{p.item}</h4>
+                <p style={{ fontSize: 13, color: "var(--taupe)", marginTop: 2 }}>{p.supplier}</p>
+              </div>
+              <Badge status={p.status} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, background: "var(--cream)", borderRadius: 10, padding: 12 }}>
+              <div><span style={{ fontSize: 11, color: "var(--warm-gray)" }}>Qtd</span><p style={{ fontWeight: 600 }}>{p.qty}</p></div>
+              <div><span style={{ fontSize: 11, color: "var(--warm-gray)" }}>Unit.</span><p style={{ fontWeight: 600 }}>{fmt(p.unitPrice)}</p></div>
+              <div><span style={{ fontSize: 11, color: "var(--warm-gray)" }}>Total</span><p style={{ fontWeight: 700, color: "var(--accent)" }}>{fmt(p.total)}</p></div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "var(--warm-gray)" }}>{fmtDate(p.date)}</span>
+              <div className="btn-press" onClick={() => deletePurchase(p.id)} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", color: "var(--danger)", cursor: "pointer" }}><Icon name="trash" size={14} /></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderRelatorios = () => {
+    const reportTypes = [
+      { title: "Fluxo de Caixa", desc: "Movimentações de entrada e saída por período", icon: "chart" },
+      { title: "DRE Simplificado", desc: "Demonstrativo de resultado do exercício", icon: "file" },
+      { title: "Contas a Pagar", desc: "Todas as contas com vencimento futuro", icon: "calendar" },
+      { title: "Contas a Receber", desc: "Receitas pendentes e projeções", icon: "wallet" },
+      { title: "Compras por Fornecedor", desc: "Consolidado de compras por fornecedor", icon: "cart" },
+      { title: "Categorias de Despesa", desc: "Ranking de categorias por valor", icon: "tag" },
+    ];
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Relatórios</h2>
+          <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width: "auto", minWidth: 160 }}>
+            <option value="all">Todos os meses</option>
+            {months.map((m, i) => <option key={i} value={i}>{m} 2026</option>)}
+          </select>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {reportTypes.map((r, i) => (
+            <div key={i} className="card anim-expand btn-press" style={{ padding: 24, animationDelay: `${i * 0.07}s`, cursor: "pointer", display: "flex", flexDirection: "column", gap: 16 }} onClick={() => alert(`Relatório "${r.title}" gerado!\n\nIntegrar: Supabase Storage → gerar PDF server-side e salvar referência na tabela reports.`)}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--beige)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)" }}><Icon name={r.icon} size={22} /></div>
+              <div>
+                <h4 style={{ fontSize: 15, fontWeight: 600 }}>{r.title}</h4>
+                <p style={{ fontSize: 13, color: "var(--taupe)", marginTop: 4, lineHeight: 1.5 }}>{r.desc}</p>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
+                <Btn variant="primary" icon="eye" style={{ fontSize: 12, padding: "8px 14px" }}>Visualizar</Btn>
+                <Btn variant="ghost" icon="download" style={{ fontSize: 12, padding: "8px 14px" }}>PDF</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* In-app report preview */}
+        <div className="card anim-slide" style={{ padding: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Prévia — Fluxo de Caixa</h3>
+          <MiniBarChart data={cashFlowData} height={200} />
+          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div style={{ background: "var(--cream)", borderRadius: 10, padding: 14, textAlign: "center" }}>
+              <span style={{ fontSize: 12, color: "var(--taupe)" }}>Total Entradas</span>
+              <p style={{ fontSize: 18, fontWeight: 700, color: "var(--success)", marginTop: 4 }}>{fmt(cashFlowData.reduce((a, d) => a + d.in, 0))}</p>
+            </div>
+            <div style={{ background: "var(--cream)", borderRadius: 10, padding: 14, textAlign: "center" }}>
+              <span style={{ fontSize: 12, color: "var(--taupe)" }}>Total Saídas</span>
+              <p style={{ fontSize: 18, fontWeight: 700, color: "var(--danger)", marginTop: 4 }}>{fmt(cashFlowData.reduce((a, d) => a + d.out, 0))}</p>
+            </div>
+            <div style={{ background: "var(--cream)", borderRadius: 10, padding: 14, textAlign: "center" }}>
+              <span style={{ fontSize: 12, color: "var(--taupe)" }}>Resultado</span>
+              <p style={{ fontSize: 18, fontWeight: 700, color: "var(--accent)", marginTop: 4 }}>{fmt(cashFlowData.reduce((a, d) => a + d.in - d.out, 0))}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPerfis = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Perfis & Permissões</h2>
+        <Btn icon="plus" onClick={() => alert("Integrar com Supabase: inserir novo perfil na tabela profiles")}>Novo Perfil</Btn>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+        {profiles.map((p, i) => (
+          <div key={p.id} className="card anim-expand" style={{ padding: 24, animationDelay: `${i * 0.08}s` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg, var(--accent), var(--accent-light))", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--white)", fontSize: 20, fontWeight: 700 }}>{p.avatar}</div>
+              <div>
+                <h4 style={{ fontSize: 15, fontWeight: 600 }}>{p.name}</h4>
+                <p style={{ fontSize: 13, color: "var(--taupe)" }}>{p.email}</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <select value={p.role} onChange={e => setProfiles(prev => prev.map(x => x.id === p.id ? { ...x, role: e.target.value } : x))} style={{ width: "auto", minWidth: 130, padding: "8px 12px", fontSize: 13 }}>
+                <option value="admin">Admin (tudo)</option>
+                <option value="editor">Editor (ver + editar)</option>
+                <option value="viewer">Visualizador (ver)</option>
+              </select>
+              <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: p.role === "admin" ? "#E3F2FD" : p.role === "editor" ? "#FFF8E1" : "#F3E5F5", color: p.role === "admin" ? "#1565C0" : p.role === "editor" ? "#F57F17" : "#7B1FA2" }}>
+                {p.role === "admin" ? "Acesso Total" : p.role === "editor" ? "Editar & Ver" : "Somente Ver"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="card anim-slide" style={{ padding: 24 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Legenda de Permissões</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+          {[
+            { role: "Admin", perms: "Criar, editar, excluir, gerar relatórios, gerenciar perfis", color: "#1565C0" },
+            { role: "Editor", perms: "Criar e editar contas, compras. Sem gerenciar perfis", color: "#F57F17" },
+            { role: "Visualizador", perms: "Apenas visualizar dados e relatórios", color: "#7B1FA2" },
+          ].map((r, i) => (
+            <div key={i} style={{ background: "var(--cream)", borderRadius: 10, padding: 14, borderLeft: `3px solid ${r.color}` }}>
+              <strong style={{ fontSize: 13 }}>{r.role}</strong>
+              <p style={{ fontSize: 12, color: "var(--taupe)", marginTop: 4, lineHeight: 1.5 }}>{r.perms}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPerfil = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 600 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Meu Perfil</h2>
+      <div className="card anim-expand" style={{ padding: 32 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 28 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, var(--accent), var(--brown))", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--white)", fontSize: 28, fontWeight: 700 }}>{currentUser.avatar}</div>
+          <div>
+            <h3 style={{ fontSize: 20, fontWeight: 700 }}>{currentUser.name}</h3>
+            <p style={{ fontSize: 14, color: "var(--taupe)" }}>{currentUser.email}</p>
+            <span style={{ padding: "3px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, background: "#E3F2FD", color: "#1565C0", marginTop: 4, display: "inline-block" }}>{currentUser.role === "admin" ? "Administrador" : currentUser.role === "editor" ? "Editor" : "Visualizador"}</span>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Nome Completo</label>
+            <input value={currentUser.name} onChange={e => setCurrentUser({ ...currentUser, name: e.target.value })} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Email</label>
+            <input type="email" value={currentUser.email} onChange={e => setCurrentUser({ ...currentUser, email: e.target.value })} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Nova Senha</label>
+            <input type="password" placeholder="Deixe em branco para manter" />
+          </div>
+          <Btn icon="check" onClick={() => alert("Salvo! Integrar com Supabase Auth updateUser()")}>Salvar Alterações</Btn>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderWhatsApp = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 700 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Integração WhatsApp</h2>
+      <div className="card anim-expand" style={{ padding: 32, textAlign: "center" }}>
+        <div style={{ width: 72, height: 72, borderRadius: 20, background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: "white" }}><Icon name="whatsapp" size={36} /></div>
+        <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Conecte seu WhatsApp</h3>
+        <p style={{ color: "var(--taupe)", fontSize: 14, lineHeight: 1.6, marginBottom: 24, maxWidth: 480, margin: "0 auto 24px" }}>
+          Envie mensagens como "Paguei R$ 450 de internet" ou "Recebi R$ 5.000 do cliente X" e o sistema registra automaticamente.
+        </p>
+        <div style={{ background: "var(--cream)", borderRadius: 14, padding: 20, marginBottom: 24, textAlign: "left" }}>
+          <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Como funciona:</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[
+              { step: "1", text: "Configure um webhook via API do WhatsApp Business ou serviço como Twilio/Z-API" },
+              { step: "2", text: "O webhook envia a mensagem para uma Supabase Edge Function" },
+              { step: "3", text: "A função analisa o texto (com IA) e extrai: tipo, valor, categoria, descrição" },
+              { step: "4", text: "A transação é inserida automaticamente na tabela do Supabase" },
+            ].map((s, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", animation: `slideUp 0.3s ${i * 0.1}s both` }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{s.step}</div>
+                <p style={{ fontSize: 13, color: "var(--brown)", lineHeight: 1.5, paddingTop: 4 }}>{s.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ background: "var(--cream)", borderRadius: 14, padding: 20, textAlign: "left", marginBottom: 24 }}>
+          <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Exemplos de mensagens aceitas:</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[
+              '"Paguei R$ 3.200 aluguel"',
+              '"Recebi R$ 12.000 venda projeto X"',
+              '"Comprei 5 caixas de papel por R$ 225"',
+              '"Conta de luz R$ 480 vence dia 15"',
+            ].map((m, i) => (
+              <div key={i} style={{ background: "white", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--brown)", borderLeft: "3px solid #25D366" }}>{m}</div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <Btn variant="success" icon="whatsapp" style={{ background: "#25D366" }} onClick={() => alert("Abrindo configuração de webhook...\n\nPasso 1: Crie uma Edge Function no Supabase\nPasso 2: Configure o webhook do WhatsApp Business apontando para:\nhttps://YOUR_PROJECT.supabase.co/functions/v1/whatsapp-webhook")}>
+            Configurar Webhook
+          </Btn>
+          <Btn variant="ghost" onClick={() => alert("Documentação da integração")}>Ver Documentação</Btn>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderConfig = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 600 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Configurações</h2>
+      <div className="card anim-expand" style={{ padding: 0 }}>
+        {[
+          { label: "Dados da Empresa", desc: "Nome, CNPJ, endereço, logo", icon: "settings" },
+          { label: "Categorias Financeiras", desc: "Gerenciar categorias de receitas e despesas", icon: "tag" },
+          { label: "Backup de Dados", desc: "Exportar todos os dados em CSV/JSON", icon: "download" },
+          { label: "Notificações", desc: "Alertas de vencimento e lembretes", icon: "bell" },
+          { label: "Plano & Assinatura", desc: "Gerenciar plano SaaS e pagamentos", icon: "wallet" },
+        ].map((item, i) => (
+          <div key={i} className="btn-press" style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 24px", borderBottom: i < 4 ? "1px solid var(--beige)" : "none", cursor: "pointer", animation: `slideUp 0.3s ${i * 0.06}s both` }} onClick={() => alert(`Configurar: ${item.label}\n\nIntegrar com Supabase: tabela companies`)}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--beige)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)" }}><Icon name={item.icon} size={18} /></div>
+            <div style={{ flex: 1 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600 }}>{item.label}</h4>
+              <p style={{ fontSize: 12, color: "var(--taupe)", marginTop: 2 }}>{item.desc}</p>
+            </div>
+            <Icon name="arrow_down" size={16} />
+          </div>
+        ))}
+      </div>
+      <div className="card anim-slide" style={{ padding: 24 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Conexão Supabase</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Project URL</label>
+            <input value={SUPABASE_URL} readOnly style={{ fontFamily: "monospace", fontSize: 13 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Anon Key</label>
+            <input type="password" value="••••••••••••••••" readOnly />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--warning)" }} />
+            <span style={{ fontSize: 13, color: "var(--taupe)" }}>Aguardando configuração das chaves</span>
+          </div>
+        </div>
+      </div>
+      <Btn variant="danger" icon="logout" onClick={() => setIsAuth(false)} full>Sair da Conta</Btn>
+    </div>
+  );
+
+  const pages = { dashboard: renderDashboard, contas: renderContas, compras: renderCompras, relatorios: renderRelatorios, perfis: renderPerfis, perfil: renderPerfil, whatsapp: renderWhatsApp, config: renderConfig };
+
+  return (
+    <>
+      <style>{globalCSS}</style>
+      <div style={{ display: "flex", minHeight: "100vh", background: "var(--cream)" }}>
+        {/* ─── SIDEBAR DESKTOP ─── */}
+        <aside className="desktop-only" style={{ width: 240, background: "var(--white)", borderRight: "1px solid var(--beige)", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
+          <div style={{ padding: "24px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--beige)" }}>
+            <div style={{ color: "var(--accent)" }}><Icon name="infinity" size={28} /></div>
+            <span style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Playfair Display', serif", letterSpacing: 0.5 }}>Infinity</span>
+          </div>
+          <nav style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+            {navItems.map(n => (
+              <div key={n.id} onClick={() => setPage(n.id)} className="btn-press" style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 10, cursor: "pointer", background: page === n.id ? "var(--beige)" : "transparent", color: page === n.id ? "var(--dark)" : "var(--taupe)", fontWeight: page === n.id ? 600 : 400, fontSize: 14, transition: "all 0.2s" }}>
+                <Icon name={n.icon} size={18} />{n.label}
+              </div>
+            ))}
+          </nav>
+          <div style={{ padding: "16px 14px", borderTop: "1px solid var(--beige)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, var(--accent), var(--accent-light))", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--white)", fontSize: 14, fontWeight: 700 }}>{currentUser.avatar}</div>
+              <div><p style={{ fontSize: 13, fontWeight: 600 }}>{currentUser.name.split(" ")[0]}</p><p style={{ fontSize: 11, color: "var(--taupe)" }}>Admin</p></div>
+            </div>
+          </div>
+        </aside>
+
+        {/* ─── MOBILE SIDEBAR OVERLAY ─── */}
+        {sideOpen && (
+          <div className="mobile-only" onClick={() => setSideOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(61,50,41,0.4)", zIndex: 200 }}>
+            <aside onClick={e => e.stopPropagation()} className="anim-fade" style={{ width: 260, background: "var(--white)", height: "100%", padding: "20px 10px", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "4px 10px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--beige)", marginBottom: 12 }}>
+                <div style={{ color: "var(--accent)" }}><Icon name="infinity" size={24} /></div>
+                <span style={{ fontSize: 18, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Infinity</span>
+              </div>
+              {navItems.map(n => (
+                <div key={n.id} onClick={() => { setPage(n.id); setSideOpen(false); }} className="btn-press" style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 10, cursor: "pointer", background: page === n.id ? "var(--beige)" : "transparent", color: page === n.id ? "var(--dark)" : "var(--taupe)", fontWeight: page === n.id ? 600 : 400, fontSize: 14 }}>
+                  <Icon name={n.icon} size={18} />{n.label}
+                </div>
+              ))}
+            </aside>
+          </div>
+        )}
+
+        {/* ─── MAIN CONTENT ─── */}
+        <main style={{ flex: 1, marginLeft: window.innerWidth > 768 ? 240 : 0, minHeight: "100vh" }}>
+          {/* TOP BAR */}
+          <header style={{ position: "sticky", top: 0, background: "rgba(250,247,242,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--beige)", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 50 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="mobile-only btn-press" onClick={() => setSideOpen(true)} style={{ cursor: "pointer" }}><Icon name="menu" size={22} /></div>
+              <h1 style={{ fontSize: 18, fontWeight: 600, fontFamily: "'Playfair Display', serif" }}>
+                {navItems.find(n => n.id === page)?.label || "Dashboard"}
+              </h1>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="btn-press" style={{ width: 36, height: 36, borderRadius: 10, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "1px solid var(--beige)", position: "relative" }}>
+                <Icon name="bell" size={17} />
+                {pendingCount > 0 && <div style={{ position: "absolute", top: -3, right: -3, width: 16, height: 16, borderRadius: "50%", background: "var(--danger)", color: "white", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{pendingCount}</div>}
+              </div>
+              <div className="btn-press desktop-only" onClick={() => setPage("perfil")} style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, var(--accent), var(--accent-light))", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--white)", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{currentUser.avatar}</div>
+            </div>
+          </header>
+
+          {/* PAGE CONTENT */}
+          <div key={page} className="anim-fade" style={{ padding: "24px", maxWidth: 1200 }}>
+            {pages[page]?.()}
+          </div>
+        </main>
+      </div>
+
+      {/* ─── MODALS ─── */}
+      <Modal open={modalOpen === "addTx"} onClose={() => setModalOpen(null)} title="Nova Transação">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Descrição</label><input placeholder="Ex: Pagamento fornecedor" value={newTx.desc} onChange={e => setNewTx({ ...newTx, desc: e.target.value })} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Categoria</label><input placeholder="Fornecedores, Fixas..." value={newTx.category} onChange={e => setNewTx({ ...newTx, category: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Tipo</label>
+              <select value={newTx.type} onChange={e => setNewTx({ ...newTx, type: e.target.value })}><option value="saida">Saída</option><option value="entrada">Entrada</option></select>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Valor (R$)</label><input type="number" placeholder="0,00" value={newTx.value} onChange={e => setNewTx({ ...newTx, value: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Data</label><input type="date" value={newTx.date} onChange={e => setNewTx({ ...newTx, date: e.target.value })} /></div>
+          </div>
+          <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Status</label>
+            <select value={newTx.status} onChange={e => setNewTx({ ...newTx, status: e.target.value })}><option value="pendente">Pendente</option><option value="pago">Pago</option><option value="recebido">Recebido</option><option value="atrasado">Atrasado</option></select>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <Btn onClick={addTransaction} icon="check" full>Salvar Transação</Btn>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={modalOpen === "addPurchase"} onClose={() => setModalOpen(null)} title="Nova Compra">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Item</label><input placeholder="Nome do produto" value={newPurchase.item} onChange={e => setNewPurchase({ ...newPurchase, item: e.target.value })} /></div>
+          <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Fornecedor</label><input placeholder="Nome do fornecedor" value={newPurchase.supplier} onChange={e => setNewPurchase({ ...newPurchase, supplier: e.target.value })} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Quantidade</label><input type="number" value={newPurchase.qty} onChange={e => setNewPurchase({ ...newPurchase, qty: parseInt(e.target.value) || 1 })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Preço Unit.</label><input type="number" placeholder="0,00" value={newPurchase.unitPrice} onChange={e => setNewPurchase({ ...newPurchase, unitPrice: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Data</label><input type="date" value={newPurchase.date} onChange={e => setNewPurchase({ ...newPurchase, date: e.target.value })} /></div>
+          </div>
+          <Btn onClick={addPurchase} icon="check" full>Salvar Compra</Btn>
+        </div>
+      </Modal>
+    </>
+  );
+}
