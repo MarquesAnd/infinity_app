@@ -16,6 +16,7 @@ const Icon = ({ name, size = 20 }) => {
     chart: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
     user: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
     users: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+    group: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
     plus: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
     download: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
     search: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
@@ -38,6 +39,7 @@ const Icon = ({ name, size = 20 }) => {
     tag: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
     upload: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
     mail: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+    refresh: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>,
   };
   return icons[name] || null;
 };
@@ -129,13 +131,13 @@ const Btn = ({ children, variant="primary", onClick, icon, style:s, full, disabl
 };
 
 // ─── STAT CARD ───
-const StatCard = ({ label, value, icon, trend, delay=0 }) => (
+const StatCard = ({ label, value, icon, trend, delay=0, color }) => (
   <div className="card anim-expand" style={{ padding:22, animationDelay:`${delay}s`, display:"flex", flexDirection:"column", gap:12 }}>
     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-      <span style={{ fontSize:13, color:"var(--taupe)", fontWeight:500, letterSpacing:0.3 }}>{label}</span>
-      <div style={{ width:38, height:38, borderRadius:10, background:"var(--beige)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--accent)" }}><Icon name={icon} size={18} /></div>
+      <span style={{ fontSize:12, color:"var(--taupe)", fontWeight:600, letterSpacing:0.5, textTransform:"uppercase" }}>{label}</span>
+      <div style={{ width:38, height:38, borderRadius:10, background:"var(--beige)", display:"flex", alignItems:"center", justifyContent:"center", color: color || "var(--accent)" }}><Icon name={icon} size={18} /></div>
     </div>
-    <div style={{ fontSize:26, fontWeight:700, fontFamily:"'Playfair Display', serif", letterSpacing:-0.5 }}>{value}</div>
+    <div style={{ fontSize:26, fontWeight:700, fontFamily:"'Playfair Display', serif", letterSpacing:-0.5, color: color || "var(--dark)" }}>{value}</div>
     {trend !== undefined && <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, fontWeight:500, color:trend>=0?"var(--success)":"var(--danger)" }}>
       <Icon name={trend>=0?"arrow_up":"arrow_down"} size={14} />{Math.abs(trend)}% vs mês anterior
     </div>}
@@ -155,13 +157,13 @@ const Badge = ({ status }) => {
     cancelado:{ bg:"#FFEBEE", color:"#C62828", label:"Cancelado" },
   };
   const s = map[status] || map.pendente;
-  return <span style={{ padding:"4px 12px", borderRadius:20, background:s.bg, color:s.color, fontSize:12, fontWeight:600 }}>{s.label}</span>;
+  return <span style={{ padding:"4px 12px", borderRadius:20, background:s.bg, color:s.color, fontSize:12, fontWeight:600, whiteSpace:"nowrap" }}>{s.label}</span>;
 };
 
 // ─── AVATAR ───
 const Avatar = ({ user, size=36 }) => {
   if (user?.avatar_url) {
-    return <img src={user.avatar_url} alt="" style={{ width:size, height:size, borderRadius:size/3, objectFit:"cover" }} />;
+    return <img src={user.avatar_url} alt="" style={{ width:size, height:size, borderRadius:size/3, objectFit:"cover", flexShrink:0 }} />;
   }
   const letter = (user?.name || user?.email || "?")[0].toUpperCase();
   return (
@@ -169,6 +171,464 @@ const Avatar = ({ user, size=36 }) => {
       {letter}
     </div>
   );
+};
+
+// ─── PDF GENERATOR ───
+const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, monthLabel }) => {
+  const doc = new jsPDF({ unit:"mm", format:"a4" });
+  const W = 210, ML = 15, MR = 195, CW = MR - ML;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("pt-BR");
+  const timeStr = now.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+
+  // ── PALETTE ──
+  const C = {
+    dark: [61, 50, 41],
+    brown: [107, 91, 78],
+    accent: [184, 146, 106],
+    accentLight: [212, 184, 150],
+    success: [123, 163, 135],
+    danger: [196, 113, 108],
+    warning: [212, 168, 67],
+    cream: [250, 247, 242],
+    beige: [240, 235, 227],
+    sand: [232, 224, 213],
+    white: [255, 255, 255],
+    gray: [156, 142, 124],
+    lightGray: [196, 186, 168],
+  };
+
+  const setFill = (c) => doc.setFillColor(c[0], c[1], c[2]);
+  const setDraw = (c) => doc.setDrawColor(c[0], c[1], c[2]);
+  const setTxt = (c) => doc.setTextColor(c[0], c[1], c[2]);
+  const rect = (x, y, w, h, style="F") => doc.rect(x, y, w, h, style);
+
+  const addPageFooter = (pageNum, totalPages) => {
+    setFill(C.beige);
+    rect(0, 285, W, 12);
+    setTxt(C.gray);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Infinity — Gestão Financeira · ${company}`, ML, 292);
+    doc.text(`Página ${pageNum} de ${totalPages}`, MR, 292, { align:"right" });
+    doc.text(`Gerado em ${dateStr} às ${timeStr}`, W/2, 292, { align:"center" });
+  };
+
+  const addPageHeader = (title, subtitle) => {
+    // Dark header band
+    setFill(C.dark);
+    rect(0, 0, W, 38);
+    // Accent accent strip
+    setFill(C.accent);
+    rect(0, 36, W, 3);
+    // Logo symbol
+    setTxt(C.accentLight);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("∞", ML + 1, 22);
+    // Title
+    setTxt(C.white);
+    doc.setFontSize(16);
+    doc.text("Infinity", ML + 13, 17);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    setTxt(C.accentLight);
+    doc.text("Gestão Financeira Inteligente", ML + 13, 24);
+    // Report title
+    setTxt(C.white);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, MR, 17, { align:"right" });
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    setTxt(C.accentLight);
+    doc.text(subtitle, MR, 24, { align:"right" });
+  };
+
+  const drawInfoRow = (y, items) => {
+    setFill(C.cream);
+    rect(ML, y, CW, 10);
+    setDraw(C.sand);
+    doc.setLineWidth(0.3);
+    rect(ML, y, CW, 10, "S");
+    setTxt(C.gray);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    const colW = CW / items.length;
+    items.forEach(({ label, value }, i) => {
+      const x = ML + i * colW + 4;
+      doc.text(label, x, y + 4);
+      setTxt(C.dark);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(value, x, y + 8.5);
+      setTxt(C.gray);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+    });
+  };
+
+  const drawSummaryBoxes = (y, boxes) => {
+    const bw = CW / boxes.length;
+    boxes.forEach(({ label, value, color }, i) => {
+      const x = ML + i * bw;
+      setFill(color === "success" ? [236, 247, 239] : color === "danger" ? [253, 236, 235] : C.cream);
+      rect(x + (i > 0 ? 2 : 0), y, bw - (i > 0 ? 2 : 0) - (i < boxes.length-1 ? 2 : 0), 20);
+      setDraw(color === "success" ? C.success : color === "danger" ? C.danger : C.sand);
+      doc.setLineWidth(0.4);
+      rect(x + (i > 0 ? 2 : 0), y, bw - (i > 0 ? 2 : 0) - (i < boxes.length-1 ? 2 : 0), 20, "S");
+      setTxt(C.gray);
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(label.toUpperCase(), x + (i > 0 ? 2 : 0) + 4, y + 6);
+      setTxt(color === "success" ? C.success : color === "danger" ? C.danger : C.dark);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(value, x + (i > 0 ? 2 : 0) + 4, y + 15);
+    });
+    return y + 22;
+  };
+
+  const drawTableHeader = (y, cols) => {
+    setFill(C.brown);
+    rect(ML, y, CW, 8);
+    setTxt(C.white);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    cols.forEach(({ label, x, align }) => {
+      doc.text(label, x, y + 5.5, { align: align || "left" });
+    });
+    return y + 8;
+  };
+
+  const drawTableRow = (y, cols, isEven) => {
+    if (isEven) {
+      setFill(C.cream);
+      rect(ML, y, CW, 7, "F");
+    }
+    setDraw(C.sand);
+    doc.setLineWidth(0.2);
+    doc.line(ML, y + 7, MR, y + 7);
+    setTxt(C.dark);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    cols.forEach(({ text, x, align, color }) => {
+      if (color) setTxt(color);
+      else setTxt(C.dark);
+      doc.text(String(text || ""), x, y + 5, { align: align || "left" });
+    });
+    return y + 7;
+  };
+
+  const checkPageBreak = (y, needed, pageNum, totalPagesRef) => {
+    if (y + needed > 282) {
+      addPageFooter(pageNum, "..."); // placeholder
+      doc.addPage();
+      pageNum++;
+      totalPagesRef.count++;
+      addPageHeader("(continuação)", "");
+      return { y: 50, pageNum };
+    }
+    return { y, pageNum };
+  };
+
+  // ══════════════════════════════════════════
+  // TRANSACTIONS REPORT
+  // ══════════════════════════════════════════
+  if (type === "transactions" || type === "fluxo") {
+    const txList = filteredTx;
+    const totalIn = txList.filter(t => t.type === "entrada").reduce((a,t) => a + Number(t.value), 0);
+    const totalOut = txList.filter(t => t.type === "saida").reduce((a,t) => a + Number(t.value), 0);
+    const balance = totalIn - totalOut;
+    const pending = txList.filter(t => t.status === "pendente" || t.status === "atrasado").length;
+
+    // Categories
+    const cats = {};
+    txList.filter(t => t.type === "saida").forEach(t => { cats[t.category || "Outros"] = (cats[t.category || "Outros"] || 0) + Number(t.value); });
+    const catEntries = Object.entries(cats).sort((a,b) => b[1]-a[1]);
+
+    addPageHeader("RELATÓRIO DE TRANSAÇÕES", `${monthLabel} · Empresa: ${company}`);
+
+    let y = 50;
+    // Info row
+    drawInfoRow(y, [
+      { label: "Empresa", value: company.slice(0, 28) },
+      { label: "Responsável", value: user.slice(0, 20) },
+      { label: "Período", value: monthLabel },
+      { label: "Total de registros", value: String(txList.length) },
+    ]);
+    y += 16;
+
+    // Summary boxes
+    y = drawSummaryBoxes(y, [
+      { label: "Total Entradas", value: fmt(totalIn), color: "success" },
+      { label: "Total Saídas", value: fmt(totalOut), color: "danger" },
+      { label: "Saldo do Período", value: fmt(balance), color: balance >= 0 ? "success" : "danger" },
+      { label: "Pendentes", value: String(pending) + " lançamento(s)", color: "neutral" },
+    ]);
+
+    y += 6;
+
+    // Table
+    setTxt(C.dark);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Lançamentos", ML, y);
+    y += 6;
+
+    const cols = [
+      { label: "DATA", x: ML + 2 },
+      { label: "DESCRIÇÃO", x: ML + 23 },
+      { label: "CATEGORIA", x: ML + 100 },
+      { label: "TIPO", x: ML + 140 },
+      { label: "VALOR", x: MR - 2, align: "right" },
+      { label: "STATUS", x: ML + 158 },
+    ];
+    y = drawTableHeader(y, cols);
+
+    let pageNum = 1;
+    const totalPagesRef = { count: 1 };
+    txList.forEach((t, i) => {
+      const res = checkPageBreak(y, 7, pageNum, totalPagesRef);
+      y = res.y; pageNum = res.pageNum;
+      const valColor = t.type === "entrada" ? C.success : C.danger;
+      y = drawTableRow(y, [
+        { text: fmtDate(t.date), x: ML + 2 },
+        { text: (t.description || "").slice(0, 38), x: ML + 23 },
+        { text: (t.category || "—").slice(0, 18), x: ML + 100 },
+        { text: t.type === "entrada" ? "Entrada" : "Saída", x: ML + 140 },
+        { text: fmt(t.value), x: MR - 2, align: "right", color: valColor },
+        { text: t.status, x: ML + 158 },
+      ], i % 2 === 0);
+    });
+
+    if (txList.length === 0) {
+      setTxt(C.gray);
+      doc.setFontSize(9);
+      doc.text("Nenhuma transação no período selecionado.", ML + 4, y + 6);
+      y += 14;
+    }
+
+    // Total line
+    y += 2;
+    setFill(C.dark);
+    rect(ML, y, CW, 8);
+    setTxt(C.accentLight);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("RESULTADO DO PERÍODO", ML + 4, y + 5.5);
+    setTxt(balance >= 0 ? [150, 220, 160] : [240, 160, 155]);
+    doc.text(fmt(balance), MR - 2, y + 5.5, { align: "right" });
+    y += 12;
+
+    // Categories breakdown (if space)
+    if (catEntries.length > 0 && y < 230) {
+      y += 4;
+      setTxt(C.dark);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Despesas por Categoria", ML, y);
+      y += 6;
+      y = drawTableHeader(y, [
+        { label: "CATEGORIA", x: ML + 4 },
+        { label: "VALOR", x: ML + 100 },
+        { label: "% DO TOTAL", x: MR - 2, align: "right" },
+      ]);
+      catEntries.forEach(([ cat, val ], i) => {
+        const pct = totalOut > 0 ? ((val/totalOut)*100).toFixed(1) : "0.0";
+        y = drawTableRow(y, [
+          { text: cat.slice(0, 40), x: ML + 4 },
+          { text: fmt(val), x: ML + 100, color: C.danger },
+          { text: pct + "%", x: MR - 2, align: "right" },
+        ], i % 2 === 0);
+      });
+    }
+
+    addPageFooter(1, 1);
+    doc.save(`infinity-transacoes-${new Date().toISOString().slice(0,10)}.pdf`);
+  }
+
+  // ══════════════════════════════════════════
+  // PURCHASES REPORT
+  // ══════════════════════════════════════════
+  else if (type === "purchases") {
+    const totalPurchases = purchases.reduce((a,p) => a + Number(p.total), 0);
+    const delivered = purchases.filter(p => p.status === "entregue" || p.status === "ativo").length;
+    const inTransit = purchases.filter(p => p.status === "em_transito").length;
+    const cancelled = purchases.filter(p => p.status === "cancelado").length;
+
+    // Suppliers
+    const suppliers = {};
+    purchases.forEach(p => { suppliers[p.supplier || "Sem fornecedor"] = (suppliers[p.supplier || "Sem fornecedor"] || 0) + Number(p.total); });
+    const supEntries = Object.entries(suppliers).sort((a,b) => b[1]-a[1]);
+
+    addPageHeader("RELATÓRIO DE COMPRAS", `Empresa: ${company} · ${dateStr}`);
+
+    let y = 50;
+    drawInfoRow(y, [
+      { label: "Empresa", value: company.slice(0, 28) },
+      { label: "Responsável", value: user.slice(0, 20) },
+      { label: "Total de compras", value: String(purchases.length) },
+      { label: "Data do relatório", value: dateStr },
+    ]);
+    y += 16;
+
+    y = drawSummaryBoxes(y, [
+      { label: "Total Gasto", value: fmt(totalPurchases), color: "danger" },
+      { label: "Entregues / Ativos", value: String(delivered), color: "success" },
+      { label: "Em Trânsito", value: String(inTransit), color: "neutral" },
+      { label: "Cancelados", value: String(cancelled), color: "danger" },
+    ]);
+
+    y += 6;
+    setTxt(C.dark);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Lista de Compras", ML, y);
+    y += 6;
+
+    const cols = [
+      { label: "DATA", x: ML + 2 },
+      { label: "ITEM", x: ML + 22 },
+      { label: "FORNECEDOR", x: ML + 80 },
+      { label: "QTD", x: ML + 130 },
+      { label: "UNIT.", x: ML + 145 },
+      { label: "TOTAL", x: MR - 2, align: "right" },
+      { label: "STATUS", x: ML + 158 },
+    ];
+    y = drawTableHeader(y, cols);
+
+    let pageNum = 1;
+    const totalPagesRef = { count: 1 };
+    purchases.forEach((p, i) => {
+      const res = checkPageBreak(y, 7, pageNum, totalPagesRef);
+      y = res.y; pageNum = res.pageNum;
+      y = drawTableRow(y, [
+        { text: fmtDate(p.date), x: ML + 2 },
+        { text: (p.item || "").slice(0, 25), x: ML + 22 },
+        { text: (p.supplier || "—").slice(0, 18), x: ML + 80 },
+        { text: String(p.qty), x: ML + 130 },
+        { text: fmt(p.unit_price), x: ML + 145 },
+        { text: fmt(p.total), x: MR - 2, align: "right", color: C.danger },
+        { text: p.status, x: ML + 158 },
+      ], i % 2 === 0);
+    });
+
+    if (purchases.length === 0) {
+      setTxt(C.gray);
+      doc.setFontSize(9);
+      doc.text("Nenhuma compra registrada.", ML + 4, y + 6);
+      y += 14;
+    }
+
+    // Total
+    y += 2;
+    setFill(C.dark);
+    rect(ML, y, CW, 8);
+    setTxt(C.accentLight);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("TOTAL GASTO EM COMPRAS", ML + 4, y + 5.5);
+    setTxt([240, 160, 155]);
+    doc.text(fmt(totalPurchases), MR - 2, y + 5.5, { align: "right" });
+    y += 12;
+
+    // Suppliers breakdown
+    if (supEntries.length > 0 && y < 230) {
+      y += 4;
+      setTxt(C.dark);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Gastos por Fornecedor", ML, y);
+      y += 6;
+      y = drawTableHeader(y, [
+        { label: "FORNECEDOR", x: ML + 4 },
+        { label: "TOTAL", x: ML + 100 },
+        { label: "% DO TOTAL", x: MR - 2, align: "right" },
+      ]);
+      supEntries.forEach(([ sup, val ], i) => {
+        const pct = totalPurchases > 0 ? ((val/totalPurchases)*100).toFixed(1) : "0.0";
+        y = drawTableRow(y, [
+          { text: sup.slice(0, 45), x: ML + 4 },
+          { text: fmt(val), x: ML + 100, color: C.danger },
+          { text: pct + "%", x: MR - 2, align: "right" },
+        ], i % 2 === 0);
+      });
+    }
+
+    addPageFooter(1, 1);
+    doc.save(`infinity-compras-${new Date().toISOString().slice(0,10)}.pdf`);
+  }
+
+  // ══════════════════════════════════════════
+  // FULL REPORT
+  // ══════════════════════════════════════════
+  else if (type === "completo") {
+    const txIn = transactions.filter(t => t.type === "entrada").reduce((a,t) => a + Number(t.value), 0);
+    const txOut = transactions.filter(t => t.type === "saida").reduce((a,t) => a + Number(t.value), 0);
+    const totalPurchases = purchases.reduce((a,p) => a + Number(p.total), 0);
+    const balance = txIn - txOut;
+
+    addPageHeader("RELATÓRIO GERENCIAL COMPLETO", `Empresa: ${company} · ${dateStr}`);
+
+    let y = 50;
+    drawInfoRow(y, [
+      { label: "Empresa", value: company.slice(0, 28) },
+      { label: "Responsável", value: user.slice(0, 20) },
+      { label: "Transações", value: String(transactions.length) },
+      { label: "Compras", value: String(purchases.length) },
+    ]);
+    y += 16;
+
+    y = drawSummaryBoxes(y, [
+      { label: "Receitas totais", value: fmt(txIn), color: "success" },
+      { label: "Despesas totais", value: fmt(txOut), color: "danger" },
+      { label: "Saldo líquido", value: fmt(balance), color: balance >= 0 ? "success" : "danger" },
+      { label: "Total em compras", value: fmt(totalPurchases), color: "danger" },
+    ]);
+
+    y += 6;
+
+    // Monthly breakdown
+    setTxt(C.dark);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Fluxo Mensal", ML, y);
+    y += 6;
+
+    const monthlyData = months.map((m, i) => ({
+      m,
+      in: transactions.filter(t => t.type==="entrada" && new Date(t.date+"T12:00:00").getMonth()===i).reduce((a,t)=>a+Number(t.value),0),
+      out: transactions.filter(t => t.type==="saida" && new Date(t.date+"T12:00:00").getMonth()===i).reduce((a,t)=>a+Number(t.value),0),
+    })).filter(d => d.in > 0 || d.out > 0);
+
+    y = drawTableHeader(y, [
+      { label: "MÊS", x: ML + 4 },
+      { label: "ENTRADAS", x: ML + 50 },
+      { label: "SAÍDAS", x: ML + 100 },
+      { label: "SALDO", x: MR - 2, align: "right" },
+    ]);
+
+    monthlyData.forEach((d, i) => {
+      const saldo = d.in - d.out;
+      y = drawTableRow(y, [
+        { text: d.m + " 2026", x: ML + 4 },
+        { text: fmt(d.in), x: ML + 50, color: C.success },
+        { text: fmt(d.out), x: ML + 100, color: C.danger },
+        { text: fmt(saldo), x: MR - 2, align: "right", color: saldo >= 0 ? C.success : C.danger },
+      ], i % 2 === 0);
+    });
+
+    if (monthlyData.length === 0) {
+      setTxt(C.gray);
+      doc.setFontSize(9);
+      doc.text("Nenhum dado mensal disponível.", ML + 4, y + 6);
+      y += 14;
+    }
+
+    addPageFooter(1, 1);
+    doc.save(`infinity-relatorio-completo-${new Date().toISOString().slice(0,10)}.pdf`);
+  }
 };
 
 // ════════════════════════════════════════
@@ -187,6 +647,7 @@ export default function InfinityApp() {
   const [page, setPage] = useState("dashboard");
   const [sideOpen, setSideOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [companyData, setCompanyData] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -196,15 +657,20 @@ export default function InfinityApp() {
   const [modalOpen, setModalOpen] = useState(null);
   const [monthFilter, setMonthFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [newTx, setNewTx] = useState({ description:"", category:"", type:"saida", value:"", date:new Date().toISOString().slice(0,10), status:"pendente" });
-  const [newPurchase, setNewPurchase] = useState({ item:"", supplier:"", qty:1, unit_price:"", date:new Date().toISOString().slice(0,10), status:"em_transito" });
+  const [txTypeFilter, setTxTypeFilter] = useState("all");
+
+  const emptyTx = { description:"", category:"", type:"saida", value:"", date:new Date().toISOString().slice(0,10), status:"pendente" };
+  const emptyPurchase = { item:"", supplier:"", qty:1, unit_price:"", date:new Date().toISOString().slice(0,10), status:"em_transito" };
+
+  const [newTx, setNewTx] = useState(emptyTx);
+  const [editingTx, setEditingTx] = useState(null);
+  const [newPurchase, setNewPurchase] = useState(emptyPurchase);
+  const [editingPurchase, setEditingPurchase] = useState(null);
   const [newMember, setNewMember] = useState({ email:"", name:"", role:"viewer" });
   const [profileForm, setProfileForm] = useState({ name:"", email:"", password:"" });
   const [saveMsg, setSaveMsg] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [companySetupError, setCompanySetupError] = useState("");
-  const [companySetupLoading, setCompanySetupLoading] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const avatarInputRef = useRef(null);
 
   // ─── SUPABASE AUTH ───
@@ -215,23 +681,22 @@ export default function InfinityApp() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setSession(session);
-      if (!session) { setCurrentUser(null); setAuthLoading(false); }
+      if (!session) { setCurrentUser(null); setCompanyData(null); setAuthLoading(false); }
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load profile when session changes
   useEffect(() => {
     if (session) loadProfile();
     else { setTransactions([]); setPurchases([]); setProfiles([]); }
   }, [session]);
 
-  // Load data when company is known
   useEffect(() => {
     if (currentUser?.company_id) {
       loadTransactions();
       loadPurchases();
       loadProfiles();
+      loadCompany();
     }
   }, [currentUser?.company_id]);
 
@@ -241,11 +706,20 @@ export default function InfinityApp() {
     if (data) {
       setCurrentUser(data);
       setProfileForm({ name: data.name, email: data.email, password: "" });
-      setAuthLoading(false);
     } else if (error?.code === "PGRST116") {
-      // Profile not found — user signed up but profile not created yet
-      setAuthLoading(false);
+      // Profile not found yet (trigger may be delayed) — retry once after 1s
+      setTimeout(async () => {
+        const { data: d2 } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+        if (d2) { setCurrentUser(d2); setProfileForm({ name: d2.name, email: d2.email, password: "" }); }
+      }, 1200);
     }
+    setAuthLoading(false);
+  };
+
+  const loadCompany = async () => {
+    if (!currentUser?.company_id) return;
+    const { data } = await supabase.from("companies").select("*").eq("id", currentUser.company_id).single();
+    if (data) setCompanyData(data);
   };
 
   const loadTransactions = async () => {
@@ -270,13 +744,13 @@ export default function InfinityApp() {
     setAuthError("");
     if (!loginForm.email || !loginForm.password) { setAuthError("Preencha email e senha."); return; }
     if (authMode === "register" && !loginForm.company) { setAuthError("Informe o nome da empresa."); return; }
+    if (authMode === "register" && loginForm.password.length < 6) { setAuthError("Senha deve ter pelo menos 6 caracteres."); return; }
     setAuthSubmitting(true);
     try {
       if (authMode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email: loginForm.email, password: loginForm.password });
         if (error) setAuthError(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message);
       } else {
-        // 1. Sign up — trigger cria perfil com role=admin (dono da empresa)
         const { data: authData, error: signUpErr } = await supabase.auth.signUp({
           email: loginForm.email,
           password: loginForm.password,
@@ -284,11 +758,9 @@ export default function InfinityApp() {
         });
         if (signUpErr) { setAuthError(signUpErr.message); return; }
         if (!authData.user) { setAuthError("Verifique seu email para confirmar o cadastro."); return; }
-        // 2. Criar empresa
         const { data: company, error: companyErr } = await supabase
           .from("companies").insert({ name: loginForm.company }).select().single();
         if (companyErr) { setAuthError("Erro ao criar empresa: " + companyErr.message); return; }
-        // 3. Atualizar perfil com company_id e role admin
         await supabase.from("profiles").update({
           company_id: company.id,
           name: loginForm.name || loginForm.email.split("@")[0],
@@ -321,13 +793,32 @@ export default function InfinityApp() {
     }).select().single();
     if (data) {
       setTransactions(prev => [data, ...prev]);
-      setNewTx({ description:"", category:"", type:"saida", value:"", date:new Date().toISOString().slice(0,10), status:"pendente" });
+      setNewTx(emptyTx);
       setModalOpen(null);
     }
-    if (error) alert("Erro: " + error.message);
+    if (error) alert("Erro ao salvar: " + error.message);
+  };
+
+  const saveEditTx = async () => {
+    if (!editingTx.description || !editingTx.value || !editingTx.date) return;
+    const { data, error } = await supabase.from("transactions").update({
+      description: editingTx.description,
+      category: editingTx.category,
+      type: editingTx.type,
+      value: parseFloat(editingTx.value),
+      date: editingTx.date,
+      status: editingTx.status,
+    }).eq("id", editingTx.id).select().single();
+    if (data) {
+      setTransactions(prev => prev.map(t => t.id === data.id ? data : t));
+      setEditingTx(null);
+      setModalOpen(null);
+    }
+    if (error) alert("Erro ao atualizar: " + error.message);
   };
 
   const deleteTransaction = async (id) => {
+    if (!confirm("Excluir esta transação?")) return;
     const { error } = await supabase.from("transactions").delete().eq("id", id);
     if (!error) setTransactions(prev => prev.filter(t => t.id !== id));
     else alert("Sem permissão para excluir.");
@@ -346,13 +837,34 @@ export default function InfinityApp() {
     }).select().single();
     if (data) {
       setPurchases(prev => [data, ...prev]);
-      setNewPurchase({ item:"", supplier:"", qty:1, unit_price:"", date:new Date().toISOString().slice(0,10), status:"em_transito" });
+      setNewPurchase(emptyPurchase);
       setModalOpen(null);
     }
-    if (error) alert("Erro: " + error.message);
+    if (error) alert("Erro ao salvar: " + error.message);
+  };
+
+  const saveEditPurchase = async () => {
+    if (!editingPurchase.item || !editingPurchase.unit_price) return;
+    const total = editingPurchase.qty * parseFloat(editingPurchase.unit_price);
+    const { data, error } = await supabase.from("purchases").update({
+      item: editingPurchase.item,
+      supplier: editingPurchase.supplier,
+      qty: editingPurchase.qty,
+      unit_price: parseFloat(editingPurchase.unit_price),
+      total,
+      date: editingPurchase.date,
+      status: editingPurchase.status,
+    }).eq("id", editingPurchase.id).select().single();
+    if (data) {
+      setPurchases(prev => prev.map(p => p.id === data.id ? data : p));
+      setEditingPurchase(null);
+      setModalOpen(null);
+    }
+    if (error) alert("Erro ao atualizar: " + error.message);
   };
 
   const deletePurchase = async (id) => {
+    if (!confirm("Excluir esta compra?")) return;
     const { error } = await supabase.from("purchases").delete().eq("id", id);
     if (!error) setPurchases(prev => prev.filter(p => p.id !== id));
     else alert("Sem permissão para excluir.");
@@ -364,7 +876,8 @@ export default function InfinityApp() {
     const updates = { name: profileForm.name, email: profileForm.email };
     const { error } = await supabase.from("profiles").update(updates).eq("id", session.user.id);
     if (profileForm.password) {
-      await supabase.auth.updateUser({ password: profileForm.password });
+      const { error: pwErr } = await supabase.auth.updateUser({ password: profileForm.password });
+      if (pwErr) { setSaveMsg("Erro ao atualizar senha: " + pwErr.message); return; }
     }
     if (!error) {
       setCurrentUser(prev => ({ ...prev, ...updates }));
@@ -372,15 +885,27 @@ export default function InfinityApp() {
     } else {
       setSaveMsg("Erro ao salvar: " + error.message);
     }
-    setTimeout(() => setSaveMsg(""), 3000);
+    setTimeout(() => setSaveMsg(""), 3500);
   };
 
   const uploadAvatar = async (file) => {
     if (!file) return;
-    const ext = file.name.split(".").pop();
+    const ext = file.name.split(".").pop().toLowerCase();
+    const allowed = ["jpg","jpeg","png","webp","gif"];
+    if (!allowed.includes(ext)) { alert("Formato não suportado. Use JPG, PNG ou WebP."); return; }
     const path = `${session.user.id}/avatar.${ext}`;
     const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (uploadErr) { alert("Erro ao fazer upload: " + uploadErr.message); return; }
+    if (uploadErr) {
+      // Bucket may not exist — create it first
+      if (uploadErr.message.includes("Bucket not found") || uploadErr.message.includes("bucket")) {
+        await supabase.storage.createBucket("avatars", { public: true });
+        const { error: retryErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+        if (retryErr) { alert("Erro ao enviar foto: " + retryErr.message); return; }
+      } else {
+        alert("Erro ao enviar foto: " + uploadErr.message);
+        return;
+      }
+    }
     const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
     const { error } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", session.user.id);
     if (!error) setCurrentUser(prev => ({ ...prev, avatar_url: publicUrl }));
@@ -393,7 +918,7 @@ export default function InfinityApp() {
   };
 
   const removeMember = async (profileId) => {
-    if (!confirm("Remover este usuário da empresa?")) return;
+    if (!confirm("Remover este membro da empresa?")) return;
     const { error } = await supabase.from("profiles").delete().eq("id", profileId);
     if (!error) setProfiles(prev => prev.filter(p => p.id !== profileId));
     else alert("Sem permissão para remover.");
@@ -402,85 +927,34 @@ export default function InfinityApp() {
   const inviteMember = async () => {
     setInviteMsg("");
     if (!newMember.email || !newMember.name) { setInviteMsg("Preencha nome e email."); return; }
-    // Sign up the new user (they'll get an email to set password)
-    const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
-    // Passa role nos metadados — trigger cria o perfil já com o role correto
+    setInviteLoading(true);
+    // Save admin session tokens before creating user
+    const { data: { session: adminSession } } = await supabase.auth.getSession();
+    const tempPassword = Math.random().toString(36).slice(-8) + "Aa1!";
     const { data: authData, error: signUpErr } = await supabase.auth.signUp({
       email: newMember.email,
       password: tempPassword,
       options: { data: { name: newMember.name, role: newMember.role } },
     });
-    if (signUpErr) { setInviteMsg("Erro: " + signUpErr.message); return; }
-    // Vincular à empresa (policy permite admin atualizar perfis sem company_id)
-    const { error: profileErr, count } = await supabase.from("profiles")
-      .update({ company_id: currentUser.company_id, name: newMember.name, email: newMember.email, role: newMember.role })
-      .eq("id", authData.user.id)
-      .select();
-    if (profileErr) { setInviteMsg("Erro ao vincular à empresa: " + profileErr.message); return; }
-    await loadProfiles();
-    setInviteMsg("✓ " + newMember.name + " adicionado à equipe! Senha temporária enviada para " + newMember.email);
-    setNewMember({ email:"", name:"", role:"viewer" });
-  };
-
-  // ─── PDF GENERATION ───
-  const generatePDF = (type) => {
-    const doc = new jsPDF();
-    const companyName = profiles.find(p => p.id === session.user.id)?.name || "Empresa";
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.text("Infinity — Relatório Financeiro", 20, 20);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, 20, 30);
-
-    if (type === "transactions" || type === "fluxo") {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text("Transações", 20, 45);
-      const totalIn = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + Number(t.value), 0);
-      const totalOut = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + Number(t.value), 0);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.text(`Total Entradas: ${fmt(totalIn)}`, 20, 55);
-      doc.text(`Total Saídas:   ${fmt(totalOut)}`, 20, 63);
-      doc.text(`Saldo:          ${fmt(totalIn - totalOut)}`, 20, 71);
-      let y = 85;
-      doc.setFont("helvetica", "bold");
-      doc.text("Data", 20, y); doc.text("Descrição", 50, y); doc.text("Valor", 140, y); doc.text("Status", 170, y);
-      doc.line(20, y+2, 195, y+2);
-      y += 8;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      filteredTx.slice(0, 30).forEach(t => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.text(fmtDate(t.date), 20, y);
-        doc.text((t.description || "").slice(0, 35), 50, y);
-        doc.text(fmt(t.value), 140, y);
-        doc.text(t.status, 170, y);
-        y += 7;
-      });
-    } else if (type === "purchases") {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text("Compras & Fornecedores", 20, 45);
-      let y = 60;
-      doc.setFontSize(10);
-      doc.text("Item", 20, y); doc.text("Fornecedor", 70, y); doc.text("Qtd", 120, y); doc.text("Total", 145, y); doc.text("Status", 170, y);
-      doc.line(20, y+2, 195, y+2);
-      y += 8;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      purchases.slice(0, 30).forEach(p => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.text((p.item || "").slice(0, 25), 20, y);
-        doc.text((p.supplier || "").slice(0, 20), 70, y);
-        doc.text(String(p.qty), 120, y);
-        doc.text(fmt(p.total), 145, y);
-        doc.text(p.status, 170, y);
-        y += 7;
+    // If admin was auto-signed out by the signUp, restore admin session
+    const { data: { session: afterSession } } = await supabase.auth.getSession();
+    if (afterSession?.user?.id !== adminSession?.user?.id) {
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
       });
     }
-    doc.save(`infinity-${type}-${new Date().toISOString().slice(0,10)}.pdf`);
+    setInviteLoading(false);
+    if (signUpErr) { setInviteMsg("Erro ao criar conta: " + signUpErr.message); return; }
+    if (!authData?.user?.id) { setInviteMsg("Erro: não foi possível criar o usuário."); return; }
+    // Link to company
+    const { error: profileErr } = await supabase.from("profiles")
+      .update({ company_id: currentUser.company_id, name: newMember.name, email: newMember.email, role: newMember.role })
+      .eq("id", authData.user.id);
+    if (profileErr) { setInviteMsg("Usuário criado, mas erro ao vincular à empresa: " + profileErr.message); return; }
+    await loadProfiles();
+    setInviteMsg(`✓ ${newMember.name} adicionado à equipe! Senha temporária: ${tempPassword}`);
+    setNewMember({ email:"", name:"", role:"viewer" });
   };
 
   // ─── PERMISSIONS ───
@@ -491,23 +965,27 @@ export default function InfinityApp() {
   const filteredTx = transactions.filter(t => {
     const matchMonth = monthFilter === "all" || new Date(t.date + "T12:00:00").getMonth() === parseInt(monthFilter);
     const matchSearch = !searchTerm || (t.description || "").toLowerCase().includes(searchTerm.toLowerCase()) || (t.category || "").toLowerCase().includes(searchTerm.toLowerCase());
-    return matchMonth && matchSearch;
+    const matchType = txTypeFilter === "all" || t.type === txTypeFilter;
+    return matchMonth && matchSearch && matchType;
   });
   const totalIn = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + Number(t.value), 0);
   const totalOut = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + Number(t.value), 0);
   const balance = totalIn - totalOut;
-  const pendingCount = transactions.filter(t => t.status === "pendente").length;
+  const pendingCount = transactions.filter(t => t.status === "pendente" || t.status === "atrasado").length;
+  const totalPurchasesVal = purchases.reduce((a,p) => a + Number(p.total), 0);
 
   const expenseCategories = {};
   filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + Number(t.value); });
-  const catColors = ["#B8926A","#7BA387","#C4716C","#D4A843","#9C8E7C","#6B5B4E"];
+  const catColors = ["#B8926A","#7BA387","#C4716C","#D4A843","#9C8E7C","#6B5B4E","#5A8FA5"];
 
-  // Cash flow by month (last 4 months with data)
   const cashFlowData = months.map((m, i) => ({
     m, i,
     in: transactions.filter(t => t.type === "entrada" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + Number(t.value), 0),
     out: transactions.filter(t => t.type === "saida" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + Number(t.value), 0),
-  })).filter(d => d.in > 0 || d.out > 0).slice(-4);
+  })).filter(d => d.in > 0 || d.out > 0).slice(-6);
+
+  const monthLabel = monthFilter === "all" ? "Todos os meses" : months[parseInt(monthFilter)] + " 2026";
+  const companyName = companyData?.name || currentUser?.email?.split("@")[0] || "Empresa";
 
   const navItems = [
     { id:"dashboard", icon:"dashboard", label:"Dashboard" },
@@ -516,11 +994,10 @@ export default function InfinityApp() {
     { id:"relatorios", icon:"chart", label:"Relatórios" },
     { id:"perfis", icon:"users", label:"Equipe" },
     { id:"perfil", icon:"user", label:"Meu Perfil" },
-    { id:"whatsapp", icon:"whatsapp", label:"WhatsApp" },
     { id:"config", icon:"settings", label:"Configurações" },
   ];
 
-  // ─── AUTH SCREEN ───
+  // ─── LOADING SCREEN ───
   if (authLoading) return (
     <>
       <style>{globalCSS}</style>
@@ -533,6 +1010,7 @@ export default function InfinityApp() {
     </>
   );
 
+  // ─── NO COMPANY SCREEN ───
   if (session && currentUser && !currentUser.company_id) return (
     <>
       <style>{globalCSS}</style>
@@ -541,18 +1019,24 @@ export default function InfinityApp() {
           <div style={{ color:"var(--accent)", marginBottom:16 }}><Icon name="group" size={48} /></div>
           <h2 style={{ color:"var(--dark)", fontFamily:"'Playfair Display', serif", marginBottom:12 }}>Aguardando vinculação</h2>
           <p style={{ color:"var(--taupe)", fontSize:14, lineHeight:1.6, marginBottom:24 }}>
-            Sua conta foi criada com sucesso, mas ainda não está vinculada a uma empresa.<br/>
-            Peça ao administrador da empresa para te adicionar como membro e faça login novamente.
+            Sua conta foi criada, mas ainda não está vinculada a uma empresa.<br/>
+            Peça ao administrador para te adicionar como membro.
           </p>
           <p style={{ color:"var(--warm-gray)", fontSize:12, marginBottom:20 }}>Logado como: <strong>{currentUser.email}</strong></p>
-          <button onClick={() => supabase.auth.signOut()} className="btn-press" style={{ padding:"10px 24px", borderRadius:8, border:"none", background:"var(--accent)", color:"white", fontSize:14, fontWeight:600, fontFamily:"inherit", cursor:"pointer" }}>
-            Sair e tentar outro acesso
-          </button>
+          <div style={{ display:"flex", gap:12, justifyContent:"center" }}>
+            <button onClick={loadProfile} className="btn-press" style={{ padding:"10px 20px", borderRadius:8, border:"1.5px solid var(--sand)", background:"transparent", color:"var(--taupe)", fontSize:14, fontWeight:600, fontFamily:"inherit", cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+              <Icon name="refresh" size={16} /> Atualizar
+            </button>
+            <button onClick={() => supabase.auth.signOut()} className="btn-press" style={{ padding:"10px 20px", borderRadius:8, border:"none", background:"var(--accent)", color:"white", fontSize:14, fontWeight:600, fontFamily:"inherit", cursor:"pointer" }}>
+              Sair
+            </button>
+          </div>
         </div>
       </div>
     </>
   );
 
+  // ─── AUTH SCREEN ───
   if (!session || !currentUser) return (
     <>
       <style>{globalCSS}</style>
@@ -569,7 +1053,7 @@ export default function InfinityApp() {
             <div style={{ display:"flex", marginBottom:24, borderRadius:8, overflow:"hidden", border:"1.5px solid var(--sand)" }}>
               {["login","register"].map(m => (
                 <button key={m} onClick={() => { setAuthMode(m); setAuthError(""); }} className="btn-press" style={{ flex:1, padding:"10px 0", border:"none", background:authMode===m?"var(--accent)":"transparent", color:authMode===m?"white":"var(--taupe)", fontFamily:"inherit", fontSize:13, fontWeight:600, cursor:"pointer", transition:"all .2s" }}>
-                  {m === "login" ? "Entrar" : "Cadastrar"}
+                  {m === "login" ? "Entrar" : "Criar Conta"}
                 </button>
               ))}
             </div>
@@ -613,12 +1097,27 @@ export default function InfinityApp() {
   // ─── PAGE RENDERERS ───
   const renderDashboard = () => (
     <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:16 }}>
-        <StatCard label="RECEITAS" value={fmt(totalIn)} icon="arrow_up" trend={12} delay={0} />
-        <StatCard label="DESPESAS" value={fmt(totalOut)} icon="arrow_down" trend={-5} delay={0.08} />
-        <StatCard label="SALDO" value={fmt(balance)} icon="wallet" delay={0.16} />
-        <StatCard label="PENDENTES" value={pendingCount} icon="bell" delay={0.24} />
+      {/* Welcome */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
+        <div>
+          <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>
+            Olá, {currentUser.name?.split(" ")[0]} 👋
+          </h2>
+          <p style={{ color:"var(--taupe)", fontSize:14, marginTop:2 }}>{companyName} · {new Date().toLocaleDateString("pt-BR", { weekday:"long", day:"numeric", month:"long" })}</p>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          {canEdit && <Btn icon="plus" onClick={() => setModalOpen("addTx")}>Nova Conta</Btn>}
+          {canEdit && <Btn icon="cart" variant="secondary" onClick={() => setModalOpen("addPurchase")}>Nova Compra</Btn>}
+        </div>
       </div>
+      {/* Stat Cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:16 }}>
+        <StatCard label="Receitas" value={fmt(totalIn)} icon="arrow_up" color="var(--success)" delay={0} />
+        <StatCard label="Despesas" value={fmt(totalOut)} icon="arrow_down" color="var(--danger)" delay={0.08} />
+        <StatCard label="Saldo" value={fmt(balance)} icon="wallet" color={balance>=0?"var(--success)":"var(--danger)"} delay={0.16} />
+        <StatCard label="Pendentes" value={pendingCount} icon="bell" color="var(--warning)" delay={0.24} />
+      </div>
+      {/* Charts */}
       {cashFlowData.length > 0 && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))", gap:16 }}>
           <div className="card anim-expand" style={{ padding:24, animationDelay:"0.3s" }}>
@@ -633,7 +1132,7 @@ export default function InfinityApp() {
             <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Despesas por Categoria</h3>
             {Object.entries(expenseCategories).length > 0 ? (
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {Object.entries(expenseCategories).map(([cat, val], i) => {
+                {Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([cat, val], i) => {
                   const pct = Math.round((val / totalOut) * 100);
                   return (
                     <div key={i}>
@@ -652,10 +1151,11 @@ export default function InfinityApp() {
           </div>
         </div>
       )}
+      {/* Recent transactions */}
       <div className="card anim-expand" style={{ padding:24, animationDelay:"0.45s" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:12 }}>
           <h3 style={{ fontSize:15, fontWeight:600 }}>Últimas Movimentações</h3>
-          {canEdit && <Btn icon="plus" onClick={() => setModalOpen("addTx")}>Nova</Btn>}
+          <Btn variant="ghost" style={{ fontSize:12, padding:"6px 14px" }} onClick={() => setPage("contas")}>Ver todas</Btn>
         </div>
         {dataLoading ? <p style={{ color:"var(--warm-gray)", fontSize:13, padding:20 }}>Carregando...</p> : transactions.length === 0 ? (
           <div style={{ padding:40, textAlign:"center", color:"var(--warm-gray)" }}>
@@ -664,27 +1164,50 @@ export default function InfinityApp() {
           </div>
         ) : (
           <div style={{ overflowX:"auto" }}>
-            <table style={{ width:"100%", borderCollapse:"separate", borderSpacing:"0 6px" }}>
-              <thead><tr style={{ fontSize:12, color:"var(--taupe)", textAlign:"left" }}>
-                <th style={{ padding:"8px 12px", fontWeight:600 }}>Descrição</th>
-                <th style={{ padding:"8px 12px", fontWeight:600 }} className="desktop-only">Categoria</th>
-                <th style={{ padding:"8px 12px", fontWeight:600 }}>Valor</th>
-                <th style={{ padding:"8px 12px", fontWeight:600 }} className="desktop-only">Data</th>
-                <th style={{ padding:"8px 12px", fontWeight:600 }}>Status</th>
+            <table style={{ width:"100%", borderCollapse:"separate", borderSpacing:"0 4px" }}>
+              <thead><tr style={{ fontSize:11, color:"var(--taupe)", textAlign:"left" }}>
+                <th style={{ padding:"6px 10px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Descrição</th>
+                <th style={{ padding:"6px 10px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Categoria</th>
+                <th style={{ padding:"6px 10px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Valor</th>
+                <th style={{ padding:"6px 10px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Data</th>
+                <th style={{ padding:"6px 10px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Status</th>
               </tr></thead>
-              <tbody>{filteredTx.slice(0,5).map((t, i) => (
-                <tr key={t.id} style={{ background:i%2===0?"var(--cream)":"transparent", animation:`slideUp 0.3s ${i*0.06}s both` }}>
-                  <td style={{ padding:"12px", borderRadius:"8px 0 0 8px", fontSize:14 }}>{t.description}</td>
-                  <td style={{ padding:"12px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{t.category}</td>
-                  <td style={{ padding:"12px", fontWeight:600, color:t.type==="entrada"?"var(--success)":"var(--danger)" }}>{t.type==="entrada"?"+":"-"}{fmt(t.value)}</td>
-                  <td style={{ padding:"12px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{fmtDate(t.date)}</td>
-                  <td style={{ padding:"12px", borderRadius:"0 8px 8px 0" }}><Badge status={t.status} /></td>
+              <tbody>{transactions.slice(0,7).map((t, i) => (
+                <tr key={t.id} style={{ background:i%2===0?"var(--cream)":"transparent", animation:`slideUp 0.3s ${i*0.05}s both` }}>
+                  <td style={{ padding:"11px 10px", borderRadius:"8px 0 0 8px", fontSize:14 }}>{t.description}</td>
+                  <td style={{ padding:"11px 10px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{t.category || "—"}</td>
+                  <td style={{ padding:"11px 10px", fontWeight:700, color:t.type==="entrada"?"var(--success)":"var(--danger)", whiteSpace:"nowrap" }}>{t.type==="entrada"?"+ ":"- "}{fmt(t.value)}</td>
+                  <td style={{ padding:"11px 10px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{fmtDate(t.date)}</td>
+                  <td style={{ padding:"11px 10px", borderRadius:"0 8px 8px 0" }}><Badge status={t.status} /></td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         )}
       </div>
+      {/* Purchases summary */}
+      {purchases.length > 0 && (
+        <div className="card anim-expand" style={{ padding:24, animationDelay:"0.5s" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+            <h3 style={{ fontSize:15, fontWeight:600 }}>Últimas Compras</h3>
+            <Btn variant="ghost" style={{ fontSize:12, padding:"6px 14px" }} onClick={() => setPage("compras")}>Ver todas</Btn>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(220px, 1fr))", gap:12 }}>
+            {purchases.slice(0,4).map((p, i) => (
+              <div key={p.id} style={{ background:"var(--cream)", borderRadius:12, padding:14, display:"flex", flexDirection:"column", gap:8, animation:`slideUp 0.3s ${i*0.07}s both` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <span style={{ fontSize:14, fontWeight:600 }}>{p.item}</span>
+                  <Badge status={p.status} />
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                  <span style={{ color:"var(--taupe)" }}>{p.supplier || "—"}</span>
+                  <span style={{ fontWeight:700, color:"var(--accent)" }}>{fmt(p.total)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -694,61 +1217,81 @@ export default function InfinityApp() {
         <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Gestão de Contas</h2>
         <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
           {canEdit && <Btn icon="plus" onClick={() => setModalOpen("addTx")}>Nova Conta</Btn>}
-          <Btn icon="download" variant="ghost" onClick={() => generatePDF("transactions")}>PDF</Btn>
+          <Btn icon="download" variant="ghost" onClick={() => buildPDF({ type:"transactions", company:companyName, user:currentUser.name, transactions, purchases, filteredTx, monthLabel })}>PDF</Btn>
         </div>
       </div>
+      {/* Filters */}
       <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
         <div style={{ flex:1, minWidth:200, position:"relative" }}>
           <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"var(--warm-gray)" }}><Icon name="search" size={16} /></div>
-          <input placeholder="Buscar por descrição ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ paddingLeft:38 }} />
+          <input placeholder="Buscar descrição ou categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ paddingLeft:38 }} />
         </div>
+        <select value={txTypeFilter} onChange={e => setTxTypeFilter(e.target.value)} style={{ width:"auto", minWidth:130 }}>
+          <option value="all">Todos os tipos</option>
+          <option value="entrada">Entradas</option>
+          <option value="saida">Saídas</option>
+        </select>
         <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width:"auto", minWidth:140 }}>
           <option value="all">Todos os meses</option>
-          {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+          {months.map((m, i) => <option key={i} value={i}>{m} 2026</option>)}
         </select>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:12 }}>
+      {/* Summary */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:12 }}>
         <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--success)" }}>
-          <span style={{ fontSize:12, color:"var(--taupe)" }}>Total Entradas</span>
+          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Entradas</span>
           <p style={{ fontSize:22, fontWeight:700, color:"var(--success)", marginTop:4 }}>{fmt(totalIn)}</p>
         </div>
-        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--danger)", animationDelay:"0.08s" }}>
-          <span style={{ fontSize:12, color:"var(--taupe)" }}>Total Saídas</span>
+        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--danger)", animationDelay:"0.06s" }}>
+          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Saídas</span>
           <p style={{ fontSize:22, fontWeight:700, color:"var(--danger)", marginTop:4 }}>{fmt(totalOut)}</p>
         </div>
-        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--accent)", animationDelay:"0.16s" }}>
-          <span style={{ fontSize:12, color:"var(--taupe)" }}>Saldo Período</span>
+        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--accent)", animationDelay:"0.12s" }}>
+          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Saldo</span>
           <p style={{ fontSize:22, fontWeight:700, color:balance>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(balance)}</p>
         </div>
+        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--warning)", animationDelay:"0.18s" }}>
+          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Pendentes</span>
+          <p style={{ fontSize:22, fontWeight:700, color:"var(--warning)", marginTop:4 }}>{filteredTx.filter(t=>t.status==="pendente"||t.status==="atrasado").length}</p>
+        </div>
       </div>
+      {/* Table */}
       <div className="card" style={{ overflow:"hidden" }}>
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr style={{ background:"var(--beige)", fontSize:12, color:"var(--taupe)", textAlign:"left" }}>
-              <th style={{ padding:"12px 16px", fontWeight:600 }}>Descrição</th>
-              <th style={{ padding:"12px 16px", fontWeight:600 }} className="desktop-only">Categoria</th>
-              <th style={{ padding:"12px 16px", fontWeight:600 }}>Tipo</th>
-              <th style={{ padding:"12px 16px", fontWeight:600 }}>Valor</th>
-              <th style={{ padding:"12px 16px", fontWeight:600 }} className="desktop-only">Data</th>
-              <th style={{ padding:"12px 16px", fontWeight:600 }}>Status</th>
-              {canEdit && <th style={{ padding:"12px 16px", fontWeight:600 }}>Ações</th>}
+            <thead><tr style={{ background:"var(--beige)", fontSize:11, color:"var(--taupe)", textAlign:"left" }}>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Descrição</th>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Categoria</th>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Tipo</th>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Valor</th>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Data</th>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Status</th>
+              {canEdit && <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Ações</th>}
             </tr></thead>
             <tbody>{filteredTx.map((t, i) => (
-              <tr key={t.id} style={{ borderBottom:"1px solid var(--beige)", animation:`slideUp 0.3s ${i*0.04}s both` }}>
-                <td style={{ padding:"14px 16px", fontSize:14 }}>{t.description}</td>
-                <td style={{ padding:"14px 16px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{t.category}</td>
-                <td style={{ padding:"14px 16px" }}><span style={{ padding:"3px 10px", borderRadius:12, fontSize:11, fontWeight:600, background:t.type==="entrada"?"#E8F5E9":"#FFEBEE", color:t.type==="entrada"?"#2E7D32":"#C62828" }}>{t.type==="entrada"?"Entrada":"Saída"}</span></td>
-                <td style={{ padding:"14px 16px", fontWeight:600, color:t.type==="entrada"?"var(--success)":"var(--danger)" }}>{fmt(t.value)}</td>
-                <td style={{ padding:"14px 16px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{fmtDate(t.date)}</td>
-                <td style={{ padding:"14px 16px" }}><Badge status={t.status} /></td>
-                {canEdit && <td style={{ padding:"14px 16px" }}>
-                  <div className="btn-press" onClick={() => deleteTransaction(t.id)} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--danger)", cursor:"pointer" }}><Icon name="trash" size={14} /></div>
+              <tr key={t.id} style={{ borderBottom:"1px solid var(--beige)", animation:`slideUp 0.3s ${Math.min(i,8)*0.04}s both` }}>
+                <td style={{ padding:"13px 14px", fontSize:14 }}>{t.description}</td>
+                <td style={{ padding:"13px 14px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{t.category || "—"}</td>
+                <td style={{ padding:"13px 14px" }}><span style={{ padding:"3px 10px", borderRadius:12, fontSize:11, fontWeight:600, background:t.type==="entrada"?"#E8F5E9":"#FFEBEE", color:t.type==="entrada"?"#2E7D32":"#C62828" }}>{t.type==="entrada"?"Entrada":"Saída"}</span></td>
+                <td style={{ padding:"13px 14px", fontWeight:700, color:t.type==="entrada"?"var(--success)":"var(--danger)", whiteSpace:"nowrap" }}>{t.type==="entrada"?"+ ":"- "}{fmt(t.value)}</td>
+                <td style={{ padding:"13px 14px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{fmtDate(t.date)}</td>
+                <td style={{ padding:"13px 14px" }}><Badge status={t.status} /></td>
+                {canEdit && <td style={{ padding:"13px 14px" }}>
+                  <div style={{ display:"flex", gap:6 }}>
+                    <div className="btn-press" onClick={() => { setEditingTx({...t}); setModalOpen("editTx"); }} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--accent)", cursor:"pointer" }}><Icon name="edit" size={14} /></div>
+                    <div className="btn-press" onClick={() => deleteTransaction(t.id)} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--danger)", cursor:"pointer" }}><Icon name="trash" size={14} /></div>
+                  </div>
                 </td>}
               </tr>
             ))}</tbody>
           </table>
         </div>
-        {filteredTx.length === 0 && !dataLoading && <div style={{ padding:40, textAlign:"center", color:"var(--warm-gray)" }}>Nenhuma transação encontrada</div>}
+        {filteredTx.length === 0 && !dataLoading && (
+          <div style={{ padding:40, textAlign:"center", color:"var(--warm-gray)" }}>
+            {transactions.length === 0 ? "Nenhuma transação ainda." : "Nenhuma transação encontrada com esses filtros."}
+          </div>
+        )}
+        {dataLoading && <div style={{ padding:30, textAlign:"center", color:"var(--warm-gray)" }}>Carregando...</div>}
       </div>
     </div>
   );
@@ -759,36 +1302,59 @@ export default function InfinityApp() {
         <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Compras & Fornecedores</h2>
         <div style={{ display:"flex", gap:10 }}>
           {canEdit && <Btn icon="plus" onClick={() => setModalOpen("addPurchase")}>Nova Compra</Btn>}
-          <Btn icon="download" variant="ghost" onClick={() => generatePDF("purchases")}>PDF</Btn>
+          <Btn icon="download" variant="ghost" onClick={() => buildPDF({ type:"purchases", company:companyName, user:currentUser.name, transactions, purchases, filteredTx, monthLabel })}>PDF</Btn>
         </div>
       </div>
+      {/* Summary */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(170px, 1fr))", gap:12 }}>
+        {[
+          { label:"Total Gasto", value:fmt(totalPurchasesVal), color:"var(--danger)" },
+          { label:"Em Trânsito", value:purchases.filter(p=>p.status==="em_transito").length, color:"#1565C0" },
+          { label:"Entregues", value:purchases.filter(p=>p.status==="entregue"||p.status==="ativo").length, color:"var(--success)" },
+          { label:"Cancelados", value:purchases.filter(p=>p.status==="cancelado").length, color:"var(--warm-gray)" },
+        ].map((s, i) => (
+          <div key={i} className="card anim-fade" style={{ padding:16, animationDelay:`${i*0.06}s` }}>
+            <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>{s.label}</span>
+            <p style={{ fontSize:20, fontWeight:700, color:s.color, marginTop:4 }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
       {purchases.length === 0 ? (
-        <div className="card" style={{ padding:40, textAlign:"center", color:"var(--warm-gray)" }}>
-          <p style={{ marginBottom:12 }}>Nenhuma compra registrada.</p>
-          {canEdit && <Btn icon="plus" onClick={() => setModalOpen("addPurchase")}>Registrar compra</Btn>}
+        <div className="card" style={{ padding:50, textAlign:"center", color:"var(--warm-gray)" }}>
+          <p style={{ marginBottom:14, fontSize:15 }}>Nenhuma compra registrada ainda.</p>
+          {canEdit && <Btn icon="plus" onClick={() => setModalOpen("addPurchase")}>Registrar primeira compra</Btn>}
         </div>
       ) : (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:16 }}>
-          {purchases.map((p, i) => (
-            <div key={p.id} className="card anim-expand" style={{ padding:20, animationDelay:`${i*0.08}s`, display:"flex", flexDirection:"column", gap:14 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div>
-                  <h4 style={{ fontSize:15, fontWeight:600 }}>{p.item}</h4>
-                  <p style={{ fontSize:13, color:"var(--taupe)", marginTop:2 }}>{p.supplier}</p>
-                </div>
-                <Badge status={p.status} />
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, background:"var(--cream)", borderRadius:10, padding:12 }}>
-                <div><span style={{ fontSize:11, color:"var(--warm-gray)" }}>Qtd</span><p style={{ fontWeight:600 }}>{p.qty}</p></div>
-                <div><span style={{ fontSize:11, color:"var(--warm-gray)" }}>Unit.</span><p style={{ fontWeight:600 }}>{fmt(p.unit_price)}</p></div>
-                <div><span style={{ fontSize:11, color:"var(--warm-gray)" }}>Total</span><p style={{ fontWeight:700, color:"var(--accent)" }}>{fmt(p.total)}</p></div>
-              </div>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <span style={{ fontSize:12, color:"var(--warm-gray)" }}>{fmtDate(p.date)}</span>
-                {canEdit && <div className="btn-press" onClick={() => deletePurchase(p.id)} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--danger)", cursor:"pointer" }}><Icon name="trash" size={14} /></div>}
-              </div>
-            </div>
-          ))}
+        <div className="card" style={{ overflow:"hidden" }}>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr style={{ background:"var(--beige)", fontSize:11, color:"var(--taupe)", textAlign:"left" }}>
+                <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Item</th>
+                <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Fornecedor</th>
+                <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Qtd</th>
+                <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Total</th>
+                <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Data</th>
+                <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Status</th>
+                {canEdit && <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Ações</th>}
+              </tr></thead>
+              <tbody>{purchases.map((p, i) => (
+                <tr key={p.id} style={{ borderBottom:"1px solid var(--beige)", animation:`slideUp 0.3s ${Math.min(i,8)*0.04}s both` }}>
+                  <td style={{ padding:"13px 14px", fontSize:14, fontWeight:500 }}>{p.item}</td>
+                  <td style={{ padding:"13px 14px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{p.supplier || "—"}</td>
+                  <td style={{ padding:"13px 14px", fontSize:13 }} className="desktop-only">{p.qty}x <span style={{ color:"var(--taupe)", fontSize:12 }}>({fmt(p.unit_price)} un.)</span></td>
+                  <td style={{ padding:"13px 14px", fontWeight:700, color:"var(--accent)" }}>{fmt(p.total)}</td>
+                  <td style={{ padding:"13px 14px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{fmtDate(p.date)}</td>
+                  <td style={{ padding:"13px 14px" }}><Badge status={p.status} /></td>
+                  {canEdit && <td style={{ padding:"13px 14px" }}>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <div className="btn-press" onClick={() => { setEditingPurchase({...p}); setModalOpen("editPurchase"); }} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--accent)", cursor:"pointer" }}><Icon name="edit" size={14} /></div>
+                      <div className="btn-press" onClick={() => deletePurchase(p.id)} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--danger)", cursor:"pointer" }}><Icon name="trash" size={14} /></div>
+                    </div>
+                  </td>}
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -796,10 +1362,16 @@ export default function InfinityApp() {
 
   const renderRelatorios = () => {
     const reportTypes = [
-      { title:"Fluxo de Caixa", desc:"Movimentações de entrada e saída por período", icon:"chart", type:"fluxo" },
-      { title:"Transações Completas", desc:"Todas as transações do período filtrado", icon:"wallet", type:"transactions" },
-      { title:"Compras & Fornecedores", desc:"Consolidado de todas as compras", icon:"cart", type:"purchases" },
+      { title:"Fluxo de Caixa / Transações", desc:"Todas as entradas e saídas do período, com categorias e resumo.", icon:"wallet", type:"transactions" },
+      { title:"Compras & Fornecedores", desc:"Consolidado de compras com total por fornecedor.", icon:"cart", type:"purchases" },
+      { title:"Relatório Gerencial Completo", desc:"Visão completa: fluxo mensal, transações e compras.", icon:"chart", type:"completo" },
     ];
+    const monthlyData = months.map((m, i) => ({
+      m, i,
+      in: transactions.filter(t => t.type==="entrada" && new Date(t.date+"T12:00:00").getMonth()===i).reduce((a,t)=>a+Number(t.value),0),
+      out: transactions.filter(t => t.type==="saida" && new Date(t.date+"T12:00:00").getMonth()===i).reduce((a,t)=>a+Number(t.value),0),
+    })).filter(d => d.in > 0 || d.out > 0);
+
     return (
       <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
@@ -809,36 +1381,97 @@ export default function InfinityApp() {
             {months.map((m, i) => <option key={i} value={i}>{m} 2026</option>)}
           </select>
         </div>
+        {/* Report cards */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))", gap:16 }}>
           {reportTypes.map((r, i) => (
-            <div key={i} className="card anim-expand btn-press" style={{ padding:24, animationDelay:`${i*0.07}s`, cursor:"pointer", display:"flex", flexDirection:"column", gap:16 }}>
-              <div style={{ width:44, height:44, borderRadius:12, background:"var(--beige)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--accent)" }}><Icon name={r.icon} size={22} /></div>
+            <div key={i} className="card anim-expand" style={{ padding:24, animationDelay:`${i*0.07}s`, display:"flex", flexDirection:"column", gap:16 }}>
+              <div style={{ width:48, height:48, borderRadius:14, background:"linear-gradient(135deg, var(--beige), var(--cream))", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--accent)", border:"1.5px solid var(--sand)" }}><Icon name={r.icon} size={22} /></div>
               <div>
                 <h4 style={{ fontSize:15, fontWeight:600 }}>{r.title}</h4>
-                <p style={{ fontSize:13, color:"var(--taupe)", marginTop:4, lineHeight:1.5 }}>{r.desc}</p>
+                <p style={{ fontSize:13, color:"var(--taupe)", marginTop:4, lineHeight:1.55 }}>{r.desc}</p>
               </div>
-              <Btn variant="primary" icon="download" onClick={() => generatePDF(r.type)} style={{ fontSize:12, padding:"8px 14px" }}>Baixar PDF</Btn>
+              <Btn variant="primary" icon="download" onClick={() => buildPDF({ type:r.type, company:companyName, user:currentUser.name, transactions, purchases, filteredTx, monthLabel })} style={{ fontSize:13, padding:"9px 16px" }}>
+                Gerar PDF
+              </Btn>
             </div>
           ))}
         </div>
-        <div className="card anim-slide" style={{ padding:24 }}>
-          <h3 style={{ fontSize:16, fontWeight:600, marginBottom:16 }}>Resumo — Fluxo de Caixa</h3>
-          {cashFlowData.length > 0 ? <MiniBarChart data={cashFlowData} height={200} /> : <p style={{ color:"var(--warm-gray)", fontSize:13 }}>Adicione transações para ver o gráfico.</p>}
-          <div style={{ marginTop:16, display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
-            <div style={{ background:"var(--cream)", borderRadius:10, padding:14, textAlign:"center" }}>
-              <span style={{ fontSize:12, color:"var(--taupe)" }}>Total Entradas</span>
-              <p style={{ fontSize:18, fontWeight:700, color:"var(--success)", marginTop:4 }}>{fmt(totalIn)}</p>
+        {/* Summary visuals */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:12 }}>
+          {[
+            { label:"Total Entradas", value:fmt(totalIn), color:"var(--success)", border:"var(--success)" },
+            { label:"Total Saídas", value:fmt(totalOut), color:"var(--danger)", border:"var(--danger)" },
+            { label:"Saldo do Período", value:fmt(balance), color:balance>=0?"var(--success)":"var(--danger)", border:"var(--accent)" },
+            { label:"Total em Compras", value:fmt(totalPurchasesVal), color:"var(--accent)", border:"var(--accent)" },
+          ].map((s,i) => (
+            <div key={i} className="card anim-fade" style={{ padding:18, borderLeft:`4px solid ${s.border}`, animationDelay:`${i*0.07}s` }}>
+              <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>{s.label}</span>
+              <p style={{ fontSize:22, fontWeight:700, color:s.color, marginTop:6 }}>{s.value}</p>
             </div>
-            <div style={{ background:"var(--cream)", borderRadius:10, padding:14, textAlign:"center" }}>
-              <span style={{ fontSize:12, color:"var(--taupe)" }}>Total Saídas</span>
-              <p style={{ fontSize:18, fontWeight:700, color:"var(--danger)", marginTop:4 }}>{fmt(totalOut)}</p>
-            </div>
-            <div style={{ background:"var(--cream)", borderRadius:10, padding:14, textAlign:"center" }}>
-              <span style={{ fontSize:12, color:"var(--taupe)" }}>Resultado</span>
-              <p style={{ fontSize:18, fontWeight:700, color:"var(--accent)", marginTop:4 }}>{fmt(balance)}</p>
+          ))}
+        </div>
+        {/* Cash flow chart */}
+        {cashFlowData.length > 0 && (
+          <div className="card anim-slide" style={{ padding:24 }}>
+            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Fluxo de Caixa — Histórico</h3>
+            <MiniBarChart data={cashFlowData} height={200} />
+            <div style={{ display:"flex", gap:16, justifyContent:"center", marginTop:8 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--success)" }} />Entradas</div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--danger)" }} />Saídas</div>
             </div>
           </div>
-        </div>
+        )}
+        {/* Monthly table */}
+        {monthlyData.length > 0 && (
+          <div className="card" style={{ overflow:"hidden" }}>
+            <div style={{ padding:"20px 24px 12px" }}>
+              <h3 style={{ fontSize:15, fontWeight:600 }}>Resultado Mensal</h3>
+            </div>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr style={{ background:"var(--beige)", fontSize:11, color:"var(--taupe)", textAlign:"left" }}>
+                  <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Mês</th>
+                  <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Entradas</th>
+                  <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Saídas</th>
+                  <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Saldo</th>
+                </tr></thead>
+                <tbody>{monthlyData.map((d, i) => {
+                  const saldo = d.in - d.out;
+                  return (
+                    <tr key={i} style={{ borderBottom:"1px solid var(--beige)" }}>
+                      <td style={{ padding:"12px 14px", fontWeight:500 }}>{d.m} 2026</td>
+                      <td style={{ padding:"12px 14px", color:"var(--success)", fontWeight:600 }}>{fmt(d.in)}</td>
+                      <td style={{ padding:"12px 14px", color:"var(--danger)", fontWeight:600 }}>{fmt(d.out)}</td>
+                      <td style={{ padding:"12px 14px", fontWeight:700, color:saldo>=0?"var(--success)":"var(--danger)" }}>{fmt(saldo)}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {/* Categories breakdown */}
+        {Object.entries(expenseCategories).length > 0 && (
+          <div className="card anim-slide" style={{ padding:24 }}>
+            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Despesas por Categoria</h3>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([cat, val], i) => {
+                const pct = Math.round((val / totalOut) * 100);
+                return (
+                  <div key={i}>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:5 }}>
+                      <span style={{ color:"var(--taupe)", fontWeight:500 }}>{cat}</span>
+                      <span style={{ fontWeight:700 }}>{fmt(val)} <span style={{ color:"var(--warm-gray)", fontWeight:400, fontSize:12 }}>({pct}%)</span></span>
+                    </div>
+                    <div style={{ height:8, background:"var(--beige)", borderRadius:4 }}>
+                      <div style={{ height:"100%", width:`${pct}%`, background:catColors[i % catColors.length], borderRadius:4, transition:"width .8s ease" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -846,49 +1479,61 @@ export default function InfinityApp() {
   const renderPerfis = () => (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
-        <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Equipe</h2>
-        {isAdmin && <Btn icon="plus" onClick={() => setModalOpen("inviteMember")}>Convidar Membro</Btn>}
+        <div>
+          <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Equipe</h2>
+          <p style={{ color:"var(--taupe)", fontSize:13, marginTop:2 }}>{profiles.length} membro(s) · {companyName}</p>
+        </div>
+        {isAdmin && <Btn icon="mail" onClick={() => setModalOpen("inviteMember")}>Convidar Membro</Btn>}
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:16 }}>
         {profiles.map((p, i) => (
           <div key={p.id} className="card anim-expand" style={{ padding:24, animationDelay:`${i*0.08}s` }}>
             <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:16 }}>
-              <Avatar user={p} size={52} />
-              <div>
+              <Avatar user={p} size={54} />
+              <div style={{ flex:1, minWidth:0 }}>
                 <h4 style={{ fontSize:15, fontWeight:600 }}>{p.name} {p.id === session.user.id && <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:400 }}>(você)</span>}</h4>
-                <p style={{ fontSize:13, color:"var(--taupe)" }}>{p.email}</p>
+                <p style={{ fontSize:12, color:"var(--taupe)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.email}</p>
               </div>
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
               {isAdmin && p.id !== session.user.id ? (
-                <select value={p.role} onChange={e => updateMemberRole(p.id, e.target.value)} style={{ width:"auto", minWidth:130, padding:"8px 12px", fontSize:13 }}>
-                  <option value="admin">Admin (tudo)</option>
+                <select value={p.role} onChange={e => updateMemberRole(p.id, e.target.value)} style={{ width:"auto", minWidth:140, padding:"7px 12px", fontSize:13 }}>
+                  <option value="admin">Administrador</option>
                   <option value="editor">Editor</option>
                   <option value="viewer">Visualizador</option>
                 </select>
               ) : (
-                <span style={{ padding:"4px 12px", borderRadius:20, fontSize:12, fontWeight:600, background:"var(--beige)", color:"var(--taupe)" }}>
+                <span style={{ padding:"4px 12px", borderRadius:20, fontSize:12, fontWeight:600, background: p.role==="admin"?"#E3F2FD":p.role==="editor"?"#FFF8E1":"var(--beige)", color:p.role==="admin"?"#1565C0":p.role==="editor"?"#F57F17":"var(--taupe)" }}>
                   {p.role === "admin" ? "Administrador" : p.role === "editor" ? "Editor" : "Visualizador"}
                 </span>
               )}
               {isAdmin && p.id !== session.user.id && (
-                <div className="btn-press" onClick={() => removeMember(p.id)} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--danger)", cursor:"pointer" }}><Icon name="trash" size={14} /></div>
+                <div className="btn-press" onClick={() => removeMember(p.id)} style={{ width:32, height:32, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--danger)", cursor:"pointer" }}>
+                  <Icon name="trash" size={14} />
+                </div>
               )}
             </div>
           </div>
         ))}
       </div>
+      {/* Permissions reference */}
       <div className="card anim-slide" style={{ padding:24 }}>
-        <h3 style={{ fontSize:16, fontWeight:600, marginBottom:12 }}>Permissões</h3>
+        <h3 style={{ fontSize:15, fontWeight:600, marginBottom:14 }}>Referência de Permissões</h3>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:12 }}>
           {[
-            { role:"Admin", perms:"Criar, editar, excluir, relatórios, gerenciar equipe", color:"#1565C0" },
-            { role:"Editor", perms:"Criar e editar transações e compras", color:"#F57F17" },
-            { role:"Visualizador", perms:"Apenas visualizar dados e relatórios", color:"#7B1FA2" },
+            { role:"Administrador", perms:["Ver tudo", "Criar e editar", "Excluir registros", "Gerenciar equipe", "Exportar PDFs"], color:"#1565C0", bg:"#E3F2FD" },
+            { role:"Editor", perms:["Ver tudo", "Criar e editar transações", "Criar e editar compras", "Exportar PDFs"], color:"#F57F17", bg:"#FFF8E1" },
+            { role:"Visualizador", perms:["Ver transações", "Ver compras", "Ver relatórios", "Exportar PDFs"], color:"#7B1FA2", bg:"#F3E5F5" },
           ].map((r, i) => (
-            <div key={i} style={{ background:"var(--cream)", borderRadius:10, padding:14, borderLeft:`3px solid ${r.color}` }}>
-              <strong style={{ fontSize:13 }}>{r.role}</strong>
-              <p style={{ fontSize:12, color:"var(--taupe)", marginTop:4, lineHeight:1.5 }}>{r.perms}</p>
+            <div key={i} style={{ background:r.bg, borderRadius:12, padding:16, border:`1.5px solid ${r.color}20` }}>
+              <span style={{ fontSize:13, fontWeight:700, color:r.color }}>{r.role}</span>
+              <ul style={{ marginTop:8, paddingLeft:0, listStyle:"none", display:"flex", flexDirection:"column", gap:5 }}>
+                {r.perms.map((p, j) => (
+                  <li key={j} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--dark)" }}>
+                    <span style={{ color:r.color, fontSize:14 }}>✓</span> {p}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
@@ -900,20 +1545,26 @@ export default function InfinityApp() {
     <div style={{ display:"flex", flexDirection:"column", gap:20, maxWidth:600 }}>
       <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Meu Perfil</h2>
       <div className="card anim-expand" style={{ padding:32 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:28 }}>
+        {/* Avatar section */}
+        <div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:28, paddingBottom:24, borderBottom:"1px solid var(--beige)" }}>
           <div style={{ position:"relative" }}>
             <Avatar user={currentUser} size={80} />
-            <div className="btn-press" onClick={() => avatarInputRef.current?.click()} style={{ position:"absolute", bottom:-4, right:-4, width:28, height:28, borderRadius:8, background:"var(--accent)", display:"flex", alignItems:"center", justifyContent:"center", color:"white", cursor:"pointer" }}>
+            <div className="btn-press" onClick={() => avatarInputRef.current?.click()} style={{ position:"absolute", bottom:-4, right:-4, width:28, height:28, borderRadius:8, background:"var(--accent)", display:"flex", alignItems:"center", justifyContent:"center", color:"white", cursor:"pointer", boxShadow:"0 2px 8px rgba(184,146,106,.4)" }}>
               <Icon name="upload" size={14} />
             </div>
             <input ref={avatarInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e => uploadAvatar(e.target.files[0])} />
           </div>
           <div>
             <h3 style={{ fontSize:20, fontWeight:700 }}>{currentUser.name}</h3>
-            <p style={{ fontSize:14, color:"var(--taupe)" }}>{currentUser.email}</p>
-            <span style={{ padding:"3px 10px", borderRadius:12, fontSize:11, fontWeight:600, background:"#E3F2FD", color:"#1565C0", marginTop:4, display:"inline-block" }}>
-              {currentUser.role === "admin" ? "Administrador" : currentUser.role === "editor" ? "Editor" : "Visualizador"}
-            </span>
+            <p style={{ fontSize:13, color:"var(--taupe)", marginTop:2 }}>{currentUser.email}</p>
+            <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+              <span style={{ padding:"3px 12px", borderRadius:12, fontSize:11, fontWeight:600, background:"#E3F2FD", color:"#1565C0" }}>
+                {currentUser.role === "admin" ? "Administrador" : currentUser.role === "editor" ? "Editor" : "Visualizador"}
+              </span>
+              <span style={{ padding:"3px 12px", borderRadius:12, fontSize:11, fontWeight:600, background:"var(--beige)", color:"var(--taupe)" }}>
+                {companyName}
+              </span>
+            </div>
           </div>
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -926,28 +1577,17 @@ export default function InfinityApp() {
             <input type="email" value={profileForm.email} onChange={e => setProfileForm({ ...profileForm, email:e.target.value })} />
           </div>
           <div>
-            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Nova Senha <span style={{ color:"var(--warm-gray)", fontWeight:400 }}>(deixe em branco para manter)</span></label>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>
+              Nova Senha <span style={{ color:"var(--warm-gray)", fontWeight:400 }}>(deixe em branco para manter)</span>
+            </label>
             <input type="password" placeholder="••••••••" value={profileForm.password} onChange={e => setProfileForm({ ...profileForm, password:e.target.value })} />
           </div>
-          <Btn icon="check" onClick={saveProfile}>Salvar Alterações</Btn>
-          {saveMsg && <p style={{ fontSize:13, color:saveMsg.startsWith("✓")?"#2E7D32":"var(--danger)" }}>{saveMsg}</p>}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderWhatsApp = () => (
-    <div style={{ display:"flex", flexDirection:"column", gap:20, maxWidth:700 }}>
-      <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Integração WhatsApp</h2>
-      <div className="card anim-expand" style={{ padding:32, textAlign:"center" }}>
-        <div style={{ width:72, height:72, borderRadius:20, background:"#25D366", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px", color:"white" }}><Icon name="whatsapp" size={36} /></div>
-        <h3 style={{ fontSize:18, fontWeight:600, marginBottom:8 }}>Conecte seu WhatsApp</h3>
-        <p style={{ color:"var(--taupe)", fontSize:14, lineHeight:1.6, maxWidth:480, margin:"0 auto 24px" }}>
-          Envie mensagens como "Paguei R$ 450 de internet" e o sistema registra automaticamente via Edge Function.
-        </p>
-        <div style={{ background:"var(--cream)", borderRadius:14, padding:20, marginBottom:24, textAlign:"left" }}>
-          <h4 style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>Webhook URL:</h4>
-          <input value={`${SUPABASE_URL}/functions/v1/whatsapp-webhook`} readOnly style={{ fontFamily:"monospace", fontSize:12 }} />
+          <Btn icon="check" onClick={saveProfile} full>Salvar Alterações</Btn>
+          {saveMsg && (
+            <div style={{ padding:"10px 14px", borderRadius:8, background:saveMsg.startsWith("✓")?"#E8F5E9":"#FFEBEE", color:saveMsg.startsWith("✓")?"#2E7D32":"var(--danger)", fontSize:13 }}>
+              {saveMsg}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -957,23 +1597,60 @@ export default function InfinityApp() {
     <div style={{ display:"flex", flexDirection:"column", gap:20, maxWidth:600 }}>
       <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Configurações</h2>
       <div className="card anim-expand" style={{ padding:24 }}>
-        <h3 style={{ fontSize:16, fontWeight:600, marginBottom:16 }}>Conexão Supabase</h3>
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Informações da Conta</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderBottom:"1px solid var(--beige)", fontSize:14 }}>
+            <span style={{ color:"var(--taupe)" }}>Empresa</span>
+            <strong>{companyName}</strong>
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderBottom:"1px solid var(--beige)", fontSize:14 }}>
+            <span style={{ color:"var(--taupe)" }}>Usuário</span>
+            <strong>{currentUser.name}</strong>
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderBottom:"1px solid var(--beige)", fontSize:14 }}>
+            <span style={{ color:"var(--taupe)" }}>Email</span>
+            <strong>{currentUser.email}</strong>
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderBottom:"1px solid var(--beige)", fontSize:14 }}>
+            <span style={{ color:"var(--taupe)" }}>Função</span>
+            <strong>{currentUser.role === "admin" ? "Administrador" : currentUser.role === "editor" ? "Editor" : "Visualizador"}</strong>
+          </div>
+        </div>
+      </div>
+      <div className="card anim-expand" style={{ padding:24, animationDelay:"0.1s" }}>
+        <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Banco de Dados</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
           <div>
-            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Project URL</label>
-            <input value={SUPABASE_URL} readOnly style={{ fontFamily:"monospace", fontSize:12 }} />
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>URL do Projeto</label>
+            <input value={SUPABASE_URL} readOnly style={{ fontFamily:"monospace", fontSize:11, color:"var(--taupe)" }} />
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ width:10, height:10, borderRadius:"50%", background:"var(--success)" }} />
-            <span style={{ fontSize:13, color:"var(--taupe)" }}>Conectado ao Supabase</span>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+            <div style={{ width:10, height:10, borderRadius:"50%", background:"var(--success)", animation:"pulse 2s infinite" }} />
+            <span style={{ fontSize:13, color:"var(--success)", fontWeight:500 }}>Conectado ao Supabase</span>
           </div>
+        </div>
+      </div>
+      <div className="card anim-expand" style={{ padding:24, animationDelay:"0.2s" }}>
+        <h3 style={{ fontSize:15, fontWeight:600, marginBottom:12 }}>Dados do Sistema</h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          {[
+            { label:"Transações", value:transactions.length },
+            { label:"Compras", value:purchases.length },
+            { label:"Membros", value:profiles.length },
+            { label:"Pendentes", value:pendingCount },
+          ].map((d, i) => (
+            <div key={i} style={{ background:"var(--cream)", borderRadius:10, padding:14, textAlign:"center" }}>
+              <p style={{ fontSize:24, fontWeight:700, color:"var(--accent)" }}>{d.value}</p>
+              <span style={{ fontSize:12, color:"var(--taupe)" }}>{d.label}</span>
+            </div>
+          ))}
         </div>
       </div>
       <Btn variant="danger" icon="logout" onClick={handleLogout} full>Sair da Conta</Btn>
     </div>
   );
 
-  const pages = { dashboard:renderDashboard, contas:renderContas, compras:renderCompras, relatorios:renderRelatorios, perfis:renderPerfis, perfil:renderPerfil, whatsapp:renderWhatsApp, config:renderConfig };
+  const pages = { dashboard:renderDashboard, contas:renderContas, compras:renderCompras, relatorios:renderRelatorios, perfis:renderPerfis, perfil:renderPerfil, config:renderConfig };
 
   return (
     <>
@@ -985,7 +1662,7 @@ export default function InfinityApp() {
             <div style={{ color:"var(--accent)" }}><Icon name="infinity" size={28} /></div>
             <span style={{ fontSize:20, fontWeight:700, fontFamily:"'Playfair Display', serif", letterSpacing:0.5 }}>Infinity</span>
           </div>
-          <nav style={{ flex:1, padding:"12px 10px", display:"flex", flexDirection:"column", gap:2 }}>
+          <nav style={{ flex:1, padding:"12px 10px", display:"flex", flexDirection:"column", gap:2, overflowY:"auto" }}>
             {navItems.map(n => (
               <div key={n.id} onClick={() => setPage(n.id)} className="btn-press" style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 14px", borderRadius:10, cursor:"pointer", background:page===n.id?"var(--beige)":"transparent", color:page===n.id?"var(--dark)":"var(--taupe)", fontWeight:page===n.id?600:400, fontSize:14, transition:"all .2s" }}>
                 <Icon name={n.icon} size={18} />{n.label}
@@ -994,9 +1671,9 @@ export default function InfinityApp() {
           </nav>
           <div style={{ padding:"16px 14px", borderTop:"1px solid var(--beige)", display:"flex", alignItems:"center", gap:10 }}>
             <Avatar user={currentUser} size={36} />
-            <div>
-              <p style={{ fontSize:13, fontWeight:600 }}>{currentUser.name?.split(" ")[0]}</p>
-              <p style={{ fontSize:11, color:"var(--taupe)" }}>{currentUser.role === "admin" ? "Administrador" : currentUser.role === "editor" ? "Editor" : "Visualizador"}</p>
+            <div style={{ flex:1, minWidth:0 }}>
+              <p style={{ fontSize:13, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{currentUser.name?.split(" ")[0]}</p>
+              <p style={{ fontSize:11, color:"var(--taupe)" }}>{currentUser.role === "admin" ? "Admin" : currentUser.role === "editor" ? "Editor" : "Visualizador"}</p>
             </div>
           </div>
         </aside>
@@ -1009,18 +1686,27 @@ export default function InfinityApp() {
                 <div style={{ color:"var(--accent)" }}><Icon name="infinity" size={24} /></div>
                 <span style={{ fontSize:18, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Infinity</span>
               </div>
-              {navItems.map(n => (
-                <div key={n.id} onClick={() => { setPage(n.id); setSideOpen(false); }} className="btn-press" style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 14px", borderRadius:10, cursor:"pointer", background:page===n.id?"var(--beige)":"transparent", color:page===n.id?"var(--dark)":"var(--taupe)", fontWeight:page===n.id?600:400, fontSize:14 }}>
-                  <Icon name={n.icon} size={18} />{n.label}
+              <div style={{ flex:1, overflowY:"auto" }}>
+                {navItems.map(n => (
+                  <div key={n.id} onClick={() => { setPage(n.id); setSideOpen(false); }} className="btn-press" style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 14px", borderRadius:10, cursor:"pointer", background:page===n.id?"var(--beige)":"transparent", color:page===n.id?"var(--dark)":"var(--taupe)", fontWeight:page===n.id?600:400, fontSize:14 }}>
+                    <Icon name={n.icon} size={18} />{n.label}
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding:"16px 14px", borderTop:"1px solid var(--beige)", display:"flex", alignItems:"center", gap:10 }}>
+                <Avatar user={currentUser} size={36} />
+                <div>
+                  <p style={{ fontSize:13, fontWeight:600 }}>{currentUser.name?.split(" ")[0]}</p>
+                  <p style={{ fontSize:11, color:"var(--taupe)" }}>{companyName}</p>
                 </div>
-              ))}
+              </div>
             </aside>
           </div>
         )}
 
         {/* MAIN CONTENT */}
-        <main style={{ flex:1, marginLeft:window.innerWidth > 768 ? 240 : 0, minHeight:"100vh" }}>
-          <header style={{ position:"sticky", top:0, background:"rgba(250,247,242,.85)", backdropFilter:"blur(12px)", borderBottom:"1px solid var(--beige)", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", zIndex:50 }}>
+        <main style={{ flex:1, marginLeft:typeof window !== "undefined" && window.innerWidth > 768 ? 240 : 0, minHeight:"100vh" }}>
+          <header style={{ position:"sticky", top:0, background:"rgba(250,247,242,.9)", backdropFilter:"blur(12px)", borderBottom:"1px solid var(--beige)", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", zIndex:50 }}>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
               <div className="mobile-only btn-press" onClick={() => setSideOpen(true)} style={{ cursor:"pointer" }}><Icon name="menu" size={22} /></div>
               <h1 style={{ fontSize:18, fontWeight:600, fontFamily:"'Playfair Display', serif" }}>
@@ -1028,74 +1714,226 @@ export default function InfinityApp() {
               </h1>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <div className="btn-press" style={{ width:36, height:36, borderRadius:10, background:"var(--white)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", border:"1px solid var(--beige)", position:"relative" }}>
+              <div className="btn-press" style={{ position:"relative", width:36, height:36, borderRadius:10, background:"var(--white)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", border:"1px solid var(--beige)" }} onClick={() => setPage("contas")}>
                 <Icon name="bell" size={17} />
-                {pendingCount > 0 && <div style={{ position:"absolute", top:-3, right:-3, width:16, height:16, borderRadius:"50%", background:"var(--danger)", color:"white", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>{pendingCount}</div>}
+                {pendingCount > 0 && <div style={{ position:"absolute", top:-3, right:-3, width:17, height:17, borderRadius:"50%", background:"var(--danger)", color:"white", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>{pendingCount}</div>}
               </div>
               <div className="btn-press desktop-only" onClick={() => setPage("perfil")} style={{ cursor:"pointer" }}>
                 <Avatar user={currentUser} size={36} />
               </div>
             </div>
           </header>
-          <div key={page} className="anim-fade" style={{ padding:24, maxWidth:1200 }}>
+          <div key={page} className="anim-fade" style={{ padding:24, maxWidth:1280 }}>
             {pages[page]?.()}
           </div>
         </main>
       </div>
 
-      {/* MODAL: Nova Transação */}
+      {/* ══ MODAL: Nova Transação ══ */}
       <Modal open={modalOpen === "addTx"} onClose={() => setModalOpen(null)} title="Nova Transação">
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Descrição *</label><input placeholder="Ex: Pagamento fornecedor" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} /></div>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Descrição *</label>
+            <input placeholder="Ex: Pagamento fornecedor ABC" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} />
+          </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-            <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Categoria</label><input placeholder="Fornecedores, Fixas..." value={newTx.category} onChange={e => setNewTx({ ...newTx, category:e.target.value })} /></div>
-            <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Tipo</label>
-              <select value={newTx.type} onChange={e => setNewTx({ ...newTx, type:e.target.value })}><option value="saida">Saída</option><option value="entrada">Entrada</option></select>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Categoria</label>
+              <input placeholder="Ex: Fornecedores, Salários..." value={newTx.category} onChange={e => setNewTx({ ...newTx, category:e.target.value })} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Tipo</label>
+              <select value={newTx.type} onChange={e => setNewTx({ ...newTx, type:e.target.value })}>
+                <option value="saida">Saída (despesa)</option>
+                <option value="entrada">Entrada (receita)</option>
+              </select>
             </div>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-            <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Valor (R$) *</label><input type="number" placeholder="0,00" value={newTx.value} onChange={e => setNewTx({ ...newTx, value:e.target.value })} /></div>
-            <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label><input type="date" value={newTx.date} onChange={e => setNewTx({ ...newTx, date:e.target.value })} /></div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Valor (R$) *</label>
+              <input type="number" placeholder="0,00" min="0" step="0.01" value={newTx.value} onChange={e => setNewTx({ ...newTx, value:e.target.value })} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label>
+              <input type="date" value={newTx.date} onChange={e => setNewTx({ ...newTx, date:e.target.value })} />
+            </div>
           </div>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
-            <select value={newTx.status} onChange={e => setNewTx({ ...newTx, status:e.target.value })}><option value="pendente">Pendente</option><option value="pago">Pago</option><option value="recebido">Recebido</option><option value="atrasado">Atrasado</option></select>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
+            <select value={newTx.status} onChange={e => setNewTx({ ...newTx, status:e.target.value })}>
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+              <option value="recebido">Recebido</option>
+              <option value="atrasado">Atrasado</option>
+            </select>
           </div>
           <Btn onClick={addTransaction} icon="check" full>Salvar Transação</Btn>
         </div>
       </Modal>
 
-      {/* MODAL: Nova Compra */}
+      {/* ══ MODAL: Editar Transação ══ */}
+      <Modal open={modalOpen === "editTx"} onClose={() => { setModalOpen(null); setEditingTx(null); }} title="Editar Transação">
+        {editingTx && (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Descrição *</label>
+              <input value={editingTx.description} onChange={e => setEditingTx({ ...editingTx, description:e.target.value })} />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Categoria</label>
+                <input value={editingTx.category || ""} onChange={e => setEditingTx({ ...editingTx, category:e.target.value })} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Tipo</label>
+                <select value={editingTx.type} onChange={e => setEditingTx({ ...editingTx, type:e.target.value })}>
+                  <option value="saida">Saída</option>
+                  <option value="entrada">Entrada</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Valor (R$) *</label>
+                <input type="number" min="0" step="0.01" value={editingTx.value} onChange={e => setEditingTx({ ...editingTx, value:e.target.value })} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label>
+                <input type="date" value={editingTx.date} onChange={e => setEditingTx({ ...editingTx, date:e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
+              <select value={editingTx.status} onChange={e => setEditingTx({ ...editingTx, status:e.target.value })}>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+                <option value="recebido">Recebido</option>
+                <option value="atrasado">Atrasado</option>
+              </select>
+            </div>
+            <Btn onClick={saveEditTx} icon="check" full>Salvar Alterações</Btn>
+          </div>
+        )}
+      </Modal>
+
+      {/* ══ MODAL: Nova Compra ══ */}
       <Modal open={modalOpen === "addPurchase"} onClose={() => setModalOpen(null)} title="Nova Compra">
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Item *</label><input placeholder="Nome do produto" value={newPurchase.item} onChange={e => setNewPurchase({ ...newPurchase, item:e.target.value })} /></div>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Fornecedor</label><input placeholder="Nome do fornecedor" value={newPurchase.supplier} onChange={e => setNewPurchase({ ...newPurchase, supplier:e.target.value })} /></div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
-            <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Qtd</label><input type="number" value={newPurchase.qty} onChange={e => setNewPurchase({ ...newPurchase, qty:parseInt(e.target.value)||1 })} /></div>
-            <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Preço Unit. *</label><input type="number" placeholder="0,00" value={newPurchase.unit_price} onChange={e => setNewPurchase({ ...newPurchase, unit_price:e.target.value })} /></div>
-            <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label><input type="date" value={newPurchase.date} onChange={e => setNewPurchase({ ...newPurchase, date:e.target.value })} /></div>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Item *</label>
+            <input placeholder="Nome do produto ou serviço" value={newPurchase.item} onChange={e => setNewPurchase({ ...newPurchase, item:e.target.value })} />
           </div>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
-            <select value={newPurchase.status} onChange={e => setNewPurchase({ ...newPurchase, status:e.target.value })}><option value="em_transito">Em Trânsito</option><option value="entregue">Entregue</option><option value="ativo">Ativo</option><option value="cancelado">Cancelado</option></select>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Fornecedor</label>
+            <input placeholder="Nome da empresa fornecedora" value={newPurchase.supplier} onChange={e => setNewPurchase({ ...newPurchase, supplier:e.target.value })} />
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Quantidade</label>
+              <input type="number" min="1" value={newPurchase.qty} onChange={e => setNewPurchase({ ...newPurchase, qty:parseInt(e.target.value)||1 })} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Preço Unitário (R$) *</label>
+              <input type="number" placeholder="0,00" min="0" step="0.01" value={newPurchase.unit_price} onChange={e => setNewPurchase({ ...newPurchase, unit_price:e.target.value })} />
+            </div>
+          </div>
+          {newPurchase.qty && newPurchase.unit_price && (
+            <div style={{ padding:"10px 14px", borderRadius:8, background:"var(--beige)", fontSize:13 }}>
+              <strong>Total: {fmt(newPurchase.qty * parseFloat(newPurchase.unit_price || 0))}</strong>
+            </div>
+          )}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label>
+              <input type="date" value={newPurchase.date} onChange={e => setNewPurchase({ ...newPurchase, date:e.target.value })} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
+              <select value={newPurchase.status} onChange={e => setNewPurchase({ ...newPurchase, status:e.target.value })}>
+                <option value="em_transito">Em Trânsito</option>
+                <option value="entregue">Entregue</option>
+                <option value="ativo">Ativo</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </div>
           </div>
           <Btn onClick={addPurchase} icon="check" full>Salvar Compra</Btn>
         </div>
       </Modal>
 
-      {/* MODAL: Convidar Membro */}
+      {/* ══ MODAL: Editar Compra ══ */}
+      <Modal open={modalOpen === "editPurchase"} onClose={() => { setModalOpen(null); setEditingPurchase(null); }} title="Editar Compra">
+        {editingPurchase && (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Item *</label>
+              <input value={editingPurchase.item} onChange={e => setEditingPurchase({ ...editingPurchase, item:e.target.value })} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Fornecedor</label>
+              <input value={editingPurchase.supplier || ""} onChange={e => setEditingPurchase({ ...editingPurchase, supplier:e.target.value })} />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Quantidade</label>
+                <input type="number" min="1" value={editingPurchase.qty} onChange={e => setEditingPurchase({ ...editingPurchase, qty:parseInt(e.target.value)||1 })} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Preço Unitário (R$) *</label>
+                <input type="number" min="0" step="0.01" value={editingPurchase.unit_price} onChange={e => setEditingPurchase({ ...editingPurchase, unit_price:e.target.value })} />
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label>
+                <input type="date" value={editingPurchase.date} onChange={e => setEditingPurchase({ ...editingPurchase, date:e.target.value })} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
+                <select value={editingPurchase.status} onChange={e => setEditingPurchase({ ...editingPurchase, status:e.target.value })}>
+                  <option value="em_transito">Em Trânsito</option>
+                  <option value="entregue">Entregue</option>
+                  <option value="ativo">Ativo</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </div>
+            </div>
+            <Btn onClick={saveEditPurchase} icon="check" full>Salvar Alterações</Btn>
+          </div>
+        )}
+      </Modal>
+
+      {/* ══ MODAL: Convidar Membro ══ */}
       <Modal open={modalOpen === "inviteMember"} onClose={() => { setModalOpen(null); setInviteMsg(""); }} title="Convidar Membro">
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Nome *</label><input placeholder="Nome do colaborador" value={newMember.name} onChange={e => setNewMember({ ...newMember, name:e.target.value })} /></div>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Email *</label><input type="email" placeholder="email@empresa.com" value={newMember.email} onChange={e => setNewMember({ ...newMember, email:e.target.value })} /></div>
-          <div><label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Permissão</label>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Nome Completo *</label>
+            <input placeholder="Nome do colaborador" value={newMember.name} onChange={e => setNewMember({ ...newMember, name:e.target.value })} />
+          </div>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Email *</label>
+            <input type="email" placeholder="colaborador@empresa.com" value={newMember.email} onChange={e => setNewMember({ ...newMember, email:e.target.value })} />
+          </div>
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Permissão</label>
             <select value={newMember.role} onChange={e => setNewMember({ ...newMember, role:e.target.value })}>
-              <option value="viewer">Visualizador — só ver</option>
-              <option value="editor">Editor — ver e editar</option>
-              <option value="admin">Admin — acesso total</option>
+              <option value="viewer">Visualizador — apenas visualizar</option>
+              <option value="editor">Editor — criar e editar</option>
+              <option value="admin">Administrador — acesso total</option>
             </select>
           </div>
-          <Btn onClick={inviteMember} icon="mail" full>Enviar Convite</Btn>
-          {inviteMsg && <p style={{ fontSize:13, color:inviteMsg.startsWith("✓")?"#2E7D32":"var(--danger)", padding:"8px 12px", borderRadius:8, background:inviteMsg.startsWith("✓")?"#E8F5E9":"#FFEBEE" }}>{inviteMsg}</p>}
-          <p style={{ fontSize:12, color:"var(--warm-gray)" }}>O usuário receberá um email para definir sua senha e terá acesso à empresa automaticamente.</p>
+          <Btn onClick={inviteMember} icon="mail" full disabled={inviteLoading}>
+            {inviteLoading ? "Criando conta..." : "Adicionar à Equipe"}
+          </Btn>
+          {inviteMsg && (
+            <div style={{ padding:"10px 14px", borderRadius:8, background:inviteMsg.startsWith("✓")?"#E8F5E9":"#FFEBEE", color:inviteMsg.startsWith("✓")?"#2E7D32":"var(--danger)", fontSize:13, lineHeight:1.5 }}>
+              {inviteMsg}
+            </div>
+          )}
+          <p style={{ fontSize:12, color:"var(--warm-gray)", lineHeight:1.5 }}>
+            Uma conta será criada para o membro. Compartilhe a senha temporária com ele para que possa fazer login e atualizar seus dados.
+          </p>
         </div>
       </Modal>
     </>
