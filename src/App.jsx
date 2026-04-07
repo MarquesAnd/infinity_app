@@ -204,45 +204,105 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
   const rect = (x, y, w, h, style="F") => doc.rect(x, y, w, h, style);
 
   const addPageFooter = (pageNum, totalPages) => {
+    // Footer band
     setFill(C.beige);
-    rect(0, 285, W, 12);
+    rect(0, 283, W, 14);
+    // Accent top line
+    setFill(C.accent);
+    rect(0, 283, W, 0.8);
+    // Mini logo mark
+    drawLogoMark(ML, 284.5, 9);
     setTxt(C.gray);
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
-    doc.text(`Infinity — Gestão Financeira · ${company}`, ML, 292);
+    doc.text(`Infinity · ${company}`, ML + 12, 292);
     doc.text(`Página ${pageNum} de ${totalPages}`, MR, 292, { align:"right" });
+    setTxt(C.lightGray);
     doc.text(`Gerado em ${dateStr} às ${timeStr}`, W/2, 292, { align:"center" });
   };
 
-  const addPageHeader = (title, subtitle) => {
-    // Dark header band
+  // Draw the logo mark (rounded square + ∞ symbol) at position (x,y) with given size
+  const drawLogoMark = (x, y, size) => {
+    const r = size * 0.22; // corner radius
+    // Dark background
     setFill(C.dark);
-    rect(0, 0, W, 38);
-    // Accent accent strip
+    doc.roundedRect(x, y, size, size, r, r, "F");
+    // Inner border
+    setDraw([90, 73, 60]);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(x + 1, y + 1, size - 2, size - 2, r - 0.5, r - 0.5, "S");
+    // Accent bottom strip inside box
     setFill(C.accent);
-    rect(0, 36, W, 3);
-    // Logo symbol
-    setTxt(C.accentLight);
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("∞", ML + 1, 22);
-    // Title
+    doc.rect(x + size*0.15, y + size*0.85, size*0.7, size*0.06, "F");
+    // Draw ∞ symbol using two curved loops via jsPDF lines
+    // We approximate with an ellipse for each lobe
+    const cx = x + size * 0.5;
+    const cy = y + size * 0.44;
+    const lw = size * 0.22; // lobe half-width
+    const lh = size * 0.14; // lobe half-height
+    setDraw(C.accentLight);
+    doc.setLineWidth(size * 0.07);
+    // Right lobe
+    doc.ellipse(cx + lw * 0.72, cy, lw * 0.72, lh, "S");
+    // Left lobe
+    doc.ellipse(cx - lw * 0.72, cy, lw * 0.72, lh, "S");
+    // Cover overlap with dark fill to create the crossing
+    setFill(C.dark);
+    doc.rect(cx - size*0.04, cy - lh - 0.5, size*0.08, lh*2 + 1, "F");
+    // Redraw crossing lines in accent to restore the infinity crossing look
+    setDraw(C.accentLight);
+    doc.setLineWidth(size * 0.065);
+    // Left side of crossing (bottom-left to top-right diagonal)
+    doc.line(cx - size*0.03, cy + lh*0.5, cx + size*0.03, cy - lh*0.5);
+    // Right side of crossing
+    doc.line(cx + size*0.03, cy + lh*0.5, cx - size*0.03, cy - lh*0.5);
+  };
+
+  const addPageHeader = (title, subtitle) => {
+    // Dark header band (taller for logo)
+    setFill(C.dark);
+    rect(0, 0, W, 44);
+    // Gold accent strip at bottom of header
+    setFill(C.accent);
+    rect(0, 42, W, 2.5);
+    // Subtle gradient-like lighter strip
+    setFill([55, 44, 36]);
+    rect(0, 0, W, 6);
+
+    // Logo mark
+    const logoSize = 26;
+    const logoY = (44 - logoSize) / 2;
+    drawLogoMark(ML, logoY, logoSize);
+
+    // Brand name next to logo
     setTxt(C.white);
-    doc.setFontSize(16);
-    doc.text("Infinity", ML + 13, 17);
-    doc.setFontSize(9);
+    doc.setFontSize(17);
+    doc.setFont("helvetica", "bold");
+    doc.text("INFINITY", ML + logoSize + 5, 19);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     setTxt(C.accentLight);
-    doc.text("Gestão Financeira Inteligente", ML + 13, 24);
-    // Report title
+    doc.text("Gestão Financeira Inteligente", ML + logoSize + 5, 26);
+
+    // Vertical separator line
+    setDraw([80, 65, 52]);
+    doc.setLineWidth(0.5);
+    doc.line(W/2, 8, W/2, 36);
+
+    // Report title (right side)
     setTxt(C.white);
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text(title, MR, 17, { align:"right" });
-    doc.setFontSize(9);
+    doc.text(title, MR, 18, { align:"right" });
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
     setTxt(C.accentLight);
-    doc.text(subtitle, MR, 24, { align:"right" });
+    doc.text(subtitle, MR, 26, { align:"right" });
+
+    // Date/time bottom right
+    setTxt([120, 105, 90]);
+    doc.setFontSize(7.5);
+    doc.text(dateStr + "  " + timeStr, MR, 33, { align:"right" });
   };
 
   const drawInfoRow = (y, items) => {
@@ -1023,7 +1083,7 @@ export default function InfinityApp() {
       <style>{globalCSS}</style>
       <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)" }}>
         <div style={{ textAlign:"center" }}>
-          <div style={{ color:"var(--accent)", marginBottom:12 }}><Icon name="infinity" size={40} /></div>
+          <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:56, height:56, marginBottom:4 }} />
           <p style={{ color:"var(--taupe)", fontSize:14 }}>Carregando...</p>
         </div>
       </div>
@@ -1039,8 +1099,8 @@ export default function InfinityApp() {
         <style>{globalCSS}</style>
         <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
           <div className="card anim-expand" style={{ width:"100%", maxWidth:440, padding:0, overflow:"hidden" }}>
-            <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"28px 32px", display:"flex", alignItems:"center", gap:12 }}>
-              <div style={{ color:"var(--accent-light)" }}><Icon name="infinity" size={28} /></div>
+            <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"22px 32px", display:"flex", alignItems:"center", gap:12 }}>
+              <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:38, height:38 }} />
               <span style={{ fontSize:22, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif" }}>Infinity</span>
             </div>
             <div style={{ padding:"32px 32px 28px" }}>
@@ -1109,8 +1169,8 @@ export default function InfinityApp() {
       <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
         <div className="card anim-expand" style={{ width:"100%", maxWidth:440, padding:0, overflow:"hidden" }}>
           <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"40px 32px 32px", textAlign:"center" }}>
-            <div style={{ display:"inline-flex", alignItems:"center", gap:10, marginBottom:8 }}>
-              <div style={{ color:"var(--accent-light)" }}><Icon name="infinity" size={36} /></div>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:12, marginBottom:8 }}>
+              <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:48, height:48 }} />
               <span style={{ fontSize:28, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif", letterSpacing:1 }}>Infinity</span>
             </div>
             <p style={{ color:"var(--warm-gray)", fontSize:13, marginTop:4 }}>Gestão financeira inteligente</p>
@@ -1724,8 +1784,8 @@ export default function InfinityApp() {
       <div style={{ display:"flex", minHeight:"100vh", background:"var(--cream)" }}>
         {/* SIDEBAR DESKTOP */}
         <aside className="desktop-only" style={{ width:240, background:"var(--white)", borderRight:"1px solid var(--beige)", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:100 }}>
-          <div style={{ padding:"24px 20px", display:"flex", alignItems:"center", gap:10, borderBottom:"1px solid var(--beige)" }}>
-            <div style={{ color:"var(--accent)" }}><Icon name="infinity" size={28} /></div>
+          <div style={{ padding:"18px 20px", display:"flex", alignItems:"center", gap:10, borderBottom:"1px solid var(--beige)" }}>
+            <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:36, height:36 }} />
             <span style={{ fontSize:20, fontWeight:700, fontFamily:"'Playfair Display', serif", letterSpacing:0.5 }}>Infinity</span>
           </div>
           <nav style={{ flex:1, padding:"12px 10px", display:"flex", flexDirection:"column", gap:2, overflowY:"auto" }}>
@@ -1749,7 +1809,7 @@ export default function InfinityApp() {
           <div className="mobile-only" onClick={() => setSideOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(61,50,41,.4)", zIndex:200 }}>
             <aside onClick={e => e.stopPropagation()} className="anim-fade" style={{ width:260, background:"var(--white)", height:"100%", padding:"20px 10px", display:"flex", flexDirection:"column" }}>
               <div style={{ padding:"4px 10px 20px", display:"flex", alignItems:"center", gap:10, borderBottom:"1px solid var(--beige)", marginBottom:12 }}>
-                <div style={{ color:"var(--accent)" }}><Icon name="infinity" size={24} /></div>
+                <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:30, height:30 }} />
                 <span style={{ fontSize:18, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Infinity</span>
               </div>
               <div style={{ flex:1, overflowY:"auto" }}>
