@@ -53,7 +53,6 @@ create table if not exists purchases (
 
 -- ══════════════════════════════════════════
 -- FUNÇÃO HELPER — evita recursão infinita nas policies
--- SECURITY DEFINER bypassa RLS ao consultar profiles
 -- ══════════════════════════════════════════
 create or replace function get_my_company_id()
 returns uuid
@@ -81,18 +80,14 @@ create policy "Admin atualiza empresa"
   using (id = get_my_company_id());
 
 -- ── Profiles ────────────────────────────────
--- SELECT: todos da mesma empresa (usa função, sem recursão)
 create policy "Membros veem perfis da empresa"
   on profiles for select
   using (company_id = get_my_company_id() or id = auth.uid());
 
--- UPDATE: cada um atualiza o próprio perfil
 create policy "Próprio usuário atualiza perfil"
   on profiles for update
   using (id = auth.uid());
 
--- INSERT: usuário cria o próprio perfil (signup)
---         OU admin adiciona membro à mesma empresa
 create policy "Inserir perfil próprio ou admin convida membro"
   on profiles for insert
   with check (
@@ -100,7 +95,6 @@ create policy "Inserir perfil próprio ou admin convida membro"
     or company_id = get_my_company_id()
   );
 
--- DELETE: admin remove membro (não a si mesmo)
 create policy "Admin remove membros"
   on profiles for delete
   using (
@@ -141,22 +135,3 @@ create policy "Admin/Editor atualizam compras"
 create policy "Admin exclui compras"
   on purchases for delete
   using (company_id = get_my_company_id());
-
--- ══════════════════════════════════════════
--- STORAGE: bucket avatars
--- 1. Vá em Storage > New Bucket > Nome: avatars > Public: true
--- 2. Depois rode as políticas abaixo:
--- ══════════════════════════════════════════
-/*
-create policy "Avatares públicos"
-  on storage.objects for select
-  using (bucket_id = 'avatars');
-
-create policy "Usuário faz upload do próprio avatar"
-  on storage.objects for insert
-  with check (bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]);
-
-create policy "Usuário atualiza próprio avatar"
-  on storage.objects for update
-  using (bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]);
-*/
