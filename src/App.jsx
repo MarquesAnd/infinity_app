@@ -731,7 +731,7 @@ export default function InfinityApp() {
   const [saveMsg, setSaveMsg] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [setupCompany, setSetupCompany] = useState(() => { try { return localStorage.getItem("infinity_pending_company") || ""; } catch(_) { return ""; } });
+  const [setupCompany, setSetupCompany] = useState("");
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupError, setSetupError] = useState("");
   const avatarInputRef = useRef(null);
@@ -797,7 +797,6 @@ export default function InfinityApp() {
       .update({ company_id: company.id, role: "admin" }).eq("id", session.user.id);
     if (pErr) { setSetupError("Empresa criada! Erro ao vincular: " + pErr.message); setSetupLoading(false); return; }
     // Reload profile so app enters main view
-    try { localStorage.removeItem("infinity_pending_company"); } catch(_) {}
     setCurrentUser(prev => ({ ...prev, company_id: company.id, role: "admin" }));
     setCompanyData(company);
     setSetupLoading(false);
@@ -840,25 +839,18 @@ export default function InfinityApp() {
         if (signUpErr) { setAuthError(signUpErr.message); return; }
         if (!authData.user) { setAuthError("Erro ao criar conta. Tente novamente."); return; }
 
-        if (authData.session) {
-          // Auto-confirm enabled: user is authenticated immediately → create company now
-          const { data: company, error: companyErr } = await supabase
-            .from("companies").insert({ name: loginForm.company }).select().single();
-          if (companyErr) { setAuthError("Erro ao criar empresa: " + companyErr.message); return; }
-          await supabase.from("profiles").update({
-            company_id: company.id,
-            name: loginForm.name || loginForm.email.split("@")[0],
-            email: loginForm.email,
-            role: "admin",
-          }).eq("id", authData.user.id);
-          // App will load via onAuthStateChange
-        } else {
-          // Email confirmation required: user must confirm email before we can create company.
-          // Save company name so the "complete setup" screen is pre-filled after login.
-          try { localStorage.setItem("infinity_pending_company", loginForm.company); } catch(_) {}
-          setAuthError("✓ Conta criada! Confirme seu email e depois faça login para finalizar o cadastro.");
-          setAuthMode("login");
-        }
+        // Create company (user is authenticated immediately — auto-confirm is enabled)
+        const { data: company, error: companyErr } = await supabase
+          .from("companies").insert({ name: loginForm.company }).select().single();
+        if (companyErr) { setAuthError("Erro ao criar empresa: " + companyErr.message); return; }
+        const { error: profileErr } = await supabase.from("profiles").update({
+          company_id: company.id,
+          name: loginForm.name || loginForm.email.split("@")[0],
+          email: loginForm.email,
+          role: "admin",
+        }).eq("id", authData.user.id);
+        if (profileErr) { setAuthError("Empresa criada, erro ao salvar perfil: " + profileErr.message); return; }
+        // onAuthStateChange triggers profile reload automatically
       }
     } finally {
       setAuthSubmitting(false);
