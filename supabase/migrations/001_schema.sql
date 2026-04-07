@@ -11,12 +11,12 @@ create table if not exists companies (
   created_at timestamptz default now()
 );
 
--- Perfis de usuário (extensão do auth.users)
+-- Perfis de usuário
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   company_id uuid references companies(id) on delete cascade,
-  name text not null,
-  email text not null,
+  name text not null default '',
+  email text not null default '',
   role text not null default 'viewer' check (role in ('admin','editor','viewer')),
   avatar_url text,
   created_at timestamptz default now()
@@ -52,6 +52,31 @@ create table if not exists purchases (
 );
 
 -- ══════════════════════════════════════════
+-- TRIGGER: cria perfil vazio automaticamente no signup
+-- Evita "Database error saving new user"
+-- ══════════════════════════════════════════
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, name)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1))
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- ══════════════════════════════════════════
 -- FUNÇÃO HELPER — evita recursão infinita nas policies
 -- ══════════════════════════════════════════
 create or replace function get_my_company_id()
@@ -60,11 +85,10 @@ language sql
 security definer
 stable
 as $$
-  select company_id from profiles where id = auth.uid()
+  select company_id from public.profiles where id = auth.uid()
 $$;
 
 -- ── Row Level Security ──────────────────────
-
 alter table companies enable row level security;
 alter table profiles enable row level security;
 alter table transactions enable row level security;
@@ -92,7 +116,7 @@ create policy "Próprio usuário atualiza perfil"
   on profiles for update
   using (id = auth.uid());
 
-create policy "Inserir perfil próprio ou admin convida membro"
+create policy "Inserir perfil próprio ou convidar membro"
   on profiles for insert
   with check (
     id = auth.uid()
@@ -107,7 +131,7 @@ create policy "Admin remove membros"
   );
 
 -- ── Transactions ─────────────────────────────
-create policy "Membros veem transações da empresa"
+create policy "Membros veem transações"
   on transactions for select
   using (company_id = get_my_company_id());
 
@@ -124,7 +148,7 @@ create policy "Admin exclui transações"
   using (company_id = get_my_company_id());
 
 -- ── Purchases ────────────────────────────────
-create policy "Membros veem compras da empresa"
+create policy "Membros veem compras"
   on purchases for select
   using (company_id = get_my_company_id());
 

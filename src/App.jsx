@@ -273,23 +273,25 @@ export default function InfinityApp() {
         const { error } = await supabase.auth.signInWithPassword({ email: loginForm.email, password: loginForm.password });
         if (error) setAuthError(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message);
       } else {
-        // 1. Sign up user first (so auth.uid() is available)
-        const { data: authData, error: signUpErr } = await supabase.auth.signUp({ email: loginForm.email, password: loginForm.password });
+        // 1. Sign up — trigger cria perfil vazio automaticamente
+        const { data: authData, error: signUpErr } = await supabase.auth.signUp({
+          email: loginForm.email,
+          password: loginForm.password,
+          options: { data: { name: loginForm.name || loginForm.email.split("@")[0] } },
+        });
         if (signUpErr) { setAuthError(signUpErr.message); return; }
         if (!authData.user) { setAuthError("Verifique seu email para confirmar o cadastro."); return; }
-        // 2. Create company (authenticated now)
-        const { data: company, error: companyErr } = await supabase.from("companies").insert({ name: loginForm.company }).select().single();
+        // 2. Criar empresa
+        const { data: company, error: companyErr } = await supabase
+          .from("companies").insert({ name: loginForm.company }).select().single();
         if (companyErr) { setAuthError("Erro ao criar empresa: " + companyErr.message); return; }
-        // 3. Create profile
-        const { error: profileErr } = await supabase.from("profiles").insert({
-          id: authData.user.id,
+        // 3. Atualizar perfil com company_id e role admin
+        await supabase.from("profiles").update({
           company_id: company.id,
           name: loginForm.name || loginForm.email.split("@")[0],
           email: loginForm.email,
           role: "admin",
-        });
-        if (profileErr) { setAuthError("Erro ao criar perfil: " + profileErr.message); return; }
-        // If session already exists (email confirmation disabled), loadProfile handles redirect
+        }).eq("id", authData.user.id);
         if (!authData.session) {
           setAuthError("✓ Conta criada! Verifique seu email para confirmar e depois faça login.");
           setAuthMode("login");
