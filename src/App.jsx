@@ -671,6 +671,9 @@ export default function InfinityApp() {
   const [saveMsg, setSaveMsg] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [setupCompany, setSetupCompany] = useState("");
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupError, setSetupError] = useState("");
   const avatarInputRef = useRef(null);
 
   // ─── SUPABASE AUTH ───
@@ -720,6 +723,23 @@ export default function InfinityApp() {
     if (!currentUser?.company_id) return;
     const { data } = await supabase.from("companies").select("*").eq("id", currentUser.company_id).single();
     if (data) setCompanyData(data);
+  };
+
+  // Called from "complete setup" screen when admin has no company yet
+  const completeSetup = async () => {
+    if (!setupCompany.trim()) { setSetupError("Informe o nome da empresa."); return; }
+    setSetupLoading(true);
+    setSetupError("");
+    const { data: company, error: cErr } = await supabase
+      .from("companies").insert({ name: setupCompany.trim() }).select().single();
+    if (cErr) { setSetupError("Erro ao criar empresa: " + cErr.message); setSetupLoading(false); return; }
+    const { error: pErr } = await supabase.from("profiles")
+      .update({ company_id: company.id, role: "admin" }).eq("id", session.user.id);
+    if (pErr) { setSetupError("Empresa criada! Erro ao vincular: " + pErr.message); setSetupLoading(false); return; }
+    // Reload profile so app enters main view
+    setCurrentUser(prev => ({ ...prev, company_id: company.id, role: "admin" }));
+    setCompanyData(company);
+    setSetupLoading(false);
   };
 
   const loadTransactions = async () => {
@@ -1011,30 +1031,76 @@ export default function InfinityApp() {
   );
 
   // ─── NO COMPANY SCREEN ───
-  if (session && currentUser && !currentUser.company_id) return (
-    <>
-      <style>{globalCSS}</style>
-      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
-        <div className="card anim-expand" style={{ width:"100%", maxWidth:420, padding:"40px 32px", textAlign:"center" }}>
-          <div style={{ color:"var(--accent)", marginBottom:16 }}><Icon name="group" size={48} /></div>
-          <h2 style={{ color:"var(--dark)", fontFamily:"'Playfair Display', serif", marginBottom:12 }}>Aguardando vinculação</h2>
-          <p style={{ color:"var(--taupe)", fontSize:14, lineHeight:1.6, marginBottom:24 }}>
-            Sua conta foi criada, mas ainda não está vinculada a uma empresa.<br/>
-            Peça ao administrador para te adicionar como membro.
-          </p>
-          <p style={{ color:"var(--warm-gray)", fontSize:12, marginBottom:20 }}>Logado como: <strong>{currentUser.email}</strong></p>
-          <div style={{ display:"flex", gap:12, justifyContent:"center" }}>
-            <button onClick={loadProfile} className="btn-press" style={{ padding:"10px 20px", borderRadius:8, border:"1.5px solid var(--sand)", background:"transparent", color:"var(--taupe)", fontSize:14, fontWeight:600, fontFamily:"inherit", cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-              <Icon name="refresh" size={16} /> Atualizar
-            </button>
-            <button onClick={() => supabase.auth.signOut()} className="btn-press" style={{ padding:"10px 20px", borderRadius:8, border:"none", background:"var(--accent)", color:"white", fontSize:14, fontWeight:600, fontFamily:"inherit", cursor:"pointer" }}>
-              Sair
-            </button>
+  if (session && currentUser && !currentUser.company_id) {
+    // Admin without company = incomplete signup → let them finish setup
+    const isAdminSetup = currentUser.role === "admin";
+    return (
+      <>
+        <style>{globalCSS}</style>
+        <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
+          <div className="card anim-expand" style={{ width:"100%", maxWidth:440, padding:0, overflow:"hidden" }}>
+            <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"28px 32px", display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ color:"var(--accent-light)" }}><Icon name="infinity" size={28} /></div>
+              <span style={{ fontSize:22, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif" }}>Infinity</span>
+            </div>
+            <div style={{ padding:"32px 32px 28px" }}>
+              {isAdminSetup ? (
+                <>
+                  <h2 style={{ color:"var(--dark)", fontFamily:"'Playfair Display', serif", marginBottom:8 }}>Concluir Cadastro</h2>
+                  <p style={{ color:"var(--taupe)", fontSize:13, lineHeight:1.6, marginBottom:24 }}>
+                    Conta criada! Agora informe o nome da sua empresa para começar a usar o sistema.
+                  </p>
+                  <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                    <div>
+                      <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Nome da Empresa *</label>
+                      <input
+                        placeholder="Ex: Minha Empresa Ltda"
+                        value={setupCompany}
+                        onChange={e => setSetupCompany(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && completeSetup()}
+                        autoFocus
+                      />
+                    </div>
+                    <button
+                      onClick={completeSetup}
+                      disabled={setupLoading}
+                      className="btn-press"
+                      style={{ width:"100%", padding:"12px", borderRadius:8, border:"none", background:setupLoading?"var(--warm-gray)":"var(--accent)", color:"white", fontSize:15, fontWeight:600, fontFamily:"inherit", cursor:setupLoading?"not-allowed":"pointer" }}
+                    >
+                      {setupLoading ? "Criando..." : "Criar Empresa e Entrar"}
+                    </button>
+                    {setupError && (
+                      <div style={{ padding:"10px 14px", borderRadius:8, background:"#FFEBEE", color:"var(--danger)", fontSize:13 }}>
+                        {setupError}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ color:"var(--accent)", marginBottom:16, textAlign:"center" }}><Icon name="group" size={48} /></div>
+                  <h2 style={{ color:"var(--dark)", fontFamily:"'Playfair Display', serif", marginBottom:12, textAlign:"center" }}>Aguardando vinculação</h2>
+                  <p style={{ color:"var(--taupe)", fontSize:14, lineHeight:1.6, marginBottom:20, textAlign:"center" }}>
+                    Sua conta foi criada, mas ainda não está vinculada a uma empresa.<br/>
+                    Peça ao administrador para te adicionar à equipe.
+                  </p>
+                  <p style={{ color:"var(--warm-gray)", fontSize:12, marginBottom:20, textAlign:"center" }}>Logado como: <strong>{currentUser.email}</strong></p>
+                </>
+              )}
+              <div style={{ display:"flex", gap:10, justifyContent:"center", marginTop:isAdminSetup ? 4 : 0 }}>
+                <button onClick={loadProfile} className="btn-press" style={{ padding:"9px 18px", borderRadius:8, border:"1.5px solid var(--sand)", background:"transparent", color:"var(--taupe)", fontSize:13, fontWeight:500, fontFamily:"inherit", cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                  <Icon name="refresh" size={14} /> Atualizar
+                </button>
+                <button onClick={() => supabase.auth.signOut()} className="btn-press" style={{ padding:"9px 18px", borderRadius:8, border:"none", background:"var(--beige)", color:"var(--dark)", fontSize:13, fontWeight:500, fontFamily:"inherit", cursor:"pointer" }}>
+                  Sair
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
+  }
 
   // ─── AUTH SCREEN ───
   if (!session || !currentUser) return (
