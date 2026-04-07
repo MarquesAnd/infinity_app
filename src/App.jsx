@@ -80,6 +80,30 @@ const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", c
 const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR") : "-";
 const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
+// ─── PREDEFINED CATEGORIES & DESCRIPTIONS ───
+const CATEGORIES = {
+  saida: [
+    { cat: "Aluguel", descs: ["Aluguel do escritório", "Aluguel do galpão", "Aluguel de equipamentos"] },
+    { cat: "Salários", descs: ["Folha de pagamento", "Pró-labore", "13º salário", "Férias", "FGTS"] },
+    { cat: "Fornecedores", descs: ["Pagamento fornecedor", "Matéria-prima", "Insumos"] },
+    { cat: "Impostos", descs: ["IRPJ", "ICMS", "ISS", "PIS/COFINS", "Simples Nacional", "INSS", "IPTU"] },
+    { cat: "Utilidades", descs: ["Energia elétrica", "Água e esgoto", "Internet", "Telefone", "Gás"] },
+    { cat: "Marketing", descs: ["Google Ads", "Meta Ads", "Material gráfico", "Eventos", "Branding"] },
+    { cat: "Transporte", descs: ["Combustível", "Frete", "Manutenção veículos", "Pedágio", "Estacionamento"] },
+    { cat: "Escritório", descs: ["Material de escritório", "Limpeza", "Manutenção predial", "Segurança"] },
+    { cat: "Tecnologia", descs: ["Software/SaaS", "Hospedagem", "Domínio", "Equipamentos TI"] },
+    { cat: "Financeiro", descs: ["Juros bancários", "Tarifas bancárias", "IOF", "Multas"] },
+    { cat: "Outros", descs: [] },
+  ],
+  entrada: [
+    { cat: "Vendas", descs: ["Venda de produto", "Venda de serviço", "Comissão recebida"] },
+    { cat: "Serviços", descs: ["Consultoria", "Projeto", "Manutenção", "Suporte técnico"] },
+    { cat: "Recebimentos", descs: ["Recebimento de cliente", "Cobrança recebida", "Parcela recebida"] },
+    { cat: "Investimentos", descs: ["Rendimento aplicação", "Dividendos", "Juros recebidos"] },
+    { cat: "Outros", descs: [] },
+  ],
+};
+
 // ─── MINI BAR CHART ───
 const MiniBarChart = ({ data, height = 160 }) => {
   const max = Math.max(...data.flatMap(d => [d.in, d.out]), 1);
@@ -719,7 +743,7 @@ export default function InfinityApp() {
   const [searchTerm, setSearchTerm] = useState("");
   const [txTypeFilter, setTxTypeFilter] = useState("all");
 
-  const emptyTx = { description:"", category:"", type:"saida", value:"", date:new Date().toISOString().slice(0,10), status:"pendente" };
+  const emptyTx = { description:"", category:"", type:"saida", value:"", date:new Date().toISOString().slice(0,10), status:"pendente", recurring:false, recurMonths:2 };
   const emptyPurchase = { item:"", supplier:"", qty:1, unit_price:"", date:new Date().toISOString().slice(0,10), status:"em_transito" };
 
   const [newTx, setNewTx] = useState(emptyTx);
@@ -861,18 +885,50 @@ export default function InfinityApp() {
   // ─── TRANSACTION HANDLERS ───
   const addTransaction = async () => {
     if (!newTx.description || !newTx.value || !newTx.date) return;
-    const { data, error } = await supabase.from("transactions").insert({
+    const val = parseFloat(newTx.value);
+    const base = {
       company_id: currentUser.company_id,
       created_by: session.user.id,
-      ...newTx,
-      value: parseFloat(newTx.value),
-    }).select().single();
-    if (data) {
-      setTransactions(prev => [data, ...prev]);
-      setNewTx(emptyTx);
-      setModalOpen(null);
+      description: newTx.description,
+      category: newTx.category,
+      type: newTx.type,
+      value: val,
+      status: newTx.status,
+    };
+
+    if (newTx.recurring && newTx.recurMonths > 1) {
+      // Recurring: create N transactions with incrementing months
+      const groupId = crypto.randomUUID();
+      const rows = [];
+      for (let i = 0; i < newTx.recurMonths; i++) {
+        const d = new Date(newTx.date + "T12:00:00");
+        d.setMonth(d.getMonth() + i);
+        rows.push({
+          ...base,
+          date: d.toISOString().slice(0, 10),
+          recurrence_group: groupId,
+        });
+      }
+      const { data, error } = await supabase.from("transactions").insert(rows).select();
+      if (data) {
+        setTransactions(prev => [...data.reverse(), ...prev]);
+        setNewTx(emptyTx);
+        setModalOpen(null);
+      }
+      if (error) alert("Erro ao salvar: " + error.message);
+    } else {
+      // Single transaction
+      const { data, error } = await supabase.from("transactions").insert({
+        ...base,
+        date: newTx.date,
+      }).select().single();
+      if (data) {
+        setTransactions(prev => [data, ...prev]);
+        setNewTx(emptyTx);
+        setModalOpen(null);
+      }
+      if (error) alert("Erro ao salvar: " + error.message);
     }
-    if (error) alert("Erro ao salvar: " + error.message);
   };
 
   const saveEditTx = async () => {
@@ -891,6 +947,27 @@ export default function InfinityApp() {
       setModalOpen(null);
     }
     if (error) alert("Erro ao atualizar: " + error.message);
+  };
+
+  // Settlement: mark a transaction as paid with actual value
+  const [settlingTx, setSettlingTx] = useState(null);
+
+  const settleTx = async () => {
+    if (!settlingTx) return;
+    const actualVal = parseFloat(settlingTx.actual_value_input);
+    if (isNaN(actualVal) || actualVal < 0) return;
+    const newStatus = settlingTx.type === "entrada" ? "recebido" : "pago";
+    const { data, error } = await supabase.from("transactions").update({
+      actual_value: actualVal,
+      settled_at: new Date().toISOString().slice(0, 10),
+      status: newStatus,
+    }).eq("id", settlingTx.id).select().single();
+    if (data) {
+      setTransactions(prev => prev.map(t => t.id === data.id ? data : t));
+      setSettlingTx(null);
+      setModalOpen(null);
+    }
+    if (error) alert("Erro ao quitar: " + error.message);
   };
 
   const deleteTransaction = async (id) => {
@@ -1049,6 +1126,10 @@ export default function InfinityApp() {
   const balance = totalIn - totalOut;
   const pendingCount = transactions.filter(t => t.status === "pendente" || t.status === "atrasado").length;
   const totalPurchasesVal = purchases.reduce((a,p) => a + Number(p.total), 0);
+  // Previsto x Realizado
+  const totalPrevisto = filteredTx.reduce((a, t) => a + Number(t.value), 0);
+  const totalRealizado = filteredTx.filter(t => t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
+  const settledCount = filteredTx.filter(t => t.actual_value != null).length;
 
   const expenseCategories = {};
   filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + Number(t.value); });
@@ -1359,22 +1440,30 @@ export default function InfinityApp() {
         </select>
       </div>
       {/* Summary */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:12 }}>
-        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--success)" }}>
-          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Entradas</span>
-          <p style={{ fontSize:22, fontWeight:700, color:"var(--success)", marginTop:4 }}>{fmt(totalIn)}</p>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(155px, 1fr))", gap:12 }}>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--success)" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Entradas</span>
+          <p style={{ fontSize:20, fontWeight:700, color:"var(--success)", marginTop:4 }}>{fmt(totalIn)}</p>
         </div>
-        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--danger)", animationDelay:"0.06s" }}>
-          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Saídas</span>
-          <p style={{ fontSize:22, fontWeight:700, color:"var(--danger)", marginTop:4 }}>{fmt(totalOut)}</p>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--danger)", animationDelay:"0.05s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saídas</span>
+          <p style={{ fontSize:20, fontWeight:700, color:"var(--danger)", marginTop:4 }}>{fmt(totalOut)}</p>
         </div>
-        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--accent)", animationDelay:"0.12s" }}>
-          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Saldo</span>
-          <p style={{ fontSize:22, fontWeight:700, color:balance>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(balance)}</p>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--accent)", animationDelay:"0.1s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saldo</span>
+          <p style={{ fontSize:20, fontWeight:700, color:balance>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(balance)}</p>
         </div>
-        <div className="card anim-fade" style={{ padding:18, borderLeft:"4px solid var(--warning)", animationDelay:"0.18s" }}>
-          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase" }}>Pendentes</span>
-          <p style={{ fontSize:22, fontWeight:700, color:"var(--warning)", marginTop:4 }}>{filteredTx.filter(t=>t.status==="pendente"||t.status==="atrasado").length}</p>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--warning)", animationDelay:"0.15s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Pendentes</span>
+          <p style={{ fontSize:20, fontWeight:700, color:"var(--warning)", marginTop:4 }}>{filteredTx.filter(t=>t.status==="pendente"||t.status==="atrasado").length}</p>
+        </div>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #1565C0", animationDelay:"0.2s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Previsto</span>
+          <p style={{ fontSize:20, fontWeight:700, color:"#1565C0", marginTop:4 }}>{fmt(totalPrevisto)}</p>
+        </div>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #7B1FA2", animationDelay:"0.25s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Realizado ({settledCount})</span>
+          <p style={{ fontSize:20, fontWeight:700, color:"#7B1FA2", marginTop:4 }}>{fmt(totalRealizado)}</p>
         </div>
       </div>
       {/* Table */}
@@ -1384,28 +1473,45 @@ export default function InfinityApp() {
             <thead><tr style={{ background:"var(--beige)", fontSize:11, color:"var(--taupe)", textAlign:"left" }}>
               <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Descrição</th>
               <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Categoria</th>
-              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Tipo</th>
-              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Valor</th>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Previsto</th>
+              <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Realizado</th>
               <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }} className="desktop-only">Data</th>
               <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Status</th>
               {canEdit && <th style={{ padding:"12px 14px", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>Ações</th>}
             </tr></thead>
-            <tbody>{filteredTx.map((t, i) => (
+            <tbody>{filteredTx.map((t, i) => {
+              const isSettled = t.actual_value != null;
+              const diff = isSettled ? Number(t.actual_value) - Number(t.value) : null;
+              return (
               <tr key={t.id} style={{ borderBottom:"1px solid var(--beige)", animation:`slideUp 0.3s ${Math.min(i,8)*0.04}s both` }}>
-                <td style={{ padding:"13px 14px", fontSize:14 }}>{t.description}</td>
+                <td style={{ padding:"13px 14px", fontSize:14 }}>
+                  {t.description}
+                  {t.recurrence_group && <span style={{ fontSize:10, color:"var(--taupe)", marginLeft:6 }} title="Recorrente">🔁</span>}
+                </td>
                 <td style={{ padding:"13px 14px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{t.category || "—"}</td>
-                <td style={{ padding:"13px 14px" }}><span style={{ padding:"3px 10px", borderRadius:12, fontSize:11, fontWeight:600, background:t.type==="entrada"?"#E8F5E9":"#FFEBEE", color:t.type==="entrada"?"#2E7D32":"#C62828" }}>{t.type==="entrada"?"Entrada":"Saída"}</span></td>
-                <td style={{ padding:"13px 14px", fontWeight:700, color:t.type==="entrada"?"var(--success)":"var(--danger)", whiteSpace:"nowrap" }}>{t.type==="entrada"?"+ ":"- "}{fmt(t.value)}</td>
+                <td style={{ padding:"13px 14px", fontWeight:600, color:t.type==="entrada"?"var(--success)":"var(--danger)", whiteSpace:"nowrap" }}>{t.type==="entrada"?"+ ":"- "}{fmt(t.value)}</td>
+                <td style={{ padding:"13px 14px" }} className="desktop-only">
+                  {isSettled ? (
+                    <span style={{ fontWeight:700, color:"#7B1FA2" }}>
+                      {fmt(t.actual_value)}
+                      {diff !== 0 && <span style={{ fontSize:11, marginLeft:4, color:diff>0?"var(--danger)":"var(--success)" }}>({diff>0?"+":""}{fmt(diff)})</span>}
+                    </span>
+                  ) : <span style={{ color:"var(--warm-gray)", fontSize:12 }}>—</span>}
+                </td>
                 <td style={{ padding:"13px 14px", fontSize:13, color:"var(--taupe)" }} className="desktop-only">{fmtDate(t.date)}</td>
                 <td style={{ padding:"13px 14px" }}><Badge status={t.status} /></td>
                 {canEdit && <td style={{ padding:"13px 14px" }}>
-                  <div style={{ display:"flex", gap:6 }}>
+                  <div style={{ display:"flex", gap:5 }}>
+                    {!isSettled && (t.status === "pendente" || t.status === "atrasado") && (
+                      <div className="btn-press" onClick={() => { setSettlingTx({ ...t, actual_value_input: String(t.value) }); setModalOpen("settleTx"); }} title="Quitar" style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"#E8F5E9", color:"#2E7D32", cursor:"pointer", fontWeight:700, fontSize:13 }}>✓</div>
+                    )}
                     <div className="btn-press" onClick={() => { setEditingTx({...t}); setModalOpen("editTx"); }} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--accent)", cursor:"pointer" }}><Icon name="edit" size={14} /></div>
                     <div className="btn-press" onClick={() => deleteTransaction(t.id)} style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)", color:"var(--danger)", cursor:"pointer" }}><Icon name="trash" size={14} /></div>
                   </div>
                 </td>}
               </tr>
-            ))}</tbody>
+              );
+            })}</tbody>
           </table>
         </div>
         {filteredTx.length === 0 && !dataLoading && (
@@ -1852,46 +1958,88 @@ export default function InfinityApp() {
       </div>
 
       {/* ══ MODAL: Nova Transação ══ */}
-      <Modal open={modalOpen === "addTx"} onClose={() => setModalOpen(null)} title="Nova Transação">
-        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-          <div>
-            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Descrição *</label>
-            <input placeholder="Ex: Pagamento fornecedor ABC" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} />
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-            <div>
-              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Categoria</label>
-              <input placeholder="Ex: Fornecedores, Salários..." value={newTx.category} onChange={e => setNewTx({ ...newTx, category:e.target.value })} />
-            </div>
+      <Modal open={modalOpen === "addTx"} onClose={() => setModalOpen(null)} title="Nova Transação" width={560}>
+        {(() => {
+          const cats = CATEGORIES[newTx.type] || CATEGORIES.saida;
+          const selCat = cats.find(c => c.cat === newTx.category);
+          return (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
             <div>
               <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Tipo</label>
-              <select value={newTx.type} onChange={e => setNewTx({ ...newTx, type:e.target.value })}>
+              <select value={newTx.type} onChange={e => setNewTx({ ...newTx, type:e.target.value, category:"", description:"" })}>
                 <option value="saida">Saída (despesa)</option>
                 <option value="entrada">Entrada (receita)</option>
               </select>
             </div>
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-            <div>
-              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Valor (R$) *</label>
-              <input type="number" placeholder="0,00" min="0" step="0.01" value={newTx.value} onChange={e => setNewTx({ ...newTx, value:e.target.value })} />
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Categoria *</label>
+                <select value={newTx.category} onChange={e => setNewTx({ ...newTx, category:e.target.value, description:"" })}>
+                  <option value="">Selecione...</option>
+                  {cats.map(c => <option key={c.cat} value={c.cat}>{c.cat}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Descrição *</label>
+                {selCat && selCat.descs.length > 0 ? (
+                  <>
+                    <select value={selCat.descs.includes(newTx.description) ? newTx.description : "__custom"} onChange={e => { if (e.target.value !== "__custom") setNewTx({ ...newTx, description:e.target.value }); else setNewTx({ ...newTx, description:"" }); }}>
+                      <option value="">Selecione...</option>
+                      {selCat.descs.map(d => <option key={d} value={d}>{d}</option>)}
+                      <option value="__custom">✏️ Digitar outro...</option>
+                    </select>
+                    {(!selCat.descs.includes(newTx.description) && newTx.description !== "") && (
+                      <input style={{ marginTop:8 }} placeholder="Descrição personalizada" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} />
+                    )}
+                    {newTx.description === "" && !selCat.descs.includes(newTx.description) && (
+                      <input style={{ marginTop:8 }} placeholder="Descrição personalizada" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} />
+                    )}
+                  </>
+                ) : (
+                  <input placeholder="Descreva a transação" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} />
+                )}
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Valor Previsto (R$) *</label>
+                <input type="number" placeholder="0,00" min="0" step="0.01" value={newTx.value} onChange={e => setNewTx({ ...newTx, value:e.target.value })} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label>
+                <input type="date" value={newTx.date} onChange={e => setNewTx({ ...newTx, date:e.target.value })} />
+              </div>
             </div>
             <div>
-              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Data *</label>
-              <input type="date" value={newTx.date} onChange={e => setNewTx({ ...newTx, date:e.target.value })} />
+              <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
+              <select value={newTx.status} onChange={e => setNewTx({ ...newTx, status:e.target.value })}>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+                <option value="recebido">Recebido</option>
+                <option value="atrasado">Atrasado</option>
+              </select>
             </div>
+            {/* Recurrence */}
+            <div style={{ background:"var(--cream)", borderRadius:10, padding:14 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }} onClick={() => setNewTx({ ...newTx, recurring:!newTx.recurring })}>
+                <div style={{ width:20, height:20, borderRadius:6, border:"2px solid var(--accent)", background:newTx.recurring?"var(--accent)":"transparent", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontSize:13, transition:"all .15s" }}>{newTx.recurring ? "✓" : ""}</div>
+                <span style={{ fontSize:13, fontWeight:600, color:"var(--dark)" }}>Conta recorrente</span>
+              </div>
+              {newTx.recurring && (
+                <div style={{ marginTop:12, display:"flex", alignItems:"center", gap:10 }}>
+                  <label style={{ fontSize:12, color:"var(--taupe)", whiteSpace:"nowrap" }}>Repetir por</label>
+                  <input type="number" min="2" max="60" value={newTx.recurMonths} onChange={e => setNewTx({ ...newTx, recurMonths:Math.max(2, parseInt(e.target.value)||2) })} style={{ width:70 }} />
+                  <span style={{ fontSize:12, color:"var(--taupe)" }}>meses</span>
+                  <span style={{ fontSize:11, color:"var(--warm-gray)", marginLeft:4 }}>(cria {newTx.recurMonths} lançamentos)</span>
+                </div>
+              )}
+            </div>
+            <Btn onClick={addTransaction} icon="check" full>
+              {newTx.recurring ? `Criar ${newTx.recurMonths} Lançamentos` : "Salvar Transação"}
+            </Btn>
           </div>
-          <div>
-            <label style={{ fontSize:12, fontWeight:600, color:"var(--taupe)", marginBottom:6, display:"block" }}>Status</label>
-            <select value={newTx.status} onChange={e => setNewTx({ ...newTx, status:e.target.value })}>
-              <option value="pendente">Pendente</option>
-              <option value="pago">Pago</option>
-              <option value="recebido">Recebido</option>
-              <option value="atrasado">Atrasado</option>
-            </select>
-          </div>
-          <Btn onClick={addTransaction} icon="check" full>Salvar Transação</Btn>
-        </div>
+          );
+        })()}
       </Modal>
 
       {/* ══ MODAL: Editar Transação ══ */}
@@ -1935,6 +2083,43 @@ export default function InfinityApp() {
               </select>
             </div>
             <Btn onClick={saveEditTx} icon="check" full>Salvar Alterações</Btn>
+          </div>
+        )}
+      </Modal>
+
+      {/* ══ MODAL: Quitar Transação ══ */}
+      <Modal open={modalOpen === "settleTx"} onClose={() => { setModalOpen(null); setSettlingTx(null); }} title="Quitar Conta" width={440}>
+        {settlingTx && (
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            <div style={{ background:"var(--cream)", borderRadius:12, padding:18 }}>
+              <p style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>{settlingTx.description}</p>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"var(--taupe)" }}>
+                <span>{settlingTx.category || "—"}</span>
+                <span>{fmtDate(settlingTx.date)}</span>
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <div style={{ background:"#E3F2FD", borderRadius:10, padding:14, textAlign:"center" }}>
+                <span style={{ fontSize:11, color:"#1565C0", fontWeight:600, textTransform:"uppercase" }}>Previsto</span>
+                <p style={{ fontSize:20, fontWeight:700, color:"#1565C0", marginTop:4 }}>{fmt(settlingTx.value)}</p>
+              </div>
+              <div style={{ background:"#F3E5F5", borderRadius:10, padding:14, textAlign:"center" }}>
+                <span style={{ fontSize:11, color:"#7B1FA2", fontWeight:600, textTransform:"uppercase" }}>Realizado</span>
+                <input type="number" min="0" step="0.01" value={settlingTx.actual_value_input} onChange={e => setSettlingTx({ ...settlingTx, actual_value_input:e.target.value })} style={{ textAlign:"center", fontSize:18, fontWeight:700, color:"#7B1FA2", background:"transparent", border:"none", borderBottom:"2px solid #CE93D8", borderRadius:0, padding:"6px 0", marginTop:4 }} />
+              </div>
+            </div>
+            {(() => {
+              const prev = Number(settlingTx.value);
+              const real = parseFloat(settlingTx.actual_value_input) || 0;
+              const diff = real - prev;
+              if (diff === 0) return <p style={{ textAlign:"center", fontSize:13, color:"var(--taupe)" }}>Valores iguais — sem diferença</p>;
+              return <p style={{ textAlign:"center", fontSize:13, fontWeight:600, color:diff>0?"var(--danger)":"var(--success)" }}>
+                {diff > 0 ? `Pagou ${fmt(diff)} a mais que o previsto` : `Economizou ${fmt(Math.abs(diff))} em relação ao previsto`}
+              </p>;
+            })()}
+            <Btn onClick={settleTx} icon="check" variant="success" full>
+              Confirmar Quitação
+            </Btn>
           </div>
         )}
       </Modal>
