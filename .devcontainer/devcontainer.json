@@ -1,0 +1,12 @@
+{
+  "name": "Infinity App",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+  "postCreateCommand": "npm install && npm install -g @anthropic-ai/claude-code",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}
