@@ -71,6 +71,10 @@ alter table transactions enable row level security;
 alter table purchases enable row level security;
 
 -- ── Companies ───────────────────────────────
+create policy "Qualquer autenticado cria empresa"
+  on companies for insert
+  with check (true);
+
 create policy "Membros veem sua empresa"
   on companies for select
   using (id = get_my_company_id());
