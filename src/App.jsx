@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-// ─── SUPABASE CONFIG (plug your keys) ───
+// ─── SUPABASE ───
 const SUPABASE_URL = "https://yresgunnnazzjexbajyk.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZXNndW5ubmF6empleGJhanlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MzI4MzcsImV4cCI6MjA5MTEwODgzN30.ve_S3ji2mYOYycr6MizRKMzeHnNqBK-o5TiPc9Qymy0";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Tables needed: users, companies, accounts, transactions, purchases, reports, profiles
 
 // ─── ICONS ───
@@ -270,9 +272,12 @@ const Badge = ({ status }) => {
 export default function InfinityApp() {
   const [page, setPage] = useState("dashboard");
   const [sideOpen, setSideOpen] = useState(false);
-  const [isAuth, setIsAuth] = useState(false);
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [authMode, setAuthMode] = useState("login");
   const [loginForm, setLoginForm] = useState({ email: "", password: "", company: "" });
+  const [authError, setAuthError] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
   const [transactions, setTransactions] = useState(sampleTransactions);
   const [purchases, setPurchases] = useState(samplePurchases);
   const [modalOpen, setModalOpen] = useState(null);
@@ -288,8 +293,84 @@ export default function InfinityApp() {
   const [whatsappModal, setWhatsappModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(profiles[0]);
 
+  // ─── SUPABASE AUTH ───
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        const u = session.user;
+        setCurrentUser({
+          id: u.id,
+          name: u.user_metadata?.name || u.email.split("@")[0],
+          email: u.email,
+          role: u.user_metadata?.role || "admin",
+          avatar: (u.user_metadata?.name || u.email)[0].toUpperCase(),
+        });
+      }
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        const u = session.user;
+        setCurrentUser({
+          id: u.id,
+          name: u.user_metadata?.name || u.email.split("@")[0],
+          email: u.email,
+          role: u.user_metadata?.role || "admin",
+          avatar: (u.user_metadata?.name || u.email)[0].toUpperCase(),
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async () => {
+    setAuthError("");
+    setAuthSubmitting(true);
+    try {
+      if (authMode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: loginForm.email,
+          password: loginForm.password,
+        });
+        if (error) setAuthError(error.message);
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email: loginForm.email,
+          password: loginForm.password,
+          options: { data: { name: loginForm.company || loginForm.email.split("@")[0] } },
+        });
+        if (error) setAuthError(error.message);
+        else setAuthError("✓ Verifique seu email para confirmar o cadastro.");
+      }
+    } finally {
+      setAuthSubmitting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setPage("dashboard");
+  };
+
   // ─── AUTH SCREEN ───
-  if (!isAuth) {
+  if (authLoading) {
+    return (
+      <>
+        <style>{globalCSS}</style>
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)" }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ color: "var(--accent)", marginBottom: 12 }}><Icon name="infinity" size={40} /></div>
+            <p style={{ color: "var(--taupe)", fontSize: 14 }}>Carregando...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!session) {
     return (
       <>
         <style>{globalCSS}</style>
@@ -325,12 +406,16 @@ export default function InfinityApp() {
                   <label style={{ fontSize: 12, fontWeight: 600, color: "var(--taupe)", marginBottom: 6, display: "block" }}>Senha</label>
                   <input type="password" placeholder="••••••••" value={loginForm.password} onChange={e => setLoginForm({ ...loginForm, password: e.target.value })} />
                 </div>
-                <button onClick={() => setIsAuth(true)} className="btn-press" style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: "var(--accent)", color: "var(--white)", fontSize: 15, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginTop: 6, transition: "all 0.2s" }}>
-                  {authMode === "login" ? "Entrar" : "Criar Conta"}
+                <button onClick={handleAuth} disabled={authSubmitting} className="btn-press" style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: authSubmitting ? "var(--warm-gray)" : "var(--accent)", color: "var(--white)", fontSize: 15, fontWeight: 600, fontFamily: "inherit", cursor: authSubmitting ? "not-allowed" : "pointer", marginTop: 6, transition: "all 0.2s" }}>
+                  {authSubmitting ? "Aguarde..." : authMode === "login" ? "Entrar" : "Criar Conta"}
                 </button>
               </div>
+              {authError && (
+                <p style={{ textAlign: "center", fontSize: 13, marginTop: 14, padding: "10px 14px", borderRadius: 8, background: authError.startsWith("✓") ? "#E8F5E9" : "#FFEBEE", color: authError.startsWith("✓") ? "#2E7D32" : "var(--danger)" }}>
+                  {authError}
+                </p>
+              )}
               <p style={{ textAlign: "center", fontSize: 12, color: "var(--warm-gray)", marginTop: 16 }}>
-                {/* Supabase Auth ready */}
                 Protegido com criptografia de ponta a ponta
               </p>
             </div>
@@ -773,7 +858,7 @@ export default function InfinityApp() {
           </div>
         </div>
       </div>
-      <Btn variant="danger" icon="logout" onClick={() => setIsAuth(false)} full>Sair da Conta</Btn>
+      <Btn variant="danger" icon="logout" onClick={handleLogout} full>Sair da Conta</Btn>
     </div>
   );
 
