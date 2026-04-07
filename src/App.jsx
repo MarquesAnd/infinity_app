@@ -276,11 +276,11 @@ export default function InfinityApp() {
         const { error } = await supabase.auth.signInWithPassword({ email: loginForm.email, password: loginForm.password });
         if (error) setAuthError(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message);
       } else {
-        // 1. Sign up — trigger cria perfil vazio automaticamente
+        // 1. Sign up — trigger cria perfil com role=admin (dono da empresa)
         const { data: authData, error: signUpErr } = await supabase.auth.signUp({
           email: loginForm.email,
           password: loginForm.password,
-          options: { data: { name: loginForm.name || loginForm.email.split("@")[0] } },
+          options: { data: { name: loginForm.name || loginForm.email.split("@")[0], role: "admin" } },
         });
         if (signUpErr) { setAuthError(signUpErr.message); return; }
         if (!authData.user) { setAuthError("Verifique seu email para confirmar o cadastro."); return; }
@@ -404,22 +404,21 @@ export default function InfinityApp() {
     if (!newMember.email || !newMember.name) { setInviteMsg("Preencha nome e email."); return; }
     // Sign up the new user (they'll get an email to set password)
     const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
+    // Passa role nos metadados — trigger cria o perfil já com o role correto
     const { data: authData, error: signUpErr } = await supabase.auth.signUp({
       email: newMember.email,
       password: tempPassword,
-      options: { data: { name: newMember.name } },
+      options: { data: { name: newMember.name, role: newMember.role } },
     });
     if (signUpErr) { setInviteMsg("Erro: " + signUpErr.message); return; }
-    // Trigger já criou o perfil — apenas atualizar com company_id e role
-    const { error: profileErr } = await supabase.from("profiles").update({
-      company_id: currentUser.company_id,
-      name: newMember.name,
-      email: newMember.email,
-      role: newMember.role,
-    }).eq("id", authData.user.id);
-    if (profileErr) { setInviteMsg("Erro ao vincular perfil: " + profileErr.message); return; }
-    setProfiles(prev => [...prev, { id: authData.user.id, ...newMember, company_id: currentUser.company_id }]);
-    setInviteMsg("✓ Usuário convidado! Um email foi enviado para " + newMember.email);
+    // Vincular à empresa (policy permite admin atualizar perfis sem company_id)
+    const { error: profileErr, count } = await supabase.from("profiles")
+      .update({ company_id: currentUser.company_id, name: newMember.name, email: newMember.email, role: newMember.role })
+      .eq("id", authData.user.id)
+      .select();
+    if (profileErr) { setInviteMsg("Erro ao vincular à empresa: " + profileErr.message); return; }
+    await loadProfiles();
+    setInviteMsg("✓ " + newMember.name + " adicionado à equipe! Senha temporária enviada para " + newMember.email);
     setNewMember({ email:"", name:"", role:"viewer" });
   };
 
@@ -529,6 +528,26 @@ export default function InfinityApp() {
         <div style={{ textAlign:"center" }}>
           <div style={{ color:"var(--accent)", marginBottom:12 }}><Icon name="infinity" size={40} /></div>
           <p style={{ color:"var(--taupe)", fontSize:14 }}>Carregando...</p>
+        </div>
+      </div>
+    </>
+  );
+
+  if (session && currentUser && !currentUser.company_id) return (
+    <>
+      <style>{globalCSS}</style>
+      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
+        <div className="card anim-expand" style={{ width:"100%", maxWidth:420, padding:"40px 32px", textAlign:"center" }}>
+          <div style={{ color:"var(--accent)", marginBottom:16 }}><Icon name="group" size={48} /></div>
+          <h2 style={{ color:"var(--dark)", fontFamily:"'Playfair Display', serif", marginBottom:12 }}>Aguardando vinculação</h2>
+          <p style={{ color:"var(--taupe)", fontSize:14, lineHeight:1.6, marginBottom:24 }}>
+            Sua conta foi criada com sucesso, mas ainda não está vinculada a uma empresa.<br/>
+            Peça ao administrador da empresa para te adicionar como membro e faça login novamente.
+          </p>
+          <p style={{ color:"var(--warm-gray)", fontSize:12, marginBottom:20 }}>Logado como: <strong>{currentUser.email}</strong></p>
+          <button onClick={() => supabase.auth.signOut()} className="btn-press" style={{ padding:"10px 24px", borderRadius:8, border:"none", background:"var(--accent)", color:"white", fontSize:14, fontWeight:600, fontFamily:"inherit", cursor:"pointer" }}>
+            Sair e tentar outro acesso
+          </button>
         </div>
       </div>
     </>
