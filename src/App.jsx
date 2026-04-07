@@ -790,13 +790,12 @@ export default function InfinityApp() {
     if (!setupCompany.trim()) { setSetupError("Informe o nome da empresa."); return; }
     setSetupLoading(true);
     setSetupError("");
-    const { data: company, error: cErr } = await supabase
-      .from("companies").insert({ name: setupCompany.trim() }).select().single();
+    const { data: company, error: cErr } = await supabase.rpc("create_company_for_owner", {
+      company_name: setupCompany.trim(),
+      owner_name: currentUser.name || currentUser.email.split("@")[0],
+      owner_email: currentUser.email,
+    });
     if (cErr) { setSetupError("Erro ao criar empresa: " + cErr.message); setSetupLoading(false); return; }
-    const { error: pErr } = await supabase.from("profiles")
-      .update({ company_id: company.id, role: "admin" }).eq("id", session.user.id);
-    if (pErr) { setSetupError("Empresa criada! Erro ao vincular: " + pErr.message); setSetupLoading(false); return; }
-    // Reload profile so app enters main view
     setCurrentUser(prev => ({ ...prev, company_id: company.id, role: "admin" }));
     setCompanyData(company);
     setSetupLoading(false);
@@ -839,17 +838,14 @@ export default function InfinityApp() {
         if (signUpErr) { setAuthError(signUpErr.message); return; }
         if (!authData.user) { setAuthError("Erro ao criar conta. Tente novamente."); return; }
 
-        // Create company (user is authenticated immediately — auto-confirm is enabled)
-        const { data: company, error: companyErr } = await supabase
-          .from("companies").insert({ name: loginForm.company }).select().single();
+        // Create company via SECURITY DEFINER function — bypasses RLS safely
+        const ownerName = loginForm.name || loginForm.email.split("@")[0];
+        const { error: companyErr } = await supabase.rpc("create_company_for_owner", {
+          company_name: loginForm.company,
+          owner_name: ownerName,
+          owner_email: loginForm.email,
+        });
         if (companyErr) { setAuthError("Erro ao criar empresa: " + companyErr.message); return; }
-        const { error: profileErr } = await supabase.from("profiles").update({
-          company_id: company.id,
-          name: loginForm.name || loginForm.email.split("@")[0],
-          email: loginForm.email,
-          role: "admin",
-        }).eq("id", authData.user.id);
-        if (profileErr) { setAuthError("Empresa criada, erro ao salvar perfil: " + profileErr.message); return; }
         // onAuthStateChange triggers profile reload automatically
       }
     } finally {
