@@ -202,6 +202,9 @@ export default function InfinityApp() {
   const [profileForm, setProfileForm] = useState({ name:"", email:"", password:"" });
   const [saveMsg, setSaveMsg] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [companySetupError, setCompanySetupError] = useState("");
+  const [companySetupLoading, setCompanySetupLoading] = useState(false);
   const avatarInputRef = useRef(null);
 
   // ─── SUPABASE AUTH ───
@@ -407,14 +410,14 @@ export default function InfinityApp() {
       options: { data: { name: newMember.name } },
     });
     if (signUpErr) { setInviteMsg("Erro: " + signUpErr.message); return; }
-    const { error: profileErr } = await supabase.from("profiles").insert({
-      id: authData.user.id,
+    // Trigger já criou o perfil — apenas atualizar com company_id e role
+    const { error: profileErr } = await supabase.from("profiles").update({
       company_id: currentUser.company_id,
       name: newMember.name,
       email: newMember.email,
       role: newMember.role,
-    });
-    if (profileErr) { setInviteMsg("Erro ao criar perfil: " + profileErr.message); return; }
+    }).eq("id", authData.user.id);
+    if (profileErr) { setInviteMsg("Erro ao vincular perfil: " + profileErr.message); return; }
     setProfiles(prev => [...prev, { id: authData.user.id, ...newMember, company_id: currentUser.company_id }]);
     setInviteMsg("✓ Usuário convidado! Um email foi enviado para " + newMember.email);
     setNewMember({ email:"", name:"", role:"viewer" });
