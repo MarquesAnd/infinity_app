@@ -1368,9 +1368,11 @@ export default function InfinityApp() {
   const balance = totalIn - totalOut;
   const pendingCount = transactions.filter(t => t.status === "pendente" || t.status === "atrasado").length;
   const totalPurchasesVal = purchases.reduce((a,p) => a + Number(p.total), 0);
-  // Previsto x Realizado
-  const totalPrevisto = filteredTx.reduce((a, t) => a + Number(t.value), 0);
-  const totalRealizado = filteredTx.filter(t => t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
+  // Previsto x Realizado (separado por tipo)
+  const previstoEntradas = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + Number(t.value), 0);
+  const previstoSaidas = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + Number(t.value), 0);
+  const realizadoEntradas = filteredTx.filter(t => t.type === "entrada" && t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
+  const realizadoSaidas = filteredTx.filter(t => t.type === "saida" && t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
   const settledCount = filteredTx.filter(t => t.actual_value != null).length;
 
   const expenseCategories = {};
@@ -1699,13 +1701,15 @@ export default function InfinityApp() {
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Pendentes</span>
           <p style={{ fontSize:20, fontWeight:700, color:"var(--warning)", marginTop:4 }}>{filteredTx.filter(t=>t.status==="pendente"||t.status==="atrasado").length}</p>
         </div>
-        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #1565C0", animationDelay:"0.2s" }}>
-          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Previsto</span>
-          <p style={{ fontSize:20, fontWeight:700, color:"#1565C0", marginTop:4 }}>{fmt(totalPrevisto)}</p>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #2E7D32", animationDelay:"0.2s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Prev. Entradas</span>
+          <p style={{ fontSize:18, fontWeight:700, color:"#2E7D32", marginTop:4 }}>{fmt(previstoEntradas)}</p>
+          {realizadoEntradas > 0 && <p style={{ fontSize:11, color:"#7B1FA2", marginTop:2 }}>Real: {fmt(realizadoEntradas)}</p>}
         </div>
-        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #7B1FA2", animationDelay:"0.25s" }}>
-          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Realizado ({settledCount})</span>
-          <p style={{ fontSize:20, fontWeight:700, color:"#7B1FA2", marginTop:4 }}>{fmt(totalRealizado)}</p>
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #C62828", animationDelay:"0.25s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Prev. Saídas</span>
+          <p style={{ fontSize:18, fontWeight:700, color:"#C62828", marginTop:4 }}>{fmt(previstoSaidas)}</p>
+          {realizadoSaidas > 0 && <p style={{ fontSize:11, color:"#7B1FA2", marginTop:2 }}>Real: {fmt(realizadoSaidas)}</p>}
         </div>
       </div>
       {/* Table */}
@@ -1887,8 +1891,8 @@ export default function InfinityApp() {
             { label:"Receitas", value:fmt(totalIn), color:"var(--success)", border:"var(--success)" },
             { label:"Despesas", value:fmt(totalOut), color:"var(--danger)", border:"var(--danger)" },
             { label:"Saldo", value:fmt(balance), color:balance>=0?"var(--success)":"var(--danger)", border:"var(--accent)" },
-            { label:"Previsto", value:fmt(totalPrevisto), color:"#1565C0", border:"#1565C0" },
-            { label:"Realizado", value:fmt(totalRealizado), color:"#7B1FA2", border:"#7B1FA2" },
+            { label:"Prev. Entradas", value:fmt(previstoEntradas), color:"#2E7D32", border:"#2E7D32" },
+            { label:"Prev. Saídas", value:fmt(previstoSaidas), color:"#C62828", border:"#C62828" },
           ].map((s,i) => (
             <div key={i} className="card anim-fade" style={{ padding:16, borderLeft:`4px solid ${s.border}`, animationDelay:`${i*0.05}s` }}>
               <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>{s.label}</span>
@@ -2272,13 +2276,10 @@ export default function InfinityApp() {
                     <select value={selCat.descs.includes(newTx.description) ? newTx.description : "__custom"} onChange={e => { if (e.target.value !== "__custom") setNewTx({ ...newTx, description:e.target.value }); else setNewTx({ ...newTx, description:"" }); }}>
                       <option value="">Selecione...</option>
                       {selCat.descs.map(d => <option key={d} value={d}>{d}</option>)}
-                      <option value="__custom">✏️ Digitar outro...</option>
+                      <option value="__custom">Digitar outro...</option>
                     </select>
-                    {(!selCat.descs.includes(newTx.description) && newTx.description !== "") && (
-                      <input style={{ marginTop:8 }} placeholder="Descrição personalizada" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} />
-                    )}
-                    {newTx.description === "" && !selCat.descs.includes(newTx.description) && (
-                      <input style={{ marginTop:8 }} placeholder="Descrição personalizada" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} />
+                    {!selCat.descs.includes(newTx.description) && (
+                      <input key="custom-desc" style={{ marginTop:8 }} placeholder="Digite a descrição personalizada" value={newTx.description} onChange={e => setNewTx({ ...newTx, description:e.target.value })} autoFocus />
                     )}
                   </>
                 ) : (
