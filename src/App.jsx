@@ -245,7 +245,8 @@ const MonthlyBarChart = ({ data, height = 200 }) => {
           <strong>{data[hover].m}</strong><br/>
           <span style={{ color:"#7BA387" }}>Entradas: {fmt(data[hover].in)}</span><br/>
           <span style={{ color:"#C4716C" }}>Saídas: {fmt(data[hover].out)}</span><br/>
-          <strong>Saldo: {fmt(data[hover].in - data[hover].out)}</strong>
+          <strong>Saldo mês: {fmt(data[hover].in - data[hover].out)}</strong>
+          {data[hover].balance !== undefined && <><br/><span style={{ color:"#B8926A" }}>Acumulado: {fmt(data[hover].balance)}</span></>}
         </>}
       </Tooltip>
       <div style={{ display:"flex", gap:16, justifyContent:"center", marginTop:8 }}>
@@ -1323,33 +1324,43 @@ export default function InfinityApp() {
     setInviteMsg("");
     if (!newMember.email || !newMember.name) { setInviteMsg("Preencha nome e email."); return; }
     setInviteLoading(true);
-    // Save admin session tokens before creating user
-    const { data: { session: adminSession } } = await supabase.auth.getSession();
-    const tempPassword = Math.random().toString(36).slice(-8) + "Aa1!";
-    const { data: authData, error: signUpErr } = await supabase.auth.signUp({
-      email: newMember.email,
-      password: tempPassword,
-      options: { data: { name: newMember.name, role: newMember.role } },
-    });
-    // If admin was auto-signed out by the signUp, restore admin session
-    const { data: { session: afterSession } } = await supabase.auth.getSession();
-    if (afterSession?.user?.id !== adminSession?.user?.id) {
+    try {
+      // 1. Save admin session
+      const { data: { session: adminSession } } = await supabase.auth.getSession();
+
+      // 2. Create user account
+      const tempPassword = Math.random().toString(36).slice(-8) + "Aa1!";
+      const { data: authData, error: signUpErr } = await supabase.auth.signUp({
+        email: newMember.email,
+        password: tempPassword,
+        options: { data: { name: newMember.name, role: newMember.role } },
+      });
+
+      // 3. ALWAYS restore admin session (signUp auto-logs in the new user)
       await supabase.auth.setSession({
         access_token: adminSession.access_token,
         refresh_token: adminSession.refresh_token,
       });
+
+      if (signUpErr) { setInviteMsg("Erro ao criar conta: " + signUpErr.message); return; }
+      if (!authData?.user?.id) { setInviteMsg("Erro: não foi possível criar o usuário."); return; }
+
+      // 4. Link to company via SECURITY DEFINER RPC (bypasses all RLS issues)
+      const { error: linkErr } = await supabase.rpc("link_member_to_company", {
+        member_id: authData.user.id,
+        target_company_id: currentUser.company_id,
+        member_name: newMember.name,
+        member_email: newMember.email,
+        member_role: newMember.role,
+      });
+      if (linkErr) { setInviteMsg("Conta criada, erro ao vincular: " + linkErr.message); return; }
+
+      await loadProfiles();
+      setInviteMsg(`✓ ${newMember.name} adicionado à equipe!\nSenha temporária: ${tempPassword}\nCompartilhe com o membro para que faça login.`);
+      setNewMember({ email:"", name:"", role:"viewer" });
+    } finally {
+      setInviteLoading(false);
     }
-    setInviteLoading(false);
-    if (signUpErr) { setInviteMsg("Erro ao criar conta: " + signUpErr.message); return; }
-    if (!authData?.user?.id) { setInviteMsg("Erro: não foi possível criar o usuário."); return; }
-    // Link to company
-    const { error: profileErr } = await supabase.from("profiles")
-      .update({ company_id: currentUser.company_id, name: newMember.name, email: newMember.email, role: newMember.role })
-      .eq("id", authData.user.id);
-    if (profileErr) { setInviteMsg("Usuário criado, mas erro ao vincular à empresa: " + profileErr.message); return; }
-    await loadProfiles();
-    setInviteMsg(`✓ ${newMember.name} adicionado à equipe! Senha temporária: ${tempPassword}`);
-    setNewMember({ email:"", name:"", role:"viewer" });
   };
 
   // ─── PERMISSIONS ───
@@ -1357,32 +1368,47 @@ export default function InfinityApp() {
   const isAdmin = currentUser?.role === "admin";
 
   // ─── COMPUTED ───
+  // Valor real: usa actual_value se quitado, senão value (previsto)
+  const realVal = (t) => t.actual_value != null ? Number(t.actual_value) : Number(t.value);
+
   const filteredTx = transactions.filter(t => {
     const matchMonth = monthFilter === "all" || new Date(t.date + "T12:00:00").getMonth() === parseInt(monthFilter);
     const matchSearch = !searchTerm || (t.description || "").toLowerCase().includes(searchTerm.toLowerCase()) || (t.category || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchType = txTypeFilter === "all" || t.type === txTypeFilter;
     return matchMonth && matchSearch && matchType;
   });
-  const totalIn = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + Number(t.value), 0);
-  const totalOut = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + Number(t.value), 0);
+  // Totais REAIS (actual_value quando quitado, value quando pendente)
+  const totalIn = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + realVal(t), 0);
+  const totalOut = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + realVal(t), 0);
   const balance = totalIn - totalOut;
   const pendingCount = transactions.filter(t => t.status === "pendente" || t.status === "atrasado").length;
   const totalPurchasesVal = purchases.reduce((a,p) => a + Number(p.total), 0);
-  // Previsto x Realizado (separado por tipo)
+  // Previsto (sempre value original) vs Realizado separado
   const previstoEntradas = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + Number(t.value), 0);
   const previstoSaidas = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + Number(t.value), 0);
   const realizadoEntradas = filteredTx.filter(t => t.type === "entrada" && t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
   const realizadoSaidas = filteredTx.filter(t => t.type === "saida" && t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
-  const settledCount = filteredTx.filter(t => t.actual_value != null).length;
-
+  // Gráficos usam valores REAIS
   const expenseCategories = {};
-  filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + Number(t.value); });
+  filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + realVal(t); });
 
-  const cashFlowData = months.map((m, i) => ({
+  // Cash flow mensal com valores REAIS + saldo acumulado do mês anterior
+  const allMonthlyData = months.map((m, i) => ({
     m, i,
-    in: transactions.filter(t => t.type === "entrada" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + Number(t.value), 0),
-    out: transactions.filter(t => t.type === "saida" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + Number(t.value), 0),
-  })).filter(d => d.in > 0 || d.out > 0).slice(-6);
+    in: transactions.filter(t => t.type === "entrada" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + realVal(t), 0),
+    out: transactions.filter(t => t.type === "saida" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + realVal(t), 0),
+  }));
+  // Calcular saldo acumulado (mês anterior arrasta para o atual)
+  let accumulated = 0;
+  const monthlyWithBalance = allMonthlyData.map(d => {
+    const saldo = d.in - d.out;
+    accumulated += saldo;
+    return { ...d, balance: accumulated, prevBalance: accumulated - saldo };
+  });
+  const cashFlowData = monthlyWithBalance.filter(d => d.in > 0 || d.out > 0).slice(-6);
+  // Saldo acumulado até o mês atual
+  const currentMonthIdx = new Date().getMonth();
+  const accumulatedBalance = monthlyWithBalance[currentMonthIdx]?.balance || 0;
 
   const monthLabel = monthFilter === "all" ? "Todos os meses" : months[parseInt(monthFilter)] + " 2026";
   const companyName = companyData?.name || currentUser?.email?.split("@")[0] || "Empresa";
@@ -1561,7 +1587,7 @@ export default function InfinityApp() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:16 }}>
         <StatCard label="Receitas" value={fmt(totalIn)} icon="arrow_up" color="var(--success)" delay={0} />
         <StatCard label="Despesas" value={fmt(totalOut)} icon="arrow_down" color="var(--danger)" delay={0.08} />
-        <StatCard label="Saldo" value={fmt(balance)} icon="wallet" color={balance>=0?"var(--success)":"var(--danger)"} delay={0.16} />
+        <StatCard label="Saldo Acumulado" value={fmt(accumulatedBalance)} icon="wallet" color={accumulatedBalance>=0?"var(--success)":"var(--danger)"} delay={0.16} />
         <StatCard label="Pendentes" value={pendingCount} icon="bell" color="var(--warning)" delay={0.24} />
       </div>
       {/* Charts */}
