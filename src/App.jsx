@@ -1308,7 +1308,7 @@ export default function InfinityApp() {
   };
 
   const updateMemberRole = async (profileId, role) => {
-    const { error } = await supabase.from("profiles").update({ role }).eq("id", profileId);
+    const { error } = await supabase.rpc("update_member_role", { member_id: profileId, new_role: role });
     if (!error) setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, role } : p));
     else alert("Sem permissão para alterar funções.");
   };
