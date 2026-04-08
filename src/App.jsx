@@ -80,47 +80,190 @@ const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", c
 const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR") : "-";
 const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
-// ─── PREDEFINED CATEGORIES & DESCRIPTIONS ───
+// ─── DRE CATEGORIES — CLÍNICA DE SAÚDE ───
 const CATEGORIES = {
   saida: [
-    { cat: "Aluguel", descs: ["Aluguel do escritório", "Aluguel do galpão", "Aluguel de equipamentos"] },
-    { cat: "Salários", descs: ["Folha de pagamento", "Pró-labore", "13º salário", "Férias", "FGTS"] },
-    { cat: "Fornecedores", descs: ["Pagamento fornecedor", "Matéria-prima", "Insumos"] },
-    { cat: "Impostos", descs: ["IRPJ", "ICMS", "ISS", "PIS/COFINS", "Simples Nacional", "INSS", "IPTU"] },
-    { cat: "Utilidades", descs: ["Energia elétrica", "Água e esgoto", "Internet", "Telefone", "Gás"] },
-    { cat: "Marketing", descs: ["Google Ads", "Meta Ads", "Material gráfico", "Eventos", "Branding"] },
-    { cat: "Transporte", descs: ["Combustível", "Frete", "Manutenção veículos", "Pedágio", "Estacionamento"] },
-    { cat: "Escritório", descs: ["Material de escritório", "Limpeza", "Manutenção predial", "Segurança"] },
-    { cat: "Tecnologia", descs: ["Software/SaaS", "Hospedagem", "Domínio", "Equipamentos TI"] },
-    { cat: "Financeiro", descs: ["Juros bancários", "Tarifas bancárias", "IOF", "Multas"] },
-    { cat: "Outros", descs: [] },
+    // PESSOAL
+    { cat: "Salários CLT", descs: ["Folha de pagamento", "13º salário", "Férias", "FGTS", "INSS patronal", "Vale-transporte", "Vale-refeição", "Rescisão trabalhista", "Adicional noturno", "Hora extra"] },
+    { cat: "Pró-labore / Sócios", descs: ["Pró-labore mensal", "Distribuição de lucros", "INSS sócio"] },
+    { cat: "Profissionais / Prestadores", descs: ["Médico(a) — PJ", "Dentista — PJ", "Fisioterapeuta — PJ", "Psicólogo(a) — PJ", "Nutricionista — PJ", "Fonoaudiólogo(a) — PJ", "Enfermeiro(a) — PJ", "Recepcionista terceirizada", "Contador externo", "Advogado externo", "TI terceirizado"] },
+    { cat: "Estagiários", descs: ["Bolsa estágio", "Auxílio transporte estagiário", "Seguro estágio"] },
+    // OCUPAÇÃO
+    { cat: "Ocupação / Infraestrutura", descs: ["Aluguel do imóvel", "Condomínio", "IPTU", "Energia elétrica", "Água e esgoto", "Gás", "Internet / Telefone", "Manutenção predial", "Limpeza e conservação", "Segurança / Monitoramento", "Seguro do imóvel"] },
+    // MATERIAIS
+    { cat: "Materiais Clínicos", descs: ["Materiais descartáveis", "Materiais de curativo", "Medicamentos", "Materiais odontológicos", "EPIs", "Material de esterilização", "Gases medicinais", "Materiais de laboratório"] },
+    { cat: "Materiais de Escritório", descs: ["Papelaria", "Toner / Cartuchos", "Material de copa", "Produtos de limpeza"] },
+    // EQUIPAMENTOS
+    { cat: "Equipamentos / Tecnologia", descs: ["Manutenção de equipamentos", "Calibração", "Locação de equipamentos", "Software clínico / SaaS", "Sistema de prontuário", "Hospedagem / Domínio", "Equipamentos de TI", "Licenças de software"] },
+    // IMPOSTOS
+    { cat: "Impostos e Tributos", descs: ["Simples Nacional / DAS", "ISS", "IRPJ", "CSLL", "PIS/COFINS", "ICMS", "Taxa de fiscalização sanitária", "Alvará de funcionamento", "CRM / CRO — anuidade conselho"] },
+    // MARKETING
+    { cat: "Marketing e Comercial", descs: ["Google Ads", "Meta Ads / Instagram", "Material gráfico", "Site / Landing page", "Eventos e palestras", "Brindes", "Assessoria de imprensa", "Fotografia / Vídeo"] },
+    // FINANCEIRO
+    { cat: "Despesas Financeiras", descs: ["Juros de empréstimo", "Tarifas bancárias", "Taxa de maquininha", "IOF", "Multas e juros", "Taxa de antecipação"] },
+    // ADMINISTRATIVO
+    { cat: "Despesas Administrativas", descs: ["Contabilidade mensal", "Assessoria jurídica", "Cartório / Autenticações", "Correios / Entregas", "Viagens / Hospedagem", "Alimentação corporativa", "Treinamentos e cursos", "Assinaturas / Periódicos"] },
+    { cat: "Outras Despesas", descs: [] },
   ],
   entrada: [
-    { cat: "Vendas", descs: ["Venda de produto", "Venda de serviço", "Comissão recebida"] },
-    { cat: "Serviços", descs: ["Consultoria", "Projeto", "Manutenção", "Suporte técnico"] },
-    { cat: "Recebimentos", descs: ["Recebimento de cliente", "Cobrança recebida", "Parcela recebida"] },
-    { cat: "Investimentos", descs: ["Rendimento aplicação", "Dividendos", "Juros recebidos"] },
-    { cat: "Outros", descs: [] },
+    // RECEITA OPERACIONAL
+    { cat: "Consultas Particulares", descs: ["Consulta médica particular", "Consulta odontológica particular", "Consulta psicológica particular", "Consulta nutricional particular", "Retorno particular", "Teleconsulta particular"] },
+    { cat: "Convênios / Planos", descs: ["Unimed", "Bradesco Saúde", "SulAmérica", "Amil", "Hapvida", "NotreDame Intermédica", "Porto Seguro Saúde", "Cassi", "Geap", "Outros convênios", "Repasse de convênio", "Glosa recuperada"] },
+    { cat: "Procedimentos", descs: ["Procedimento cirúrgico", "Procedimento estético", "Exame laboratorial", "Exame de imagem", "Fisioterapia — sessão", "Tratamento odontológico", "Pequena cirurgia", "Aplicação de medicamento"] },
+    { cat: "Pacotes / Planos Internos", descs: ["Pacote de sessões", "Plano mensal de acompanhamento", "Plano trimestral", "Plano semestral", "Plano anual", "Check-up executivo"] },
+    // RECEITA NÃO-OPERACIONAL
+    { cat: "Receitas Financeiras", descs: ["Rendimento de aplicação", "Juros recebidos", "Desconto obtido"] },
+    { cat: "Outras Receitas", descs: ["Sublocação de sala", "Venda de material", "Reembolso recebido", "Receita de evento"] },
   ],
 };
 
-// ─── MINI BAR CHART ───
-const MiniBarChart = ({ data, height = 160 }) => {
-  const max = Math.max(...data.flatMap(d => [d.in, d.out]), 1);
+// All unique categories for charts
+const ALL_CAT_COLORS = [
+  "#B8926A","#7BA387","#C4716C","#D4A843","#5A8FA5","#9C8E7C","#6B5B4E",
+  "#E67E73","#6DB3A0","#C9A84C","#8E6CA8","#4A90A4","#D4816B","#5B9B72",
+  "#A07855","#7986CB","#4DB6AC","#FF8A65","#AED581","#BA68C8","#90A4AE",
+];
+
+// ─── INTERACTIVE CHARTS ───
+const Tooltip = ({ x, y, children, visible }) => {
+  if (!visible) return null;
   return (
-    <div style={{ display:"flex", alignItems:"flex-end", gap:12, height, padding:"10px 0" }}>
-      {data.map((d, i) => (
-        <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, animation:`slideUp 0.5s ${i*0.1}s both` }}>
-          <div style={{ display:"flex", gap:3, alignItems:"flex-end", width:"100%", justifyContent:"center", height:height-30 }}>
-            <div style={{ width:"40%", background:"linear-gradient(to top, var(--success), #9DBDA7)", borderRadius:"6px 6px 2px 2px", height:`${(d.in/max)*100}%`, transition:"height .6s ease", minHeight:4 }} />
-            <div style={{ width:"40%", background:"linear-gradient(to top, var(--danger), #D49A96)", borderRadius:"6px 6px 2px 2px", height:`${(d.out/max)*100}%`, transition:"height .6s ease", minHeight:4 }} />
-          </div>
-          <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:500 }}>{d.m}</span>
-        </div>
-      ))}
+    <div style={{ position:"fixed", left:x+12, top:y-10, background:"var(--dark)", color:"white", padding:"8px 14px", borderRadius:8, fontSize:12, fontWeight:500, pointerEvents:"none", zIndex:9999, boxShadow:"0 4px 16px rgba(0,0,0,.25)", maxWidth:240, lineHeight:1.5 }}>
+      {children}
     </div>
   );
 };
+
+// Pie / Donut chart
+const PieChart = ({ data, size = 200, donut = true, title }) => {
+  const [hover, setHover] = useState(null);
+  const [mouse, setMouse] = useState({ x:0, y:0 });
+  const total = data.reduce((a, d) => a + d.value, 0);
+  if (total === 0) return <p style={{ color:"var(--warm-gray)", fontSize:13, textAlign:"center", padding:20 }}>Sem dados</p>;
+  const cx = size / 2, cy = size / 2, r = size * 0.4, ir = donut ? r * 0.55 : 0;
+  let angle = -Math.PI / 2;
+  const slices = data.map((d, i) => {
+    const pct = d.value / total;
+    const startAngle = angle;
+    angle += pct * 2 * Math.PI;
+    const endAngle = angle;
+    const large = pct > 0.5 ? 1 : 0;
+    const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+    const ix1 = cx + ir * Math.cos(startAngle), iy1 = cy + ir * Math.sin(startAngle);
+    const ix2 = cx + ir * Math.cos(endAngle), iy2 = cy + ir * Math.sin(endAngle);
+    const path = donut
+      ? `M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} L${ix2},${iy2} A${ir},${ir} 0 ${large} 0 ${ix1},${iy1} Z`
+      : `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z`;
+    return { ...d, path, pct, i, color: d.color || ALL_CAT_COLORS[i % ALL_CAT_COLORS.length] };
+  });
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12 }} onMouseMove={e => setMouse({ x:e.clientX, y:e.clientY })}>
+      {title && <h4 style={{ fontSize:14, fontWeight:600, textAlign:"center" }}>{title}</h4>}
+      <svg width={size} height={size} style={{ overflow:"visible" }}>
+        {slices.map(s => (
+          <path key={s.i} d={s.path} fill={s.color} stroke="white" strokeWidth={2}
+            opacity={hover === null || hover === s.i ? 1 : 0.4}
+            style={{ transition:"opacity .2s, transform .2s", cursor:"pointer", transformOrigin:`${cx}px ${cy}px`, transform: hover === s.i ? "scale(1.04)" : "scale(1)" }}
+            onMouseEnter={() => setHover(s.i)} onMouseLeave={() => setHover(null)} />
+        ))}
+        {donut && <text x={cx} y={cy-6} textAnchor="middle" fill="var(--dark)" fontSize={size*0.09} fontWeight="700">{fmt(total)}</text>}
+        {donut && <text x={cx} y={cy+10} textAnchor="middle" fill="var(--taupe)" fontSize={size*0.055}>Total</text>}
+      </svg>
+      <Tooltip x={mouse.x} y={mouse.y} visible={hover !== null}>
+        {hover !== null && slices[hover] && <>
+          <strong>{slices[hover].label}</strong><br/>
+          {fmt(slices[hover].value)} ({(slices[hover].pct*100).toFixed(1)}%)
+        </>}
+      </Tooltip>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center", maxWidth: size + 100 }}>
+        {slices.map(s => (
+          <div key={s.i} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color: hover === s.i ? "var(--dark)" : "var(--taupe)", fontWeight: hover === s.i ? 600 : 400, cursor:"pointer", transition:"all .15s" }}
+            onMouseEnter={() => setHover(s.i)} onMouseLeave={() => setHover(null)}>
+            <div style={{ width:8, height:8, borderRadius:3, background:s.color, flexShrink:0 }} />{s.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Bar chart (vertical columns)
+const BarChart = ({ data, height = 200, title, colorFn }) => {
+  const [hover, setHover] = useState(null);
+  const [mouse, setMouse] = useState({ x:0, y:0 });
+  const max = Math.max(...data.map(d => d.value), 1);
+  if (data.length === 0) return <p style={{ color:"var(--warm-gray)", fontSize:13, textAlign:"center", padding:20 }}>Sem dados</p>;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8 }} onMouseMove={e => setMouse({ x:e.clientX, y:e.clientY })}>
+      {title && <h4 style={{ fontSize:14, fontWeight:600 }}>{title}</h4>}
+      <div style={{ display:"flex", alignItems:"flex-end", gap: Math.max(4, 60 / data.length), height, padding:"10px 0" }}>
+        {data.map((d, i) => {
+          const color = colorFn ? colorFn(d, i) : (d.color || ALL_CAT_COLORS[i % ALL_CAT_COLORS.length]);
+          const pct = (d.value / max) * 100;
+          return (
+            <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, minWidth:0 }}
+              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+              <div style={{ width:"80%", maxWidth:48, background: `linear-gradient(to top, ${color}, ${color}cc)`, borderRadius:"6px 6px 2px 2px", height:`${pct}%`, minHeight:4, transition:"all .3s ease", opacity: hover === null || hover === i ? 1 : 0.5, transform: hover === i ? "scaleY(1.03)" : "scaleY(1)", transformOrigin:"bottom", cursor:"pointer" }} />
+              <span style={{ fontSize: data.length > 8 ? 9 : 11, color:"var(--taupe)", fontWeight:500, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"100%" }}>{d.label}</span>
+            </div>
+          );
+        })}
+      </div>
+      <Tooltip x={mouse.x} y={mouse.y} visible={hover !== null}>
+        {hover !== null && data[hover] && <>
+          <strong>{data[hover].label}</strong><br/>{fmt(data[hover].value)}
+          {data[hover].count !== undefined && <><br/>{data[hover].count} lançamento(s)</>}
+        </>}
+      </Tooltip>
+    </div>
+  );
+};
+
+// Stacked / grouped bar chart for monthly in/out
+const MonthlyBarChart = ({ data, height = 200 }) => {
+  const [hover, setHover] = useState(null);
+  const [mouse, setMouse] = useState({ x:0, y:0 });
+  const max = Math.max(...data.flatMap(d => [d.in, d.out]), 1);
+  if (data.length === 0) return <p style={{ color:"var(--warm-gray)", fontSize:13, textAlign:"center", padding:20 }}>Sem dados</p>;
+  return (
+    <div onMouseMove={e => setMouse({ x:e.clientX, y:e.clientY })}>
+      <div style={{ display:"flex", alignItems:"flex-end", gap:12, height, padding:"10px 0" }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}
+            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            <div style={{ display:"flex", gap:3, alignItems:"flex-end", width:"100%", justifyContent:"center", height:height-30 }}>
+              <div style={{ width:"40%", background:"linear-gradient(to top, var(--success), #9DBDA7)", borderRadius:"6px 6px 2px 2px", height:`${(d.in/max)*100}%`, transition:"all .4s ease", minHeight:4, opacity: hover === null || hover === i ? 1 : 0.4 }} />
+              <div style={{ width:"40%", background:"linear-gradient(to top, var(--danger), #D49A96)", borderRadius:"6px 6px 2px 2px", height:`${(d.out/max)*100}%`, transition:"all .4s ease", minHeight:4, opacity: hover === null || hover === i ? 1 : 0.4 }} />
+            </div>
+            <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:500 }}>{d.m}</span>
+          </div>
+        ))}
+      </div>
+      <Tooltip x={mouse.x} y={mouse.y} visible={hover !== null}>
+        {hover !== null && data[hover] && <>
+          <strong>{data[hover].m}</strong><br/>
+          <span style={{ color:"#7BA387" }}>Entradas: {fmt(data[hover].in)}</span><br/>
+          <span style={{ color:"#C4716C" }}>Saídas: {fmt(data[hover].out)}</span><br/>
+          <strong>Saldo: {fmt(data[hover].in - data[hover].out)}</strong>
+        </>}
+      </Tooltip>
+      <div style={{ display:"flex", gap:16, justifyContent:"center", marginTop:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--success)" }} />Entradas</div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--danger)" }} />Saídas</div>
+      </div>
+    </div>
+  );
+};
+
+// Chart type toggle
+const ChartToggle = ({ value, onChange }) => (
+  <div style={{ display:"flex", borderRadius:8, overflow:"hidden", border:"1.5px solid var(--sand)" }}>
+    {[{v:"bar",l:"Barras"},{v:"pie",l:"Pizza"}].map(t => (
+      <button key={t.v} onClick={() => onChange(t.v)} className="btn-press" style={{ padding:"6px 14px", border:"none", background:value===t.v?"var(--accent)":"transparent", color:value===t.v?"white":"var(--taupe)", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{t.l}</button>
+    ))}
+  </div>
+);
 
 // ─── MODAL ───
 const Modal = ({ open, onClose, title, children, width = 520 }) => {
@@ -759,6 +902,7 @@ export default function InfinityApp() {
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupError, setSetupError] = useState("");
   const avatarInputRef = useRef(null);
+  const [chartType, setChartType] = useState("bar");
 
   // ─── SUPABASE AUTH ───
   useEffect(() => {
@@ -1133,7 +1277,6 @@ export default function InfinityApp() {
 
   const expenseCategories = {};
   filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + Number(t.value); });
-  const catColors = ["#B8926A","#7BA387","#C4716C","#D4A843","#9C8E7C","#6B5B4E","#5A8FA5"];
 
   const cashFlowData = months.map((m, i) => ({
     m, i,
@@ -1321,39 +1464,39 @@ export default function InfinityApp() {
         <StatCard label="Pendentes" value={pendingCount} icon="bell" color="var(--warning)" delay={0.24} />
       </div>
       {/* Charts */}
-      {cashFlowData.length > 0 && (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))", gap:16 }}>
-          <div className="card anim-expand" style={{ padding:24, animationDelay:"0.3s" }}>
-            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Fluxo de Caixa</h3>
-            <MiniBarChart data={cashFlowData} height={170} />
-            <div style={{ display:"flex", gap:16, justifyContent:"center", marginTop:8 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--success)" }} />Entradas</div>
-              <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--danger)" }} />Saídas</div>
-            </div>
-          </div>
-          <div className="card anim-expand" style={{ padding:24, animationDelay:"0.38s" }}>
-            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Despesas por Categoria</h3>
-            {Object.entries(expenseCategories).length > 0 ? (
-              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([cat, val], i) => {
-                  const pct = Math.round((val / totalOut) * 100);
-                  return (
-                    <div key={i}>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:4 }}>
-                        <span style={{ color:"var(--taupe)" }}>{cat}</span>
-                        <span style={{ fontWeight:600 }}>{fmt(val)} <span style={{ color:"var(--warm-gray)", fontWeight:400 }}>({pct}%)</span></span>
-                      </div>
-                      <div style={{ height:6, background:"var(--beige)", borderRadius:3 }}>
-                        <div style={{ height:"100%", width:`${pct}%`, background:catColors[i % catColors.length], borderRadius:3, transition:"width .6s ease" }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : <p style={{ color:"var(--warm-gray)", fontSize:13 }}>Sem despesas no período</p>}
-          </div>
+      {(cashFlowData.length > 0 || Object.keys(expenseCategories).length > 0) && (<>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <h3 style={{ fontSize:16, fontWeight:600 }}>Visão Geral</h3>
+          <ChartToggle value={chartType} onChange={setChartType} />
         </div>
-      )}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))", gap:16 }}>
+          {cashFlowData.length > 0 && (
+            <div className="card anim-expand" style={{ padding:24, animationDelay:"0.3s" }}>
+              <MonthlyBarChart data={cashFlowData} height={180} />
+            </div>
+          )}
+          <div className="card anim-expand" style={{ padding:24, animationDelay:"0.38s" }}>
+            {chartType === "pie" ? (
+              <PieChart data={Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([label,value]) => ({label,value}))} size={220} title="Despesas por Categoria" />
+            ) : (
+              <BarChart data={Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([label,value]) => ({label,value}))} height={180} title="Despesas por Categoria" />
+            )}
+          </div>
+          {(() => {
+            const incCats = {};
+            filteredTx.filter(t => t.type === "entrada").forEach(t => { incCats[t.category || "Outros"] = (incCats[t.category || "Outros"] || 0) + Number(t.value); });
+            return Object.keys(incCats).length > 0 && (
+              <div className="card anim-expand" style={{ padding:24, animationDelay:"0.45s" }}>
+                {chartType === "pie" ? (
+                  <PieChart data={Object.entries(incCats).sort((a,b)=>b[1]-a[1]).map(([label,value]) => ({label,value}))} size={220} title="Receitas por Categoria" />
+                ) : (
+                  <BarChart data={Object.entries(incCats).sort((a,b)=>b[1]-a[1]).map(([label,value]) => ({label,value}))} height={180} title="Receitas por Categoria" colorFn={() => "var(--success)"} />
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </>)}
       {/* Recent transactions */}
       <div className="card anim-expand" style={{ padding:24, animationDelay:"0.45s" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:12 }}>
@@ -1590,9 +1733,9 @@ export default function InfinityApp() {
 
   const renderRelatorios = () => {
     const reportTypes = [
-      { title:"Fluxo de Caixa / Transações", desc:"Todas as entradas e saídas do período, com categorias e resumo.", icon:"wallet", type:"transactions" },
-      { title:"Compras & Fornecedores", desc:"Consolidado de compras com total por fornecedor.", icon:"cart", type:"purchases" },
-      { title:"Relatório Gerencial Completo", desc:"Visão completa: fluxo mensal, transações e compras.", icon:"chart", type:"completo" },
+      { title:"Fluxo de Caixa / Transações", desc:"Todas as entradas e saídas com categorias.", icon:"wallet", type:"transactions" },
+      { title:"Compras & Fornecedores", desc:"Consolidado de compras por fornecedor.", icon:"cart", type:"purchases" },
+      { title:"Relatório Gerencial Completo", desc:"Visão completa: fluxo, transações e compras.", icon:"chart", type:"completo" },
     ];
     const monthlyData = months.map((m, i) => ({
       m, i,
@@ -1600,61 +1743,127 @@ export default function InfinityApp() {
       out: transactions.filter(t => t.type==="saida" && new Date(t.date+"T12:00:00").getMonth()===i).reduce((a,t)=>a+Number(t.value),0),
     })).filter(d => d.in > 0 || d.out > 0);
 
+    // Category data for charts
+    const expCats = Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}));
+    const incCats = {};
+    filteredTx.filter(t => t.type==="entrada").forEach(t => { incCats[t.category||"Outros"] = (incCats[t.category||"Outros"]||0)+Number(t.value); });
+    const incCatsArr = Object.entries(incCats).sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}));
+    // Subcategory data
+    const subCatData = {};
+    filteredTx.forEach(t => {
+      const key = `${t.type==="entrada"?"Receita":"Despesa"} > ${t.category||"Outros"}`;
+      const sub = t.description || "Sem descrição";
+      if (!subCatData[key]) subCatData[key] = {};
+      subCatData[key][sub] = (subCatData[key][sub]||0) + Number(t.value);
+    });
+
     return (
       <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
           <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Relatórios</h2>
-          <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width:"auto", minWidth:160 }}>
-            <option value="all">Todos os meses</option>
-            {months.map((m, i) => <option key={i} value={i}>{m} 2026</option>)}
-          </select>
+          <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+            <ChartToggle value={chartType} onChange={setChartType} />
+            <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width:"auto", minWidth:140 }}>
+              <option value="all">Todos os meses</option>
+              {months.map((m, i) => <option key={i} value={i}>{m} 2026</option>)}
+            </select>
+          </div>
         </div>
-        {/* Report cards */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))", gap:16 }}>
+        {/* PDF cards */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(250px, 1fr))", gap:16 }}>
           {reportTypes.map((r, i) => (
-            <div key={i} className="card anim-expand" style={{ padding:24, animationDelay:`${i*0.07}s`, display:"flex", flexDirection:"column", gap:16 }}>
-              <div style={{ width:48, height:48, borderRadius:14, background:"linear-gradient(135deg, var(--beige), var(--cream))", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--accent)", border:"1.5px solid var(--sand)" }}><Icon name={r.icon} size={22} /></div>
-              <div>
-                <h4 style={{ fontSize:15, fontWeight:600 }}>{r.title}</h4>
-                <p style={{ fontSize:13, color:"var(--taupe)", marginTop:4, lineHeight:1.55 }}>{r.desc}</p>
+            <div key={i} className="card anim-expand" style={{ padding:20, animationDelay:`${i*0.06}s`, display:"flex", alignItems:"center", gap:16 }}>
+              <div style={{ width:44, height:44, borderRadius:12, background:"var(--beige)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--accent)", flexShrink:0 }}><Icon name={r.icon} size={20} /></div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <h4 style={{ fontSize:14, fontWeight:600 }}>{r.title}</h4>
+                <p style={{ fontSize:12, color:"var(--taupe)", marginTop:2 }}>{r.desc}</p>
               </div>
-              <Btn variant="primary" icon="download" onClick={() => buildPDF({ type:r.type, company:companyName, user:currentUser.name, transactions, purchases, filteredTx, monthLabel })} style={{ fontSize:13, padding:"9px 16px" }}>
-                Gerar PDF
-              </Btn>
+              <Btn variant="primary" icon="download" onClick={() => buildPDF({ type:r.type, company:companyName, user:currentUser.name, transactions, purchases, filteredTx, monthLabel })} style={{ fontSize:12, padding:"8px 14px" }}>PDF</Btn>
             </div>
           ))}
         </div>
-        {/* Summary visuals */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:12 }}>
+        {/* Summary cards */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(170px, 1fr))", gap:12 }}>
           {[
-            { label:"Total Entradas", value:fmt(totalIn), color:"var(--success)", border:"var(--success)" },
-            { label:"Total Saídas", value:fmt(totalOut), color:"var(--danger)", border:"var(--danger)" },
-            { label:"Saldo do Período", value:fmt(balance), color:balance>=0?"var(--success)":"var(--danger)", border:"var(--accent)" },
-            { label:"Total em Compras", value:fmt(totalPurchasesVal), color:"var(--accent)", border:"var(--accent)" },
+            { label:"Receitas", value:fmt(totalIn), color:"var(--success)", border:"var(--success)" },
+            { label:"Despesas", value:fmt(totalOut), color:"var(--danger)", border:"var(--danger)" },
+            { label:"Saldo", value:fmt(balance), color:balance>=0?"var(--success)":"var(--danger)", border:"var(--accent)" },
+            { label:"Previsto", value:fmt(totalPrevisto), color:"#1565C0", border:"#1565C0" },
+            { label:"Realizado", value:fmt(totalRealizado), color:"#7B1FA2", border:"#7B1FA2" },
           ].map((s,i) => (
-            <div key={i} className="card anim-fade" style={{ padding:18, borderLeft:`4px solid ${s.border}`, animationDelay:`${i*0.07}s` }}>
-              <span style={{ fontSize:11, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.4 }}>{s.label}</span>
-              <p style={{ fontSize:22, fontWeight:700, color:s.color, marginTop:6 }}>{s.value}</p>
+            <div key={i} className="card anim-fade" style={{ padding:16, borderLeft:`4px solid ${s.border}`, animationDelay:`${i*0.05}s` }}>
+              <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>{s.label}</span>
+              <p style={{ fontSize:20, fontWeight:700, color:s.color, marginTop:4 }}>{s.value}</p>
             </div>
           ))}
         </div>
-        {/* Cash flow chart */}
+        {/* ── GRÁFICOS ── */}
+        {/* 1. Fluxo mensal */}
         {cashFlowData.length > 0 && (
           <div className="card anim-slide" style={{ padding:24 }}>
-            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Fluxo de Caixa — Histórico</h3>
-            <MiniBarChart data={cashFlowData} height={200} />
-            <div style={{ display:"flex", gap:16, justifyContent:"center", marginTop:8 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--success)" }} />Entradas</div>
-              <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--taupe)" }}><div style={{ width:10, height:10, borderRadius:3, background:"var(--danger)" }} />Saídas</div>
+            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Fluxo de Caixa — Mensal</h3>
+            <MonthlyBarChart data={cashFlowData} height={210} />
+          </div>
+        )}
+        {/* 2. Geral: Entradas vs Saídas (pizza) */}
+        {(totalIn > 0 || totalOut > 0) && (
+          <div className="card anim-slide" style={{ padding:24 }}>
+            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Entradas vs Saídas — Geral</h3>
+            <div style={{ display:"flex", justifyContent:"center" }}>
+              <PieChart data={[{ label:"Entradas", value:totalIn, color:"var(--success)" }, { label:"Saídas", value:totalOut, color:"var(--danger)" }]} size={200} />
+            </div>
+          </div>
+        )}
+        {/* 3. Despesas por categoria */}
+        {expCats.length > 0 && (
+          <div className="card anim-slide" style={{ padding:24 }}>
+            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Despesas por Categoria</h3>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:24 }}>
+              <PieChart data={expCats} size={240} />
+              <BarChart data={expCats} height={200} colorFn={() => "var(--danger)"} />
+            </div>
+          </div>
+        )}
+        {/* 4. Receitas por categoria */}
+        {incCatsArr.length > 0 && (
+          <div className="card anim-slide" style={{ padding:24 }}>
+            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Receitas por Categoria</h3>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:24 }}>
+              <PieChart data={incCatsArr} size={240} />
+              <BarChart data={incCatsArr} height={200} colorFn={() => "var(--success)"} />
+            </div>
+          </div>
+        )}
+        {/* 5. Subcategorias detalhadas */}
+        {Object.keys(subCatData).length > 0 && (
+          <div className="card anim-slide" style={{ padding:24 }}>
+            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Detalhamento por Subcategoria</h3>
+            <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+              {Object.entries(subCatData).map(([group, subs], gi) => {
+                const entries = Object.entries(subs).sort((a,b)=>b[1]-a[1]);
+                const groupTotal = entries.reduce((a,[,v])=>a+v,0);
+                const isExpense = group.startsWith("Despesa");
+                return (
+                  <div key={gi}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <h4 style={{ fontSize:13, fontWeight:600, color:isExpense?"var(--danger)":"var(--success)" }}>{group}</h4>
+                      <span style={{ fontSize:12, fontWeight:700 }}>{fmt(groupTotal)}</span>
+                    </div>
+                    {chartType === "pie" ? (
+                      <PieChart data={entries.map(([label,value])=>({label,value}))} size={180} donut={true} />
+                    ) : (
+                      <BarChart data={entries.map(([label,value])=>({label,value,count:filteredTx.filter(t=>t.description===label).length}))} height={130} colorFn={() => isExpense ? "#D49A96" : "#9DBDA7"} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
         {/* Monthly table */}
         {monthlyData.length > 0 && (
           <div className="card" style={{ overflow:"hidden" }}>
-            <div style={{ padding:"20px 24px 12px" }}>
-              <h3 style={{ fontSize:15, fontWeight:600 }}>Resultado Mensal</h3>
-            </div>
+            <div style={{ padding:"20px 24px 12px" }}><h3 style={{ fontSize:15, fontWeight:600 }}>Resultado Mensal</h3></div>
             <div style={{ overflowX:"auto" }}>
               <table style={{ width:"100%", borderCollapse:"collapse" }}>
                 <thead><tr style={{ background:"var(--beige)", fontSize:11, color:"var(--taupe)", textAlign:"left" }}>
@@ -1675,28 +1884,6 @@ export default function InfinityApp() {
                   );
                 })}</tbody>
               </table>
-            </div>
-          </div>
-        )}
-        {/* Categories breakdown */}
-        {Object.entries(expenseCategories).length > 0 && (
-          <div className="card anim-slide" style={{ padding:24 }}>
-            <h3 style={{ fontSize:15, fontWeight:600, marginBottom:16 }}>Despesas por Categoria</h3>
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              {Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([cat, val], i) => {
-                const pct = Math.round((val / totalOut) * 100);
-                return (
-                  <div key={i}>
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:5 }}>
-                      <span style={{ color:"var(--taupe)", fontWeight:500 }}>{cat}</span>
-                      <span style={{ fontWeight:700 }}>{fmt(val)} <span style={{ color:"var(--warm-gray)", fontWeight:400, fontSize:12 }}>({pct}%)</span></span>
-                    </div>
-                    <div style={{ height:8, background:"var(--beige)", borderRadius:4 }}>
-                      <div style={{ height:"100%", width:`${pct}%`, background:catColors[i % catColors.length], borderRadius:4, transition:"width .8s ease" }} />
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
         )}
