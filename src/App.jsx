@@ -1392,23 +1392,27 @@ export default function InfinityApp() {
   const expenseCategories = {};
   filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + realVal(t); });
 
-  // Cash flow mensal com valores REAIS + saldo acumulado do mês anterior
+  // Cash flow mensal com valores REAIS + saldo acumulado
   const allMonthlyData = months.map((m, i) => ({
     m, i,
     in: transactions.filter(t => t.type === "entrada" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + realVal(t), 0),
     out: transactions.filter(t => t.type === "saida" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + realVal(t), 0),
   }));
-  // Calcular saldo acumulado (mês anterior arrasta para o atual)
-  let accumulated = 0;
+  // Saldo acumulado: cada mês puxa o saldo restante do anterior
+  let runningTotal = 0;
   const monthlyWithBalance = allMonthlyData.map(d => {
-    const saldo = d.in - d.out;
-    accumulated += saldo;
-    return { ...d, balance: accumulated, prevBalance: accumulated - saldo };
+    const prevBalance = runningTotal;
+    runningTotal += d.in - d.out;
+    return { ...d, balance: runningTotal, prevBalance };
   });
   const cashFlowData = monthlyWithBalance.filter(d => d.in > 0 || d.out > 0).slice(-6);
-  // Saldo acumulado até o mês atual
-  const currentMonthIdx = new Date().getMonth();
-  const accumulatedBalance = monthlyWithBalance[currentMonthIdx]?.balance || 0;
+
+  // Saldo em caixa: se filtrando por mês, mostra o acumulado ATÉ aquele mês
+  // Se "todos os meses", mostra o acumulado total
+  const selectedMonthIdx = monthFilter === "all" ? 11 : parseInt(monthFilter);
+  const saldoEmCaixa = monthlyWithBalance[selectedMonthIdx]?.balance || 0;
+  // Saldo que veio do mês anterior (para mostrar separado)
+  const saldoAnterior = monthFilter !== "all" ? (monthlyWithBalance[parseInt(monthFilter)]?.prevBalance || 0) : 0;
 
   const monthLabel = monthFilter === "all" ? "Todos os meses" : months[parseInt(monthFilter)] + " 2026";
   const companyName = companyData?.name || currentUser?.email?.split("@")[0] || "Empresa";
@@ -1587,7 +1591,7 @@ export default function InfinityApp() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:16 }}>
         <StatCard label="Receitas" value={fmt(totalIn)} icon="arrow_up" color="var(--success)" delay={0} />
         <StatCard label="Despesas" value={fmt(totalOut)} icon="arrow_down" color="var(--danger)" delay={0.08} />
-        <StatCard label="Saldo Acumulado" value={fmt(accumulatedBalance)} icon="wallet" color={accumulatedBalance>=0?"var(--success)":"var(--danger)"} delay={0.16} />
+        <StatCard label="Saldo em Caixa" value={fmt(saldoEmCaixa)} icon="wallet" color={saldoEmCaixa>=0?"var(--success)":"var(--danger)"} delay={0.16} />
         <StatCard label="Pendentes" value={pendingCount} icon="bell" color="var(--warning)" delay={0.24} />
       </div>
       {/* Charts */}
@@ -1719,9 +1723,16 @@ export default function InfinityApp() {
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saídas</span>
           <p style={{ fontSize:20, fontWeight:700, color:"var(--danger)", marginTop:4 }}>{fmt(totalOut)}</p>
         </div>
-        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--accent)", animationDelay:"0.1s" }}>
-          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saldo</span>
-          <p style={{ fontSize:20, fontWeight:700, color:balance>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(balance)}</p>
+        {monthFilter !== "all" && saldoAnterior !== 0 && (
+          <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--brown)", animationDelay:"0.1s" }}>
+            <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saldo Anterior</span>
+            <p style={{ fontSize:20, fontWeight:700, color:saldoAnterior>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(saldoAnterior)}</p>
+          </div>
+        )}
+        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--accent)", animationDelay:"0.12s" }}>
+          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saldo em Caixa</span>
+          <p style={{ fontSize:20, fontWeight:700, color:saldoEmCaixa>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(saldoEmCaixa)}</p>
+          {monthFilter !== "all" && <p style={{ fontSize:10, color:"var(--taupe)", marginTop:2 }}>anterior + entradas - saídas</p>}
         </div>
         <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--warning)", animationDelay:"0.15s" }}>
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Pendentes</span>
@@ -1866,11 +1877,8 @@ export default function InfinityApp() {
       { title:"Compras & Fornecedores", desc:"Consolidado de compras por fornecedor.", icon:"cart", type:"purchases" },
       { title:"Relatório Gerencial Completo", desc:"Visão completa: fluxo, transações e compras.", icon:"chart", type:"completo" },
     ];
-    const monthlyData = months.map((m, i) => ({
-      m, i,
-      in: transactions.filter(t => t.type==="entrada" && new Date(t.date+"T12:00:00").getMonth()===i).reduce((a,t)=>a+Number(t.value),0),
-      out: transactions.filter(t => t.type==="saida" && new Date(t.date+"T12:00:00").getMonth()===i).reduce((a,t)=>a+Number(t.value),0),
-    })).filter(d => d.in > 0 || d.out > 0);
+    // Usa monthlyWithBalance já computado (com saldo acumulado)
+    const monthlyData = monthlyWithBalance.filter(d => d.in > 0 || d.out > 0);
 
     // Category data for charts
     const expCats = Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}));
@@ -1989,29 +1997,28 @@ export default function InfinityApp() {
             </div>
           </div>
         )}
-        {/* Monthly table */}
+        {/* Monthly table with accumulated */}
         {monthlyData.length > 0 && (
           <div className="card" style={{ overflow:"hidden" }}>
-            <div style={{ padding:"20px 24px 12px" }}><h3 style={{ fontSize:15, fontWeight:600 }}>Resultado Mensal</h3></div>
+            <div style={{ padding:"20px 24px 12px" }}><h3 style={{ fontSize:15, fontWeight:600 }}>Resultado Mensal (com saldo acumulado)</h3></div>
             <div style={{ overflowX:"auto" }}>
               <table style={{ width:"100%", borderCollapse:"collapse" }}>
                 <thead><tr style={{ background:"var(--beige)", fontSize:11, color:"var(--taupe)", textAlign:"left" }}>
                   <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Mês</th>
+                  <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Saldo Ant.</th>
                   <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Entradas</th>
                   <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Saídas</th>
-                  <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Saldo</th>
+                  <th style={{ padding:"10px 14px", fontWeight:600, textTransform:"uppercase" }}>Saldo em Caixa</th>
                 </tr></thead>
-                <tbody>{monthlyData.map((d, i) => {
-                  const saldo = d.in - d.out;
-                  return (
+                <tbody>{monthlyData.map((d, i) => (
                     <tr key={i} style={{ borderBottom:"1px solid var(--beige)" }}>
                       <td style={{ padding:"12px 14px", fontWeight:500 }}>{d.m} 2026</td>
+                      <td style={{ padding:"12px 14px", fontSize:13, color:"var(--taupe)" }}>{fmt(d.prevBalance)}</td>
                       <td style={{ padding:"12px 14px", color:"var(--success)", fontWeight:600 }}>{fmt(d.in)}</td>
                       <td style={{ padding:"12px 14px", color:"var(--danger)", fontWeight:600 }}>{fmt(d.out)}</td>
-                      <td style={{ padding:"12px 14px", fontWeight:700, color:saldo>=0?"var(--success)":"var(--danger)" }}>{fmt(saldo)}</td>
+                      <td style={{ padding:"12px 14px", fontWeight:700, color:d.balance>=0?"var(--success)":"var(--danger)" }}>{fmt(d.balance)}</td>
                     </tr>
-                  );
-                })}</tbody>
+                ))}</tbody>
               </table>
             </div>
           </div>
