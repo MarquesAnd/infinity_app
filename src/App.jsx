@@ -1401,7 +1401,7 @@ export default function InfinityApp() {
       <style>{globalCSS}</style>
       <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)" }}>
         <div style={{ textAlign:"center" }}>
-          <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:56, height:56, marginBottom:4 }} />
+          <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:56, height:56, marginBottom:4 }} />
           <p style={{ color:"var(--taupe)", fontSize:14 }}>Carregando...</p>
         </div>
       </div>
@@ -1418,7 +1418,7 @@ export default function InfinityApp() {
         <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
           <div className="card anim-expand" style={{ width:"100%", maxWidth:440, padding:0, overflow:"hidden" }}>
             <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"22px 32px", display:"flex", alignItems:"center", gap:12 }}>
-              <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:38, height:38 }} />
+              <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:38, height:38 }} />
               <span style={{ fontSize:22, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif" }}>Infinity</span>
             </div>
             <div style={{ padding:"32px 32px 28px" }}>
@@ -1488,7 +1488,7 @@ export default function InfinityApp() {
         <div className="card anim-expand" style={{ width:"100%", maxWidth:440, padding:0, overflow:"hidden" }}>
           <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"40px 32px 32px", textAlign:"center" }}>
             <div style={{ display:"inline-flex", alignItems:"center", gap:12, marginBottom:8 }}>
-              <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:48, height:48 }} />
+              <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:48, height:48 }} />
               <span style={{ fontSize:28, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif", letterSpacing:1 }}>Infinity</span>
             </div>
             <p style={{ color:"var(--warm-gray)", fontSize:13, marginTop:4 }}>Gestão financeira inteligente</p>
@@ -2172,7 +2172,7 @@ export default function InfinityApp() {
         {/* SIDEBAR DESKTOP */}
         <aside className="desktop-only" style={{ width:240, background:"var(--white)", borderRight:"1px solid var(--beige)", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, bottom:0, zIndex:100 }}>
           <div style={{ padding:"18px 20px", display:"flex", alignItems:"center", gap:10, borderBottom:"1px solid var(--beige)" }}>
-            <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:36, height:36 }} />
+            <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:36, height:36 }} />
             <span style={{ fontSize:20, fontWeight:700, fontFamily:"'Playfair Display', serif", letterSpacing:0.5 }}>Infinity</span>
           </div>
           <nav style={{ flex:1, padding:"12px 10px", display:"flex", flexDirection:"column", gap:2, overflowY:"auto" }}>
@@ -2196,7 +2196,7 @@ export default function InfinityApp() {
           <div className="mobile-only" onClick={() => setSideOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(61,50,41,.4)", zIndex:200 }}>
             <aside onClick={e => e.stopPropagation()} className="anim-fade" style={{ width:260, background:"var(--white)", height:"100%", padding:"20px 10px", display:"flex", flexDirection:"column" }}>
               <div style={{ padding:"4px 10px 20px", display:"flex", alignItems:"center", gap:10, borderBottom:"1px solid var(--beige)", marginBottom:12 }}>
-                <img src="/infinity_app/logo.svg" alt="Infinity" style={{ width:30, height:30 }} />
+                <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:30, height:30 }} />
                 <span style={{ fontSize:18, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Infinity</span>
               </div>
               <div style={{ flex:1, overflowY:"auto" }}>
