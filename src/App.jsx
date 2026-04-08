@@ -1401,8 +1401,8 @@ export default function InfinityApp() {
       <style>{globalCSS}</style>
       <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--cream)" }}>
         <div style={{ textAlign:"center" }}>
-          <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:56, height:56, marginBottom:4 }} />
-          <p style={{ color:"var(--taupe)", fontSize:14 }}>Carregando...</p>
+          <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:72, height:72, marginBottom:10, filter:"drop-shadow(0 2px 8px rgba(184,146,106,.3))" }} />
+          <p style={{ color:"var(--taupe)", fontSize:14, fontWeight:500 }}>Carregando...</p>
         </div>
       </div>
     </>
@@ -1417,9 +1417,12 @@ export default function InfinityApp() {
         <style>{globalCSS}</style>
         <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
           <div className="card anim-expand" style={{ width:"100%", maxWidth:440, padding:0, overflow:"hidden" }}>
-            <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"22px 32px", display:"flex", alignItems:"center", gap:12 }}>
-              <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:38, height:38 }} />
-              <span style={{ fontSize:22, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif" }}>Infinity</span>
+            <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"24px 32px", display:"flex", alignItems:"center", gap:14 }}>
+              <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:44, height:44, filter:"drop-shadow(0 2px 8px rgba(184,146,106,.35))" }} />
+              <div>
+                <span style={{ fontSize:22, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif", letterSpacing:1 }}>INFINITY</span>
+                <p style={{ fontSize:10, color:"var(--accent-light)", letterSpacing:1, marginTop:2 }}>GESTÃO FINANCEIRA</p>
+              </div>
             </div>
             <div style={{ padding:"32px 32px 28px" }}>
               {isAdminSetup ? (
@@ -1486,12 +1489,10 @@ export default function InfinityApp() {
       <style>{globalCSS}</style>
       <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg, var(--cream) 0%, var(--beige) 50%, var(--sand) 100%)", padding:20 }}>
         <div className="card anim-expand" style={{ width:"100%", maxWidth:440, padding:0, overflow:"hidden" }}>
-          <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"40px 32px 32px", textAlign:"center" }}>
-            <div style={{ display:"inline-flex", alignItems:"center", gap:12, marginBottom:8 }}>
-              <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:48, height:48 }} />
-              <span style={{ fontSize:28, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif", letterSpacing:1 }}>Infinity</span>
-            </div>
-            <p style={{ color:"var(--warm-gray)", fontSize:13, marginTop:4 }}>Gestão financeira inteligente</p>
+          <div style={{ background:"linear-gradient(135deg, var(--dark) 0%, var(--brown) 100%)", padding:"36px 32px 28px", textAlign:"center" }}>
+            <img src="/infinity_app/logo.png" alt="Infinity" style={{ width:80, height:80, marginBottom:10, filter:"drop-shadow(0 4px 12px rgba(184,146,106,.4))" }} />
+            <h1 style={{ fontSize:30, fontWeight:700, color:"white", fontFamily:"'Playfair Display', serif", letterSpacing:2, margin:0 }}>INFINITY</h1>
+            <p style={{ color:"var(--accent-light)", fontSize:12, marginTop:6, letterSpacing:1.5, textTransform:"uppercase" }}>Gestão Financeira Inteligente</p>
           </div>
           <div style={{ padding:"32px 32px 28px" }}>
             <div style={{ display:"flex", marginBottom:24, borderRadius:8, overflow:"hidden", border:"1.5px solid var(--sand)" }}>
