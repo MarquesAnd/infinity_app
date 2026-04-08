@@ -1737,10 +1737,6 @@ export default function InfinityApp() {
           <p style={{ fontSize:20, fontWeight:700, color:saldoEmCaixa>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(saldoEmCaixa)}</p>
           {monthFilter !== "all" && <p style={{ fontSize:10, color:"var(--taupe)", marginTop:2 }}>anterior + entradas - saídas</p>}
         </div>
-        <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--warning)", animationDelay:"0.15s" }}>
-          <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Pendentes</span>
-          <p style={{ fontSize:20, fontWeight:700, color:"var(--warning)", marginTop:4 }}>{filteredTx.filter(t=>t.status==="pendente"||t.status==="atrasado").length}</p>
-        </div>
         <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #2E7D32", animationDelay:"0.2s" }}>
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Prev. Entradas</span>
           <p style={{ fontSize:18, fontWeight:700, color:"#2E7D32", marginTop:4 }}>{fmt(previstoEntradas)}</p>
@@ -1750,6 +1746,13 @@ export default function InfinityApp() {
           <p style={{ fontSize:18, fontWeight:700, color:"#C62828", marginTop:4 }}>{fmt(previstoSaidas)}</p>
         </div>
       </div>
+      {/* Pending indicator */}
+      {filteredTx.filter(t=>t.status==="pendente"||t.status==="atrasado").length > 0 && (
+        <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 0", opacity:0.5 }}>
+          <span style={{ color:"var(--warning)", fontSize:14 }}>&#9888;</span>
+          <span style={{ fontSize:11, color:"var(--taupe)" }}>{filteredTx.filter(t=>t.status==="pendente"||t.status==="atrasado").length} lançamento(s) pendente(s) de confirmação</span>
+        </div>
+      )}
       {/* Table */}
       <div className="card" style={{ overflow:"hidden" }}>
         <div style={{ overflowX:"auto" }}>
