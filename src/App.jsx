@@ -1368,8 +1368,10 @@ export default function InfinityApp() {
   const isAdmin = currentUser?.role === "admin";
 
   // ─── COMPUTED ───
-  // Valor real: usa actual_value se quitado, senão value (previsto)
-  const realVal = (t) => t.actual_value != null ? Number(t.actual_value) : Number(t.value);
+  // Transação confirmada = tem actual_value (foi quitada) ou status pago/recebido
+  const isConfirmed = (t) => t.actual_value != null || t.status === "pago" || t.status === "recebido";
+  // Valor real da transação confirmada
+  const confirmedVal = (t) => t.actual_value != null ? Number(t.actual_value) : Number(t.value);
 
   const filteredTx = transactions.filter(t => {
     const matchMonth = monthFilter === "all" || new Date(t.date + "T12:00:00").getMonth() === parseInt(monthFilter);
@@ -1377,26 +1379,27 @@ export default function InfinityApp() {
     const matchType = txTypeFilter === "all" || t.type === txTypeFilter;
     return matchMonth && matchSearch && matchType;
   });
-  // Totais REAIS (actual_value quando quitado, value quando pendente)
-  const totalIn = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + realVal(t), 0);
-  const totalOut = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + realVal(t), 0);
+  // ENTRADAS/SAÍDAS/SALDO = SÓ transações confirmadas (quitadas ou pagas)
+  const confirmedTx = filteredTx.filter(isConfirmed);
+  const totalIn = confirmedTx.filter(t => t.type === "entrada").reduce((a, t) => a + confirmedVal(t), 0);
+  const totalOut = confirmedTx.filter(t => t.type === "saida").reduce((a, t) => a + confirmedVal(t), 0);
   const balance = totalIn - totalOut;
   const pendingCount = transactions.filter(t => t.status === "pendente" || t.status === "atrasado").length;
   const totalPurchasesVal = purchases.reduce((a,p) => a + Number(p.total), 0);
-  // Previsto (sempre value original) vs Realizado separado
-  const previstoEntradas = filteredTx.filter(t => t.type === "entrada").reduce((a, t) => a + Number(t.value), 0);
-  const previstoSaidas = filteredTx.filter(t => t.type === "saida").reduce((a, t) => a + Number(t.value), 0);
-  const realizadoEntradas = filteredTx.filter(t => t.type === "entrada" && t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
-  const realizadoSaidas = filteredTx.filter(t => t.type === "saida" && t.actual_value != null).reduce((a, t) => a + Number(t.actual_value), 0);
-  // Gráficos usam valores REAIS
+  // PREVISTO = transações pendentes/atrasadas (NÃO confirmadas)
+  const pendingTx = filteredTx.filter(t => !isConfirmed(t));
+  const previstoEntradas = pendingTx.filter(t => t.type === "entrada").reduce((a, t) => a + Number(t.value), 0);
+  const previstoSaidas = pendingTx.filter(t => t.type === "saida").reduce((a, t) => a + Number(t.value), 0);
+  // Gráficos e categorias = SÓ valores confirmados
   const expenseCategories = {};
-  filteredTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + realVal(t); });
+  confirmedTx.filter(t => t.type === "saida").forEach(t => { expenseCategories[t.category || "Outros"] = (expenseCategories[t.category || "Outros"] || 0) + confirmedVal(t); });
 
-  // Cash flow mensal com valores REAIS + saldo acumulado
+  // Cash flow mensal = SÓ transações confirmadas + saldo acumulado
+  const confirmedAll = transactions.filter(isConfirmed);
   const allMonthlyData = months.map((m, i) => ({
     m, i,
-    in: transactions.filter(t => t.type === "entrada" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + realVal(t), 0),
-    out: transactions.filter(t => t.type === "saida" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + realVal(t), 0),
+    in: confirmedAll.filter(t => t.type === "entrada" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + confirmedVal(t), 0),
+    out: confirmedAll.filter(t => t.type === "saida" && new Date(t.date + "T12:00:00").getMonth() === i).reduce((a, t) => a + confirmedVal(t), 0),
   }));
   // Saldo acumulado: cada mês puxa o saldo restante do anterior
   let runningTotal = 0;
@@ -1615,7 +1618,7 @@ export default function InfinityApp() {
           </div>
           {(() => {
             const incCats = {};
-            filteredTx.filter(t => t.type === "entrada").forEach(t => { incCats[t.category || "Outros"] = (incCats[t.category || "Outros"] || 0) + Number(t.value); });
+            confirmedTx.filter(t => t.type === "entrada").forEach(t => { incCats[t.category || "Outros"] = (incCats[t.category || "Outros"] || 0) + confirmedVal(t); });
             return Object.keys(incCats).length > 0 && (
               <div className="card anim-expand" style={{ padding:24, animationDelay:"0.45s" }}>
                 {chartType === "pie" ? (
@@ -1741,12 +1744,10 @@ export default function InfinityApp() {
         <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #2E7D32", animationDelay:"0.2s" }}>
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Prev. Entradas</span>
           <p style={{ fontSize:18, fontWeight:700, color:"#2E7D32", marginTop:4 }}>{fmt(previstoEntradas)}</p>
-          {realizadoEntradas > 0 && <p style={{ fontSize:11, color:"#7B1FA2", marginTop:2 }}>Real: {fmt(realizadoEntradas)}</p>}
         </div>
         <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #C62828", animationDelay:"0.25s" }}>
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Prev. Saídas</span>
           <p style={{ fontSize:18, fontWeight:700, color:"#C62828", marginTop:4 }}>{fmt(previstoSaidas)}</p>
-          {realizadoSaidas > 0 && <p style={{ fontSize:11, color:"#7B1FA2", marginTop:2 }}>Real: {fmt(realizadoSaidas)}</p>}
         </div>
       </div>
       {/* Table */}
@@ -1880,18 +1881,18 @@ export default function InfinityApp() {
     // Usa monthlyWithBalance já computado (com saldo acumulado)
     const monthlyData = monthlyWithBalance.filter(d => d.in > 0 || d.out > 0);
 
-    // Category data for charts
+    // Category data for charts — SÓ confirmados
     const expCats = Object.entries(expenseCategories).sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}));
     const incCats = {};
-    filteredTx.filter(t => t.type==="entrada").forEach(t => { incCats[t.category||"Outros"] = (incCats[t.category||"Outros"]||0)+Number(t.value); });
+    confirmedTx.filter(t => t.type==="entrada").forEach(t => { incCats[t.category||"Outros"] = (incCats[t.category||"Outros"]||0)+confirmedVal(t); });
     const incCatsArr = Object.entries(incCats).sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}));
-    // Subcategory data
+    // Subcategory data — SÓ confirmados
     const subCatData = {};
-    filteredTx.forEach(t => {
+    confirmedTx.forEach(t => {
       const key = `${t.type==="entrada"?"Receita":"Despesa"} > ${t.category||"Outros"}`;
       const sub = t.description || "Sem descrição";
       if (!subCatData[key]) subCatData[key] = {};
-      subCatData[key][sub] = (subCatData[key][sub]||0) + Number(t.value);
+      subCatData[key][sub] = (subCatData[key][sub]||0) + confirmedVal(t);
     });
 
     return (
