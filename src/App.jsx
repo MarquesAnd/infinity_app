@@ -473,59 +473,64 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
   };
 
   const drawInfoRow = (y, items) => {
+    doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
     setFill(C.cream);
-    rect(ML, y, CW, 10);
+    doc.roundedRect(ML, y, CW, 12, 2, 2, "F");
     setDraw(C.sand);
     doc.setLineWidth(0.3);
-    rect(ML, y, CW, 10, "S");
+    doc.roundedRect(ML, y, CW, 12, 2, 2, "S");
     setTxt(C.gray);
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     const colW = CW / items.length;
     items.forEach(({ label, value }, i) => {
       const x = ML + i * colW + 4;
-      doc.text(label, x, y + 4);
+      doc.text(label, x, y + 4.5);
       setTxt(C.dark);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text(value, x, y + 8.5);
+      doc.setFontSize(8.5);
+      doc.text(String(value).slice(0, 24), x, y + 9.5);
       setTxt(C.gray);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(7);
     });
+    return y + 14;
   };
 
   const drawSummaryBoxes = (y, boxes) => {
-    const bw = CW / boxes.length;
+    const gap = 3;
+    const bw = (CW - gap * (boxes.length - 1)) / boxes.length;
     boxes.forEach(({ label, value, color }, i) => {
-      const x = ML + i * bw;
-      setFill(color === "success" ? [236, 247, 239] : color === "danger" ? [253, 236, 235] : C.cream);
-      rect(x + (i > 0 ? 2 : 0), y, bw - (i > 0 ? 2 : 0) - (i < boxes.length-1 ? 2 : 0), 20);
-      setDraw(color === "success" ? C.success : color === "danger" ? C.danger : C.sand);
-      doc.setLineWidth(0.4);
-      rect(x + (i > 0 ? 2 : 0), y, bw - (i > 0 ? 2 : 0) - (i < boxes.length-1 ? 2 : 0), 20, "S");
+      const x = ML + i * (bw + gap);
+      const bg = color === "success" ? [236, 247, 239] : color === "danger" ? [253, 236, 235] : C.cream;
+      const border = color === "success" ? C.success : color === "danger" ? C.danger : C.sand;
+      setFill(bg);
+      doc.roundedRect(x, y, bw, 20, 3, 3, "F");
+      setDraw(border);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(x, y, bw, 20, 3, 3, "S");
       setTxt(C.gray);
-      doc.setFontSize(7.5);
+      doc.setFontSize(6.5);
       doc.setFont("helvetica", "normal");
-      doc.text(label.toUpperCase(), x + (i > 0 ? 2 : 0) + 4, y + 6);
+      doc.text(label.toUpperCase(), x + 4, y + 6);
       setTxt(color === "success" ? C.success : color === "danger" ? C.danger : C.dark);
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      doc.text(value, x + (i > 0 ? 2 : 0) + 4, y + 15);
+      doc.text(String(value).slice(0, 18), x + 4, y + 15);
     });
-    return y + 22;
+    return y + 24;
   };
 
   const drawTableHeader = (y, cols) => {
     setFill(C.brown);
-    rect(ML, y, CW, 8);
+    doc.roundedRect(ML, y, CW, 8, 2, 2, "F");
     setTxt(C.white);
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     cols.forEach(({ label, x, align }) => {
       doc.text(label, x, y + 5.5, { align: align || "left" });
     });
-    return y + 8;
+    return y + 9;
   };
 
   const drawTableRow = (y, cols, isEven) => {
@@ -534,17 +539,98 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
       rect(ML, y, CW, 7, "F");
     }
     setDraw(C.sand);
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.15);
     doc.line(ML, y + 7, MR, y + 7);
     setTxt(C.dark);
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
-    cols.forEach(({ text, x, align, color }) => {
-      if (color) setTxt(color);
-      else setTxt(C.dark);
+    cols.forEach(({ text, x, align, color, bold }) => {
+      if (color) setTxt(color); else setTxt(C.dark);
+      if (bold) doc.setFont("helvetica", "bold");
       doc.text(String(text || ""), x, y + 5, { align: align || "left" });
+      if (bold) doc.setFont("helvetica", "normal");
     });
     return y + 7;
+  };
+
+  // Draw a simple pie chart in the PDF
+  const drawPdfPie = (cx, cy, r, data, title) => {
+    const total = data.reduce((a,d) => a + d.value, 0);
+    if (total === 0) return;
+    setTxt(C.dark);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    if (title) doc.text(title, cx, cy - r - 5, { align: "center" });
+    let angle = -Math.PI / 2;
+    const colors = [[184,146,106],[123,163,135],[196,113,108],[212,168,67],[90,143,165],[156,142,124],[107,91,78],[230,126,115],[109,179,160],[201,168,76],[142,108,168],[77,144,164]];
+    data.forEach((d, i) => {
+      const pct = d.value / total;
+      const startAngle = angle;
+      angle += pct * 2 * Math.PI;
+      const endAngle = angle;
+      // Draw slice using lines from center to arc
+      const steps = Math.max(8, Math.ceil(pct * 60));
+      setFill(colors[i % colors.length]);
+      let path = `${cx},${cy}`;
+      for (let s = 0; s <= steps; s++) {
+        const a = startAngle + (endAngle - startAngle) * (s / steps);
+        path += ` ${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+      }
+      // jsPDF doesn't support arbitrary paths easily, use triangle fan
+      for (let s = 0; s < steps; s++) {
+        const a1 = startAngle + (endAngle - startAngle) * (s / steps);
+        const a2 = startAngle + (endAngle - startAngle) * ((s + 1) / steps);
+        doc.triangle(
+          cx, cy,
+          cx + r * Math.cos(a1), cy + r * Math.sin(a1),
+          cx + r * Math.cos(a2), cy + r * Math.sin(a2),
+          "F"
+        );
+      }
+    });
+    // Legend
+    let ly = cy + r + 5;
+    doc.setFontSize(6.5);
+    data.forEach((d, i) => {
+      if (ly > 280) return;
+      const pct = total > 0 ? ((d.value/total)*100).toFixed(1) : "0";
+      setFill(colors[i % colors.length]);
+      rect(cx - r, ly, 3, 3, "F");
+      setTxt(C.dark);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${d.label.slice(0,22)}: ${fmt(d.value)} (${pct}%)`, cx - r + 5, ly + 2.5);
+      ly += 4.5;
+    });
+    return ly;
+  };
+
+  // Draw horizontal bar chart in PDF
+  const drawPdfBars = (x, y, w, data, title, maxBars) => {
+    const items = data.slice(0, maxBars || 10);
+    const max = Math.max(...items.map(d => d.value), 1);
+    if (title) {
+      setTxt(C.dark);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(title, x, y);
+      y += 5;
+    }
+    const colors = [[184,146,106],[123,163,135],[196,113,108],[212,168,67],[90,143,165],[156,142,124],[107,91,78]];
+    items.forEach((d, i) => {
+      const barW = (d.value / max) * (w * 0.55);
+      const pct = max > 0 ? ((d.value / data.reduce((a,dd)=>a+dd.value,0)) * 100).toFixed(1) : "0";
+      setFill(colors[i % colors.length]);
+      doc.roundedRect(x, y, barW, 4.5, 1, 1, "F");
+      setTxt(C.dark);
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(d.label.slice(0, 20), x + barW + 2, y + 3.5);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${fmt(d.value)} (${pct}%)`, x + w, y + 3.5, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      y += 6.5;
+    });
+    return y + 2;
   };
 
   const checkPageBreak = (y, needed, pageNum, totalPagesRef) => {
@@ -573,6 +659,9 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
     const cats = {};
     txList.filter(t => t.type === "saida").forEach(t => { cats[t.category || "Outros"] = (cats[t.category || "Outros"] || 0) + Number(t.value); });
     const catEntries = Object.entries(cats).sort((a,b) => b[1]-a[1]);
+    const incCats = {};
+    txList.filter(t => t.type === "entrada").forEach(t => { incCats[t.category || "Outros"] = (incCats[t.category || "Outros"] || 0) + Number(t.value); });
+    const incCatEntries = Object.entries(incCats).sort((a,b) => b[1]-a[1]);
 
     addPageHeader("RELATÓRIO DE TRANSAÇÕES", `${monthLabel} · Empresa: ${company}`);
 
@@ -603,13 +692,13 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
     doc.text("Lançamentos", ML, y);
     y += 6;
 
+    // Table: DATA | DESCRIÇÃO | CATEGORIA | STATUS | VALOR (right-aligned at end)
     const cols = [
       { label: "DATA", x: ML + 2 },
-      { label: "DESCRIÇÃO", x: ML + 23 },
-      { label: "CATEGORIA", x: ML + 100 },
-      { label: "TIPO", x: ML + 140 },
+      { label: "DESCRIÇÃO", x: ML + 22 },
+      { label: "CATEGORIA", x: ML + 90 },
+      { label: "STATUS", x: ML + 138 },
       { label: "VALOR", x: MR - 2, align: "right" },
-      { label: "STATUS", x: ML + 158 },
     ];
     y = drawTableHeader(y, cols);
 
@@ -619,13 +708,13 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
       const res = checkPageBreak(y, 7, pageNum, totalPagesRef);
       y = res.y; pageNum = res.pageNum;
       const valColor = t.type === "entrada" ? C.success : C.danger;
+      const statusLabel = { pago:"Pago", recebido:"Recebido", pendente:"Pendente", atrasado:"Atrasado" }[t.status] || t.status;
       y = drawTableRow(y, [
         { text: fmtDate(t.date), x: ML + 2 },
-        { text: (t.description || "").slice(0, 38), x: ML + 23 },
-        { text: (t.category || "—").slice(0, 18), x: ML + 100 },
-        { text: t.type === "entrada" ? "Entrada" : "Saída", x: ML + 140 },
-        { text: fmt(t.value), x: MR - 2, align: "right", color: valColor },
-        { text: t.status, x: ML + 158 },
+        { text: (t.description || "").slice(0, 32), x: ML + 22 },
+        { text: (t.category || "—").slice(0, 22), x: ML + 90 },
+        { text: statusLabel, x: ML + 138 },
+        { text: (t.type==="entrada"?"+ ":"- ") + fmt(t.value), x: MR - 2, align: "right", color: valColor, bold: true },
       ], i % 2 === 0);
     });
 
@@ -648,30 +737,30 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
     doc.text(fmt(balance), MR - 2, y + 5.5, { align: "right" });
     y += 12;
 
-    // Categories breakdown (if space)
-    if (catEntries.length > 0 && y < 230) {
-      y += 4;
-      setTxt(C.dark);
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text("Despesas por Categoria", ML, y);
-      y += 6;
-      y = drawTableHeader(y, [
-        { label: "CATEGORIA", x: ML + 4 },
-        { label: "VALOR", x: ML + 100 },
-        { label: "% DO TOTAL", x: MR - 2, align: "right" },
-      ]);
-      catEntries.forEach(([ cat, val ], i) => {
-        const pct = totalOut > 0 ? ((val/totalOut)*100).toFixed(1) : "0.0";
-        y = drawTableRow(y, [
-          { text: cat.slice(0, 40), x: ML + 4 },
-          { text: fmt(val), x: ML + 100, color: C.danger },
-          { text: pct + "%", x: MR - 2, align: "right" },
-        ], i % 2 === 0);
-      });
+    // Charts page
+    if (catEntries.length > 0 || incCatEntries.length > 0) {
+      doc.addPage();
+      addPageHeader("GRÁFICOS — TRANSAÇÕES", `${monthLabel} · ${company}`);
+      let cy = 54;
+
+      if (catEntries.length > 0) {
+        // Pie chart for expenses
+        const pieEndY = drawPdfPie(ML + 35, cy + 30, 22, catEntries.map(([label,value])=>({label,value})), "Despesas por Categoria");
+        // Horizontal bars on the right side
+        drawPdfBars(ML + 80, cy, CW - 80, catEntries.map(([label,value])=>({label,value})), "", 10);
+        cy = Math.max(pieEndY, cy + catEntries.length * 6.5 + 8) + 8;
+      }
+
+      if (incCatEntries.length > 0 && cy < 200) {
+        const pieEndY = drawPdfPie(ML + 35, cy + 30, 22, incCatEntries.map(([label,value])=>({label,value})), "Receitas por Categoria");
+        drawPdfBars(ML + 80, cy, CW - 80, incCatEntries.map(([label,value])=>({label,value})), "", 10);
+        cy = Math.max(pieEndY, cy + incCatEntries.length * 6.5 + 8) + 8;
+      }
+
+      addPageFooter(2, 2);
     }
 
-    addPageFooter(1, 1);
+    addPageFooter(1, catEntries.length > 0 ? 2 : 1);
     doc.save(`infinity-transacoes-${new Date().toISOString().slice(0,10)}.pdf`);
   }
 
@@ -717,11 +806,10 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
     const cols = [
       { label: "DATA", x: ML + 2 },
       { label: "ITEM", x: ML + 22 },
-      { label: "FORNECEDOR", x: ML + 80 },
-      { label: "QTD", x: ML + 130 },
-      { label: "UNIT.", x: ML + 145 },
+      { label: "FORNECEDOR", x: ML + 78 },
+      { label: "QTD", x: ML + 120 },
+      { label: "STATUS", x: ML + 133 },
       { label: "TOTAL", x: MR - 2, align: "right" },
-      { label: "STATUS", x: ML + 158 },
     ];
     y = drawTableHeader(y, cols);
 
@@ -730,14 +818,14 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
     purchases.forEach((p, i) => {
       const res = checkPageBreak(y, 7, pageNum, totalPagesRef);
       y = res.y; pageNum = res.pageNum;
+      const statusLabel = { em_transito:"Trânsito", entregue:"Entregue", ativo:"Ativo", cancelado:"Cancelado" }[p.status] || p.status;
       y = drawTableRow(y, [
         { text: fmtDate(p.date), x: ML + 2 },
-        { text: (p.item || "").slice(0, 25), x: ML + 22 },
-        { text: (p.supplier || "—").slice(0, 18), x: ML + 80 },
-        { text: String(p.qty), x: ML + 130 },
-        { text: fmt(p.unit_price), x: ML + 145 },
-        { text: fmt(p.total), x: MR - 2, align: "right", color: C.danger },
-        { text: p.status, x: ML + 158 },
+        { text: (p.item || "").slice(0, 26), x: ML + 22 },
+        { text: (p.supplier || "—").slice(0, 20), x: ML + 78 },
+        { text: String(p.qty) + "x", x: ML + 120 },
+        { text: statusLabel, x: ML + 133 },
+        { text: fmt(p.total), x: MR - 2, align: "right", color: C.danger, bold: true },
       ], i % 2 === 0);
     });
 
@@ -783,7 +871,17 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
       });
     }
 
-    addPageFooter(1, 1);
+    // Charts page for purchases
+    if (supEntries.length > 1) {
+      doc.addPage();
+      addPageHeader("GRÁFICOS — COMPRAS", `Empresa: ${company}`);
+      let cy = 54;
+      drawPdfPie(ML + 35, cy + 30, 22, supEntries.map(([label,value])=>({label,value})), "Compras por Fornecedor");
+      drawPdfBars(ML + 80, cy, CW - 80, supEntries.map(([label,value])=>({label,value})), "", 10);
+      addPageFooter(2, 2);
+    }
+
+    addPageFooter(1, supEntries.length > 1 ? 2 : 1);
     doc.save(`infinity-compras-${new Date().toISOString().slice(0,10)}.pdf`);
   }
 
