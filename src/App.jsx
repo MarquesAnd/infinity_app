@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
+import LOGO_BASE64 from "./logoBase64.js";
 
 // ─── SUPABASE ───
 const SUPABASE_URL = "https://yresgunnnazzjexbajyk.supabase.co";
@@ -378,8 +379,8 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
     // Accent top line
     setFill(C.accent);
     rect(0, 283, W, 0.8);
-    // Mini logo mark
-    drawLogoMark(ML, 284.5, 9);
+    // Mini logo
+    try { doc.addImage(LOGO_BASE64, "PNG", ML, 285, 8, 4.4); } catch(_) {}
     setTxt(C.gray);
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
@@ -437,16 +438,16 @@ const buildPDF = ({ type, company, user, transactions, purchases, filteredTx, mo
     setFill([55, 44, 36]);
     rect(0, 0, W, 6);
 
-    // Logo mark
-    const logoSize = 26;
+    // Logo PNG
+    const logoSize = 22;
     const logoY = (44 - logoSize) / 2;
-    drawLogoMark(ML, logoY, logoSize);
+    try { doc.addImage(LOGO_BASE64, "PNG", ML, logoY + 1, logoSize, logoSize * 0.55); } catch(_) {}
 
     // Brand name next to logo
     setTxt(C.white);
     doc.setFontSize(17);
     doc.setFont("helvetica", "bold");
-    doc.text("INFINITY", ML + logoSize + 5, 19);
+    doc.text("INFINITY", ML + logoSize + 4, 19);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     setTxt(C.accentLight);
@@ -981,7 +982,8 @@ export default function InfinityApp() {
 
   // ─── UI STATE ───
   const [modalOpen, setModalOpen] = useState(null);
-  const [monthFilter, setMonthFilter] = useState("all");
+  const [monthFrom, setMonthFrom] = useState("all");
+  const [monthTo, setMonthTo] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [txTypeFilter, setTxTypeFilter] = useState("all");
 
@@ -1374,7 +1376,10 @@ export default function InfinityApp() {
   const confirmedVal = (t) => t.actual_value != null ? Number(t.actual_value) : Number(t.value);
 
   const filteredTx = transactions.filter(t => {
-    const matchMonth = monthFilter === "all" || new Date(t.date + "T12:00:00").getMonth() === parseInt(monthFilter);
+    const txMonth = new Date(t.date + "T12:00:00").getMonth();
+    const from = monthFrom === "all" ? 0 : parseInt(monthFrom);
+    const to = monthTo === "all" ? 11 : parseInt(monthTo);
+    const matchMonth = monthFrom === "all" && monthTo === "all" ? true : (txMonth >= from && txMonth <= to);
     const matchSearch = !searchTerm || (t.description || "").toLowerCase().includes(searchTerm.toLowerCase()) || (t.category || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchType = txTypeFilter === "all" || t.type === txTypeFilter;
     return matchMonth && matchSearch && matchType;
@@ -1412,12 +1417,15 @@ export default function InfinityApp() {
 
   // Saldo em caixa: se filtrando por mês, mostra o acumulado ATÉ aquele mês
   // Se "todos os meses", mostra o acumulado total
-  const selectedMonthIdx = monthFilter === "all" ? 11 : parseInt(monthFilter);
-  const saldoEmCaixa = monthlyWithBalance[selectedMonthIdx]?.balance || 0;
-  // Saldo que veio do mês anterior (para mostrar separado)
-  const saldoAnterior = monthFilter !== "all" ? (monthlyWithBalance[parseInt(monthFilter)]?.prevBalance || 0) : 0;
+  const toIdx = monthTo === "all" ? 11 : parseInt(monthTo);
+  const fromIdx = monthFrom === "all" ? 0 : parseInt(monthFrom);
+  const isFiltered = monthFrom !== "all" || monthTo !== "all";
+  const saldoEmCaixa = monthlyWithBalance[toIdx]?.balance || 0;
+  const saldoAnterior = isFiltered ? (monthlyWithBalance[fromIdx]?.prevBalance || 0) : 0;
 
-  const monthLabel = monthFilter === "all" ? "Todos os meses" : months[parseInt(monthFilter)] + " 2026";
+  const monthLabel = !isFiltered ? "Todos os meses"
+    : monthFrom === monthTo || (!isFiltered) ? months[fromIdx] + " 2026"
+    : months[fromIdx] + " a " + months[toIdx] + " 2026";
   const companyName = companyData?.name || currentUser?.email?.split("@")[0] || "Empresa";
 
   const navItems = [
@@ -1711,10 +1719,17 @@ export default function InfinityApp() {
           <option value="entrada">Entradas</option>
           <option value="saida">Saídas</option>
         </select>
-        <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width:"auto", minWidth:140 }}>
-          <option value="all">Todos os meses</option>
-          {months.map((m, i) => <option key={i} value={i}>{m} 2026</option>)}
-        </select>
+        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+          <select value={monthFrom} onChange={e => { setMonthFrom(e.target.value); if (e.target.value !== "all" && monthTo !== "all" && parseInt(e.target.value) > parseInt(monthTo)) setMonthTo(e.target.value); }} style={{ width:"auto", minWidth:100, fontSize:13 }}>
+            <option value="all">De: Início</option>
+            {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+          <span style={{ color:"var(--taupe)", fontSize:12 }}>até</span>
+          <select value={monthTo} onChange={e => { setMonthTo(e.target.value); if (e.target.value !== "all" && monthFrom !== "all" && parseInt(e.target.value) < parseInt(monthFrom)) setMonthFrom(e.target.value); }} style={{ width:"auto", minWidth:100, fontSize:13 }}>
+            <option value="all">Até: Final</option>
+            {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+        </div>
       </div>
       {/* Summary */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(155px, 1fr))", gap:12 }}>
@@ -1726,7 +1741,7 @@ export default function InfinityApp() {
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saídas</span>
           <p style={{ fontSize:20, fontWeight:700, color:"var(--danger)", marginTop:4 }}>{fmt(totalOut)}</p>
         </div>
-        {monthFilter !== "all" && saldoAnterior !== 0 && (
+        {isFiltered && saldoAnterior !== 0 && (
           <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--brown)", animationDelay:"0.1s" }}>
             <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saldo Anterior</span>
             <p style={{ fontSize:20, fontWeight:700, color:saldoAnterior>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(saldoAnterior)}</p>
@@ -1735,7 +1750,7 @@ export default function InfinityApp() {
         <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid var(--accent)", animationDelay:"0.12s" }}>
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Saldo em Caixa</span>
           <p style={{ fontSize:20, fontWeight:700, color:saldoEmCaixa>=0?"var(--success)":"var(--danger)", marginTop:4 }}>{fmt(saldoEmCaixa)}</p>
-          {monthFilter !== "all" && <p style={{ fontSize:10, color:"var(--taupe)", marginTop:2 }}>anterior + entradas - saídas</p>}
+          {isFiltered && <p style={{ fontSize:10, color:"var(--taupe)", marginTop:2 }}>anterior + entradas - saídas</p>}
         </div>
         <div className="card anim-fade" style={{ padding:16, borderLeft:"4px solid #2E7D32", animationDelay:"0.2s" }}>
           <span style={{ fontSize:10, color:"var(--taupe)", fontWeight:600, textTransform:"uppercase", letterSpacing:.3 }}>Prev. Entradas</span>
@@ -1904,10 +1919,17 @@ export default function InfinityApp() {
           <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Relatórios</h2>
           <div style={{ display:"flex", gap:10, alignItems:"center" }}>
             <ChartToggle value={chartType} onChange={setChartType} />
-            <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width:"auto", minWidth:140 }}>
-              <option value="all">Todos os meses</option>
-              {months.map((m, i) => <option key={i} value={i}>{m} 2026</option>)}
-            </select>
+            <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+              <select value={monthFrom} onChange={e => { setMonthFrom(e.target.value); if (e.target.value !== "all" && monthTo !== "all" && parseInt(e.target.value) > parseInt(monthTo)) setMonthTo(e.target.value); }} style={{ width:"auto", minWidth:90, fontSize:12 }}>
+                <option value="all">De: Início</option>
+                {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+              <span style={{ color:"var(--taupe)", fontSize:11 }}>até</span>
+              <select value={monthTo} onChange={e => { setMonthTo(e.target.value); if (e.target.value !== "all" && monthFrom !== "all" && parseInt(e.target.value) < parseInt(monthFrom)) setMonthFrom(e.target.value); }} style={{ width:"auto", minWidth:90, fontSize:12 }}>
+                <option value="all">Até: Final</option>
+                {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+            </div>
           </div>
         </div>
         {/* PDF cards */}
