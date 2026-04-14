@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import LOGO_BASE64 from "./logoBase64.js";
+import ClinicaPage from "./ClinicaPage.jsx";
 
 // ─── SUPABASE ───
 const SUPABASE_URL = "https://yresgunnnazzjexbajyk.supabase.co";
@@ -1433,6 +1434,7 @@ export default function InfinityApp() {
     { id:"contas", icon:"wallet", label:"Contas" },
     { id:"compras", icon:"cart", label:"Compras" },
     { id:"relatorios", icon:"chart", label:"Relatórios" },
+    { id:"clinica", icon:"settings", label:"Clínica" },
     { id:"perfis", icon:"users", label:"Equipe" },
     { id:"perfil", icon:"user", label:"Meu Perfil" },
     { id:"config", icon:"settings", label:"Configurações" },
@@ -2227,7 +2229,9 @@ export default function InfinityApp() {
     </div>
   );
 
-  const pages = { dashboard:renderDashboard, contas:renderContas, compras:renderCompras, relatorios:renderRelatorios, perfis:renderPerfis, perfil:renderPerfil, config:renderConfig };
+  const renderClinica = () => <ClinicaPage transactions={transactions} companyId={currentUser?.company_id} />;
+
+  const pages = { dashboard:renderDashboard, contas:renderContas, compras:renderCompras, relatorios:renderRelatorios, clinica:renderClinica, perfis:renderPerfis, perfil:renderPerfil, config:renderConfig };
 
   return (
     <>
