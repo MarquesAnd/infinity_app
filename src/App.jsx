@@ -1434,7 +1434,7 @@ export default function InfinityApp() {
     { id:"contas", icon:"wallet", label:"Contas" },
     { id:"compras", icon:"cart", label:"Compras" },
     { id:"relatorios", icon:"chart", label:"Relatórios" },
-    { id:"clinica", icon:"settings", label:"Clínica" },
+    { id:"clinica", icon:"chart", label:"Clínica" },
     { id:"perfis", icon:"users", label:"Equipe" },
     { id:"perfil", icon:"user", label:"Meu Perfil" },
     { id:"config", icon:"settings", label:"Configurações" },

@@ -1,10 +1,11 @@
 // ─── ClinicaPage.jsx — Gestão Operacional da Clínica ───────────────────────
-// Integra-se ao Infinity App (Supabase + React)
-// Config salva em localStorage; receita real puxada das transactions do Supabase
+// v2: Adiciona aba de upload do Relatório de Frequência (.xlsx)
+// Dependência extra: xlsx (SheetJS) — npm install xlsx
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import * as XLSX from "xlsx";
 
-// ── helpers de formato ────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 const brl = (v) => {
   const n = Number(v || 0);
   if (!isFinite(n)) return "R$ 0,00";
@@ -16,99 +17,59 @@ const pct = (v) => {
   return n.toLocaleString("pt-BR", { style: "percent", minimumFractionDigits: 1 });
 };
 
-// ── paleta (mesma do Infinity App) ────────────────────────────────────────────
 const C = {
-  cream: "var(--cream)",
-  beige: "var(--beige)",
-  sand: "var(--sand)",
-  taupe: "var(--taupe)",
-  dark: "var(--dark)",
-  accent: "var(--accent)",
-  success: "var(--success)",
-  danger: "var(--danger)",
-  warning: "var(--warning)",
+  cream: "var(--cream)", beige: "var(--beige)", sand: "var(--sand)",
+  taupe: "var(--taupe)", dark: "var(--dark)", accent: "var(--accent)",
+  success: "var(--success)", danger: "var(--danger)", warning: "var(--warning)",
   white: "var(--white)",
 };
 
-// ── convênios padrão ──────────────────────────────────────────────────────────
+// ── defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_CONVENIOS = [
-  { id: 1, nome: "Particular",      sigla: "PART", valor: 350, ativo: true },
-  { id: 2, nome: "Unimed",          sigla: "UNIM", valor: 180, ativo: true },
-  { id: 3, nome: "Hapvida",         sigla: "HAPV", valor: 140, ativo: true },
-  { id: 4, nome: "NotreDame",       sigla: "NDME", valor: 155, ativo: true },
-  { id: 5, nome: "SulAmérica",      sigla: "SULA", valor: 165, ativo: true },
-  { id: 6, nome: "Bradesco Saúde",  sigla: "BRAD", valor: 175, ativo: true },
-  { id: 7, nome: "Convênio Empresa",sigla: "EMP",  valor: 200, ativo: false },
-  { id: 8, nome: "Outros",          sigla: "OUTR", valor: 150, ativo: false },
+  { id: 1, nome: "Ndi Minas",  sigla: "NDI",  valor: 160, ativo: true },
+  { id: 2, nome: "Unimed",     sigla: "UNIM", valor: 180, ativo: true },
+  { id: 3, nome: "Particular", sigla: "PART", valor: 350, ativo: true },
+  { id: 4, nome: "Geap",       sigla: "GEAP", valor: 160, ativo: true },
+  { id: 5, nome: "Hapvida",    sigla: "HAPV", valor: 140, ativo: true },
+  { id: 6, nome: "Usisaude",   sigla: "USIS", valor: 140, ativo: true },
+  { id: 7, nome: "NotreDame",  sigla: "NDME", valor: 155, ativo: false },
+  { id: 8, nome: "SulAmérica", sigla: "SULA", valor: 165, ativo: false },
 ];
 
 const DEFAULT_PROFISSIONAIS = [
-  { id: 1, nome: "Wessilon Marques",  cargo: "Neuropsicólogo",   contrato: "Sócio",   tipo: "prolabore", valor: 0,    meta: 4, real: 3 },
-  { id: 2, nome: "Profissional 2",    cargo: "Psicólogo(a)",     contrato: "CLT/PJ",  tipo: "pct",       valor: 0.40, meta: 4, real: 3 },
-  { id: 3, nome: "Profissional 3",    cargo: "Psicólogo(a)",     contrato: "CLT/PJ",  tipo: "pct",       valor: 0.40, meta: 4, real: 2 },
-  { id: 4, nome: "Profissional 4",    cargo: "Psicólogo(a)",     contrato: "CLT/PJ",  tipo: "fixo",      valor: 150,  meta: 3, real: 2 },
-  { id: 5, nome: "Profissional 5",    cargo: "Neuropsicólogo(a)",contrato: "PJ",      tipo: "pct",       valor: 0.45, meta: 4, real: 3 },
-  { id: 6, nome: "Profissional 6",    cargo: "Psicólogo(a)",     contrato: "Estag.",  tipo: "fixo",      valor: 60,   meta: 3, real: 2 },
-  { id: 7, nome: "Profissional 7",    cargo: "Psicólogo(a)",     contrato: "CLT/PJ",  tipo: "pct",       valor: 0.40, meta: 3, real: 2 },
-  { id: 8, nome: "Profissional 8",    cargo: "Psicólogo(a)",     contrato: "CLT/PJ",  tipo: "pct",       valor: 0.40, meta: 3, real: 2 },
+  { id: 1, nome: "Wessilon Marques",   cargo: "Neuropsicólogo",    contrato: "Sócio",  tipo: "prolabore", valor: 0,    meta: 4, real: 3, tags: ["WESSILON"] },
+  { id: 2, nome: "Emily Ferreira",     cargo: "Neuropsicólogo(a)", contrato: "PJ",     tipo: "pct",       valor: 0.40, meta: 4, real: 3, tags: ["EMILY"] },
+  { id: 3, nome: "Karolina Oliveira",  cargo: "Psicólogo(a)",      contrato: "PJ",     tipo: "pct",       valor: 0.40, meta: 4, real: 2, tags: ["KAROLINA"] },
+  { id: 4, nome: "Mariana Pereira",    cargo: "Neuropsicólogo(a)", contrato: "PJ",     tipo: "pct",       valor: 0.40, meta: 4, real: 2, tags: ["MARIANA"] },
+  { id: 5, nome: "Pâmela Dutra",       cargo: "Neuropsicólogo(a)", contrato: "PJ",     tipo: "pct",       valor: 0.40, meta: 4, real: 3, tags: ["PAMELA","PÂMELA"] },
+  { id: 6, nome: "Taís Souza",         cargo: "Neuropsicólogo(a)", contrato: "PJ",     tipo: "pct",       valor: 0.40, meta: 4, real: 2, tags: ["TAIS","TAÍS"] },
 ];
 
 const DEFAULT_PARAMS = {
-  diasUteis: 22,
-  ticketMedio: 180,
-  custoFixo: 8000,
-  custoVariavel: 25,
-  imposto: 0.06,
-  glosa: 0.05,
-  prolabore: 5000,
+  diasUteis: 22, ticketMedio: 180, custoFixo: 8000,
+  custoVariavel: 25, imposto: 0.06, glosa: 0.05, prolabore: 5000,
 };
 
-// ── mini-componentes ──────────────────────────────────────────────────────────
-const Tab = ({ label, active, onClick, badge }) => (
-  <button
-    onClick={onClick}
-    style={{
-      padding: "10px 18px",
-      border: "none",
-      borderBottom: `3px solid ${active ? C.accent : "transparent"}`,
-      background: "transparent",
-      color: active ? C.dark : C.taupe,
-      fontFamily: "inherit",
-      fontSize: 13,
-      fontWeight: active ? 700 : 500,
-      cursor: "pointer",
-      transition: "all .2s",
-      whiteSpace: "nowrap",
-      position: "relative",
-    }}
-  >
-    {label}
-    {badge != null && (
-      <span style={{
-        marginLeft: 6, fontSize: 10, fontWeight: 700,
-        background: C.accent, color: "white",
-        borderRadius: 10, padding: "1px 6px",
-      }}>{badge}</span>
-    )}
-  </button>
+// ── mini componentes ──────────────────────────────────────────────────────────
+const Tab = ({ label, active, onClick }) => (
+  <button onClick={onClick} style={{
+    padding: "10px 18px", border: "none",
+    borderBottom: `3px solid ${active ? C.accent : "transparent"}`,
+    background: "transparent", color: active ? C.dark : C.taupe,
+    fontFamily: "inherit", fontSize: 13, fontWeight: active ? 700 : 500,
+    cursor: "pointer", transition: "all .2s", whiteSpace: "nowrap",
+  }}>{label}</button>
 );
 
-const Card = ({ children, style: s, delay = 0 }) => (
-  <div
-    className="card anim-expand"
-    style={{ padding: 20, animationDelay: `${delay}s`, ...s }}
-  >
-    {children}
-  </div>
+const Card = ({ children, style: s }) => (
+  <div className="card anim-expand" style={{ padding: 20, ...s }}>{children}</div>
 );
 
-const KPICard = ({ label, real, ideal, fmt: fmtFn = brl, color, delay = 0 }) => {
+const KPICard = ({ label, real, ideal, fmtFn = brl, color, delay = 0 }) => {
   const diff = ideal - real;
   return (
     <div className="card anim-expand" style={{ padding: 18, animationDelay: `${delay}s` }}>
-      <span style={{ fontSize: 10, color: C.taupe, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
-        {label}
-      </span>
+      <span style={{ fontSize: 10, color: C.taupe, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</span>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: 8, gap: 8 }}>
         <div>
           <div style={{ fontSize: 11, color: C.taupe, marginBottom: 2 }}>Real</div>
@@ -120,12 +81,7 @@ const KPICard = ({ label, real, ideal, fmt: fmtFn = brl, color, delay = 0 }) => 
         </div>
       </div>
       {diff !== 0 && (
-        <div style={{
-          marginTop: 8, padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-          background: diff > 0 ? "#e8f5e9" : "#ffebee",
-          color: diff > 0 ? "#2e7d32" : "#c62828",
-          display: "inline-flex", alignItems: "center", gap: 4,
-        }}>
+        <div style={{ marginTop: 8, padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4, background: diff > 0 ? "#e8f5e9" : "#ffebee", color: diff > 0 ? "#2e7d32" : "#c62828" }}>
           {diff > 0 ? "▲" : "▼"} {fmtFn(Math.abs(diff))} potencial
         </div>
       )}
@@ -133,42 +89,157 @@ const KPICard = ({ label, real, ideal, fmt: fmtFn = brl, color, delay = 0 }) => 
   );
 };
 
-// ── mini barra horizontal ────────────────────────────────────────────────────
-const HBar = ({ value, max, color = C.accent, fmt: fmtFn = brl }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <div style={{ flex: 1, height: 8, borderRadius: 4, background: C.beige, overflow: "hidden" }}>
-      <div style={{
-        width: `${Math.min(100, max > 0 ? (value / max) * 100 : 0)}%`,
-        height: "100%", borderRadius: 4, background: color, transition: "width .6s ease",
-      }} />
-    </div>
-    <span style={{ fontSize: 12, fontWeight: 600, color: C.dark, minWidth: 70, textAlign: "right" }}>
-      {fmtFn(value)}
-    </span>
+const HBar = ({ value, max, color = C.accent }) => (
+  <div style={{ flex: 1, height: 8, borderRadius: 4, background: C.beige, overflow: "hidden" }}>
+    <div style={{ width: `${Math.min(100, max > 0 ? (value / max) * 100 : 0)}%`, height: "100%", borderRadius: 4, background: color, transition: "width .6s ease" }} />
   </div>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-export default function ClinicaPage({ transactions = [], companyId }) {
-  // ── estado de aba interna ───────────────────────────────────────────────────
-  const [tab, setTab] = useState("dashboard");
+// ── Parsing do relatório ──────────────────────────────────────────────────────
+const STATUS_CONCLUIDO = ["Concluído", "Concluido"];
 
-  // ── configurações persistidas em localStorage ──────────────────────────────
+function parseReport(workbook, conveniosConfig, profissionaisConfig) {
+  const rows = [];
+  for (const sheetName of workbook.SheetNames) {
+    const ws = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+    if (data.length < 2) continue;
+
+    // Encontrar linha de cabeçalho (tem "Convenio")
+    let headerRow = 0;
+    for (let i = 0; i < Math.min(5, data.length); i++) {
+      if (String(data[i][0]).toLowerCase().includes("convenio") || String(data[i][0]).toLowerCase().includes("convênio")) {
+        headerRow = i; break;
+      }
+    }
+
+    const COL = { convenio: 0, data: 1, paciente: 2, procedimento: 3, profissional: 4, status: 5 };
+
+    for (let i = headerRow + 1; i < data.length; i++) {
+      const row = data[i];
+      const convenio = String(row[COL.convenio] || "").trim();
+      const status = String(row[COL.status] || "").trim();
+      const profissional = String(row[COL.profissional] || "").trim();
+      const procedimento = String(row[COL.procedimento] || "").trim();
+      let dataRaw = row[COL.data];
+
+      if (!convenio || convenio === "Convenio" || convenio === "Convênio") continue;
+      if (!STATUS_CONCLUIDO.includes(status)) continue;
+
+      // Parse data
+      let mes = null;
+      if (dataRaw instanceof Date) {
+        mes = dataRaw.getMonth() + 1;
+      } else if (typeof dataRaw === "number") {
+        const d = new Date((dataRaw - 25569) * 86400 * 1000);
+        mes = d.getMonth() + 1;
+      } else if (typeof dataRaw === "string") {
+        const parts = dataRaw.split(/[-\/]/);
+        mes = parts.length >= 2 ? parseInt(parts[1]) : null;
+      }
+
+      // Simplificar procedimento
+      let proc = "Avaliação";
+      const p = procedimento.toLowerCase();
+      if (p.includes("devolutiva")) proc = "Devolutiva";
+      else if (p.includes("psicoterapi")) proc = "Psicoterapia";
+      else if (p.includes("anamnese")) proc = "Anamnese";
+
+      // Match convênio → config
+      const convMatch = conveniosConfig.find(c =>
+        c.nome.toLowerCase().includes(convenio.toLowerCase()) ||
+        convenio.toLowerCase().includes(c.nome.toLowerCase()) ||
+        c.sigla.toLowerCase() === convenio.toLowerCase()
+      );
+
+      // Match profissional → config
+      const profUpper = profissional.toUpperCase();
+      const profMatch = profissionaisConfig.find(p =>
+        (p.tags || []).some(tag => profUpper.includes(tag.toUpperCase())) ||
+        p.nome.toUpperCase().split(" ").some(part => part.length > 3 && profUpper.includes(part))
+      );
+
+      rows.push({
+        convenio, convenioNome: convMatch ? convMatch.nome : convenio,
+        convenioValor: convMatch ? convMatch.valor : 0,
+        profissional, profNome: profMatch ? profMatch.nome : profissional,
+        profTipo: profMatch ? profMatch.tipo : "pct",
+        profValor: profMatch ? profMatch.valor : 0.40,
+        procedimento: proc, mes, sheet: sheetName,
+      });
+    }
+  }
+  return rows;
+}
+
+function calcStats(rows, profissionaisConfig) {
+  // Por convênio
+  const byConv = {};
+  // Por profissional
+  const byProf = {};
+  // Por mês
+  const byMes = {};
+
+  for (const r of rows) {
+    // Por convênio
+    if (!byConv[r.convenioNome]) byConv[r.convenioNome] = { nome: r.convenioNome, valor: r.convenioValor, fev: 0, mar: 0, outros: 0, recBruta: 0, custoProf: 0 };
+    const bc = byConv[r.convenioNome];
+    if (r.mes === 2) bc.fev++;
+    else if (r.mes === 3) bc.mar++;
+    else bc.outros++;
+    bc.recBruta += r.convenioValor;
+    if (r.profTipo === "pct") bc.custoProf += r.convenioValor * r.profValor;
+    else if (r.profTipo === "fixo") bc.custoProf += r.profValor;
+
+    // Por profissional
+    const pk = r.profNome;
+    if (!byProf[pk]) byProf[pk] = { nome: r.profNome, tipo: r.profTipo, valor: r.profValor, convs: {}, fev: 0, mar: 0, recBruta: 0, custoProf: 0 };
+    const bp = byProf[pk];
+    if (r.mes === 2) bp.fev++;
+    else if (r.mes === 3) bp.mar++;
+    bp.recBruta += r.convenioValor;
+    if (r.profTipo === "pct") bp.custoProf += r.convenioValor * r.profValor;
+    else if (r.profTipo === "fixo") bp.custoProf += r.profValor;
+    if (!bp.convs[r.convenioNome]) bp.convs[r.convenioNome] = 0;
+    bp.convs[r.convenioNome]++;
+
+    // Por mês
+    const mk = r.mes === 2 ? "Fevereiro" : r.mes === 3 ? "Março" : `Mês ${r.mes}`;
+    if (!byMes[mk]) byMes[mk] = { mes: mk, sessoes: 0, recBruta: 0, custoProf: 0 };
+    byMes[mk].sessoes++;
+    byMes[mk].recBruta += r.convenioValor;
+    if (r.profTipo === "pct") byMes[mk].custoProf += r.convenioValor * r.profValor;
+    else if (r.profTipo === "fixo") byMes[mk].custoProf += r.profValor;
+  }
+
+  return { byConv, byProf, byMes, total: rows.length };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  MAIN COMPONENT
+// ═════════════════════════════════════════════════════════════════════════════
+export default function ClinicaPage({ transactions = [], companyId }) {
+  const [tab, setTab] = useState("dashboard");
   const lsKey = `clinica_cfg_${companyId || "default"}`;
 
   const loadCfg = () => {
-    try {
-      const raw = localStorage.getItem(lsKey);
-      if (raw) return JSON.parse(raw);
-    } catch (_) {}
+    try { const r = localStorage.getItem(lsKey); if (r) return JSON.parse(r); } catch (_) {}
     return null;
   };
 
-  const [convenios, setConvenios] = useState(() => loadCfg()?.convenios || DEFAULT_CONVENIOS);
+  const [convenios, setConvenios]         = useState(() => loadCfg()?.convenios || DEFAULT_CONVENIOS);
   const [profissionais, setProfissionais] = useState(() => loadCfg()?.profissionais || DEFAULT_PROFISSIONAIS);
-  const [params, setParams] = useState(() => loadCfg()?.params || DEFAULT_PARAMS);
-  const [saved, setSaved] = useState(false);
+  const [params, setParams]               = useState(() => loadCfg()?.params || DEFAULT_PARAMS);
+  const [saved, setSaved]                 = useState(false);
 
+  // Relatório
+  const [reportData, setReportData] = useState(null); // rows brutas
+  const [reportStats, setReportStats] = useState(null);
+  const [reportName, setReportName] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef();
 
   const saveCfg = useCallback(() => {
     localStorage.setItem(lsKey, JSON.stringify({ convenios, profissionais, params }));
@@ -176,233 +247,427 @@ export default function ClinicaPage({ transactions = [], companyId }) {
     setTimeout(() => setSaved(false), 2000);
   }, [convenios, profissionais, params, lsKey]);
 
-  // ── cálculos ────────────────────────────────────────────────────────────────
-  // Ticket médio ponderado (pode ser configurado manualmente ou calculado)
+  // Recalcular stats quando config muda
+  useEffect(() => {
+    if (reportData) {
+      const rows = parseReport({ SheetNames: reportData._sheetNames, Sheets: reportData._sheets }, convenios, profissionais);
+      setReportStats(calcStats(rows, profissionais));
+    }
+  }, [convenios, profissionais, reportData]);
+
+  // ── Upload handler ──────────────────────────────────────────────────────────
+  const handleFile = async (file) => {
+    if (!file) return;
+    if (!file.name.match(/\.xlsx?$/i)) { setReportError("Envie um arquivo .xlsx"); return; }
+    setReportLoading(true); setReportError("");
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      // Guardar workbook raw para recalcular quando config mudar
+      setReportData({ _sheetNames: wb.SheetNames, _sheets: wb.Sheets });
+      const rows = parseReport(wb, convenios, profissionais);
+      setReportStats(calcStats(rows, profissionais));
+      setReportName(file.name);
+      setTab("relatorio");
+    } catch (e) {
+      setReportError("Erro ao ler arquivo: " + e.message);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  // ── Cálculos operacionais (config) ──────────────────────────────────────────
   const ticket = params.ticketMedio;
   const dias = params.diasUteis;
-
-  // Sessões reais e ideais (soma dos profissionais)
-  const totalSessoesRealDia  = profissionais.reduce((a, p) => a + (p.real || 0), 0);
-  const totalSessoesIdealDia = profissionais.reduce((a, p) => a + (p.meta || 0), 0);
-  const totalSessoesRealMes  = totalSessoesRealDia * dias;
-  const totalSessoesIdealMes = totalSessoesIdealDia * dias;
-
-  // Receita bruta
-  const recBrutaReal  = totalSessoesRealMes * ticket;
-  const recBrutaIdeal = totalSessoesIdealMes * ticket;
-
-  // Glosa
+  const totalSessRealDia  = profissionais.reduce((a, p) => a + (p.real || 0), 0);
+  const totalSessIdealDia = profissionais.reduce((a, p) => a + (p.meta || 0), 0);
+  const totalSessRealMes  = totalSessRealDia * dias;
+  const totalSessIdealMes = totalSessIdealDia * dias;
+  const recBrutaReal  = totalSessRealMes * ticket;
+  const recBrutaIdeal = totalSessIdealMes * ticket;
   const glosaReal  = recBrutaReal * params.glosa;
   const glosaIdeal = recBrutaIdeal * params.glosa;
-
-  // Receita líquida (pós-glosa)
-  const recLiqReal  = recBrutaReal - glosaReal;
-  const recLiqIdeal = recBrutaIdeal - glosaIdeal;
-
-  // Impostos
   const impReal  = recBrutaReal * params.imposto;
   const impIdeal = recBrutaIdeal * params.imposto;
-
-  // Receita pós-impostos
-  const recPosImpReal  = recLiqReal - impReal;
-  const recPosImpIdeal = recLiqIdeal - impIdeal;
-
-  // Custo variável total
-  const cvReal  = totalSessoesRealMes * params.custoVariavel;
-  const cvIdeal = totalSessoesIdealMes * params.custoVariavel;
-
-  // Remuneração profissionais
-  // IMPORTANTE: p.valor para tipo "pct" é DECIMAL (0.40 = 40%)
-  const calcRemunProf = (sessoesDiaProp) =>
-    profissionais.reduce((total, p) => {
-      const sessMes = (p[sessoesDiaProp] || 0) * dias;
-      const recProf = sessMes * ticket;
-      if (p.tipo === "pct")   return total + recProf * Math.min(p.valor, 1); // cap at 100%
-      if (p.tipo === "fixo")  return total + sessMes * p.valor;
-      return total; // prolabore: descontado separado
-    }, 0);
-
-  const remunReal  = calcRemunProf("real");
-  const remunIdeal = calcRemunProf("meta");
-
-  // Custo médio de remuneração por sessão (para breakeven)
-  const remunPorSessaoReal = totalSessoesRealMes > 0 ? remunReal / totalSessoesRealMes : 0;
-
-  // EBITDA
+  const recPosImpReal  = recBrutaReal - glosaReal - impReal;
+  const recPosImpIdeal = recBrutaIdeal - glosaIdeal - impIdeal;
+  const cvReal  = totalSessRealMes * params.custoVariavel;
+  const cvIdeal = totalSessIdealMes * params.custoVariavel;
+  const calcRemuneracao = (prop) => profissionais.reduce((t, p) => {
+    const s = (p[prop] || 0) * dias;
+    if (p.tipo === "pct")  return t + s * ticket * Math.min(p.valor, 1); // cap 100%
+    if (p.tipo === "fixo") return t + s * p.valor;
+    return t;
+  }, 0);
+  const remunReal  = calcRemuneracao("real");
+  const remunIdeal = calcRemuneracao("meta");
   const ebitdaReal  = recPosImpReal - params.custoFixo - cvReal - remunReal;
   const ebitdaIdeal = recPosImpIdeal - params.custoFixo - cvIdeal - remunIdeal;
-
-  // Lucro líquido
   const lucroReal  = ebitdaReal - params.prolabore;
   const lucroIdeal = ebitdaIdeal - params.prolabore;
-
-  // Margem
   const margemReal  = recBrutaReal  > 0 ? lucroReal  / recBrutaReal  : 0;
   const margemIdeal = recBrutaIdeal > 0 ? lucroIdeal / recBrutaIdeal : 0;
+  const roiReal  = (recBrutaReal - lucroReal)  > 0 ? lucroReal  / (recBrutaReal - lucroReal)  : 0;
+  const roiIdeal = (recBrutaIdeal - lucroIdeal) > 0 ? lucroIdeal / (recBrutaIdeal - lucroIdeal) : 0;
+  const margemPorSessao = ticket * (1 - params.glosa) * (1 - params.imposto) - params.custoVariavel;
+  const sessoesBreakeven = margemPorSessao > 0
+    ? Math.ceil((params.custoFixo + params.prolabore) / margemPorSessao) : 0;
 
-  // ROI = Lucro / Custos Totais
-  const custosReais = params.custoFixo + cvReal + remunReal + params.prolabore + impReal + glosaReal;
-  const custosIdeais = params.custoFixo + cvIdeal + remunIdeal + params.prolabore + impIdeal + glosaIdeal;
-  const roiReal  = custosReais  > 0 ? lucroReal  / custosReais  : 0;
-  const roiIdeal = custosIdeais > 0 ? lucroIdeal / custosIdeais : 0;
-
-  // Breakeven: sessões necessárias para cobrir custos fixos + pró-labore
-  // Margem de contribuição por sessão = receita por sessão - custos variáveis por sessão
-  const custosTotaisFixos = params.custoFixo + params.prolabore;
-  const receitaPorSessao = ticket * (1 - params.glosa) * (1 - params.imposto);
-  const custoVarPorSessao = params.custoVariavel + remunPorSessaoReal;
-  const margemContribuicaoPorSessao = receitaPorSessao - custoVarPorSessao;
-  const sessoesBreakeven = margemContribuicaoPorSessao > 0
-    ? Math.ceil(custosTotaisFixos / margemContribuicaoPorSessao)
-    : 0;
-  const sessoesBreakevenDia = dias > 0 ? (sessoesBreakeven / dias).toFixed(1) : 0;
-
-  // Receita real do Supabase (categorias de convênio/consulta)
-  const receitaSupabase = transactions
-    .filter(t =>
-      t.type === "entrada" &&
-      (t.status === "recebido" || t.status === "pago") &&
-      (
-        (t.category || "").toLowerCase().includes("convênio") ||
-        (t.category || "").toLowerCase().includes("consulta") ||
-        (t.category || "").toLowerCase().includes("pacote") ||
-        (t.category || "").toLowerCase().includes("procedimento")
-      )
-    )
-    .reduce((a, t) => a + Number(t.actual_value || t.value || 0), 0);
-
-  const temDadosSupa = receitaSupabase > 0;
-
-  // ── renderizações de abas ───────────────────────────────────────────────────
-
-  // ── ABA DASHBOARD ──────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ABA DASHBOARD
+  // ═══════════════════════════════════════════════════════════════════════════
   const renderDashboard = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-      {/* Alerta se há dados reais do Supabase */}
-      {temDadosSupa && (
-        <div style={{
-          padding: "12px 16px", borderRadius: 10,
-          background: "#e8f5e9", border: "1px solid #a5d6a7",
-          fontSize: 13, color: "#2e7d32", display: "flex", gap: 10, alignItems: "center",
-        }}>
-          <span style={{ fontSize: 18 }}>🔗</span>
-          <span>
-            <strong>Dados do Supabase detectados.</strong> Receita de convênios/consultas confirmadas: <strong>{brl(receitaSupabase)}</strong>
-          </span>
+      {!reportStats && (
+        <div onClick={() => setTab("relatorio")} style={{ padding: "14px 18px", borderRadius: 10, background: "#e3f2fd", border: "1px solid #90caf9", fontSize: 13, color: "#1565c0", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}>
+          <span>📥</span>
+          <span><strong>Sem relatório carregado.</strong> Clique aqui para importar o arquivo de frequência e ver os dados reais da clínica.</span>
         </div>
       )}
-
-      {/* KPIs principais */}
+      {reportStats && (
+        <div style={{ padding: "12px 16px", borderRadius: 10, background: "#e8f5e9", border: "1px solid #a5d6a7", fontSize: 13, color: "#2e7d32", display: "flex", gap: 10, alignItems: "center" }}>
+          <span>✅</span>
+          <span><strong>{reportName}</strong> carregado — <strong>{reportStats.total}</strong> sessões concluídas</span>
+          <button onClick={() => setTab("relatorio")} style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, border: "none", background: "#2e7d32", color: "white", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Ver análise</button>
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
         <KPICard label="Receita Bruta / Mês"  real={recBrutaReal}  ideal={recBrutaIdeal}  delay={0}    />
         <KPICard label="EBITDA Mensal"         real={ebitdaReal}    ideal={ebitdaIdeal}    delay={0.06} color={ebitdaReal >= 0 ? C.success : C.danger} />
         <KPICard label="Lucro Líquido"         real={lucroReal}     ideal={lucroIdeal}     delay={0.12} color={lucroReal >= 0 ? C.success : C.danger} />
-        <KPICard label="ROI Mensal"            real={roiReal}       ideal={roiIdeal}       delay={0.18} fmt={pct} />
-        <KPICard label="Sessões / Mês"         real={totalSessoesRealMes}  ideal={totalSessoesIdealMes}  delay={0.24} fmt={(v) => v.toFixed(0)} />
-        <KPICard label="Margem Líquida"        real={margemReal}    ideal={margemIdeal}    delay={0.30} fmt={pct} />
+        <KPICard label="ROI Mensal"            real={roiReal}       ideal={roiIdeal}       delay={0.18} fmtFn={pct} />
+        <KPICard label="Sessões / Mês"         real={totalSessRealMes} ideal={totalSessIdealMes} delay={0.24} fmtFn={(v) => v.toFixed(0)} />
+        <KPICard label="Margem Líquida"        real={margemReal}    ideal={margemIdeal}    delay={0.30} fmtFn={pct} />
       </div>
 
-      {/* Semáforo de ocupação */}
+      {/* Ocupação */}
       <Card>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Ocupação por Profissional</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {profissionais.map((p) => {
             const ocup = p.meta > 0 ? p.real / p.meta : 0;
             const cor = ocup >= 0.8 ? C.success : ocup >= 0.6 ? C.warning : C.danger;
-            const status = ocup >= 0.8 ? "✅" : ocup >= 0.6 ? "⚠️" : "🔴";
             return (
-              <div key={p.id} style={{ display: "grid", gridTemplateColumns: "200px 1fr 50px 60px", alignItems: "center", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nome}</div>
-                  <div style={{ fontSize: 11, color: C.taupe }}>{p.cargo}</div>
-                </div>
-                <HBar value={p.real} max={p.meta} color={cor} fmt={(v) => `${v}/${p.meta} sess.`} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: cor }}>{pct(ocup)}</span>
-                <span style={{ fontSize: 14 }}>{status}</span>
+              <div key={p.id} style={{ display: "grid", gridTemplateColumns: "200px 1fr 56px 36px", alignItems: "center", gap: 12 }}>
+                <div><div style={{ fontSize: 13, fontWeight: 600 }}>{p.nome}</div><div style={{ fontSize: 11, color: C.taupe }}>{p.cargo}</div></div>
+                <HBar value={p.real} max={p.meta} color={cor} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: cor, textAlign: "right" }}>{pct(ocup)}</span>
+                <span style={{ fontSize: 14 }}>{ocup >= 0.8 ? "✅" : ocup >= 0.6 ? "⚠️" : "🔴"}</span>
               </div>
             );
           })}
         </div>
       </Card>
 
-      {/* Breakeven */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-        <Card style={{ borderLeft: "4px solid var(--warning)" }}>
-          <div style={{ fontSize: 11, color: C.taupe, fontWeight: 600, textTransform: "uppercase" }}>Breakeven (sessões/mês)</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: C.dark, marginTop: 6 }}>{sessoesBreakeven}</div>
-          <div style={{ fontSize: 12, color: C.taupe, marginTop: 4 }}>≈ {sessoesBreakevenDia} sessões/dia</div>
-        </Card>
-        <Card style={{ borderLeft: "4px solid var(--accent)" }}>
-          <div style={{ fontSize: 11, color: C.taupe, fontWeight: 600, textTransform: "uppercase" }}>Sessões/Dia (Real)</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: C.dark, marginTop: 6 }}>{totalSessoesRealDia}</div>
-          <div style={{ fontSize: 12, color: C.taupe, marginTop: 4 }}>Meta: {totalSessoesIdealDia}/dia</div>
-        </Card>
-        <Card style={{ borderLeft: "4px solid var(--success)" }}>
-          <div style={{ fontSize: 11, color: C.taupe, fontWeight: 600, textTransform: "uppercase" }}>Receita Adicional Disponível</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: C.success, marginTop: 6 }}>{brl(recBrutaIdeal - recBrutaReal)}</div>
-          <div style={{ fontSize: 12, color: C.taupe, marginTop: 4 }}>{totalSessoesIdealMes - totalSessoesRealMes} sessões a mais/mês</div>
-        </Card>
-        <Card style={{ borderLeft: "4px solid var(--accent)" }}>
-          <div style={{ fontSize: 11, color: C.taupe, fontWeight: 600, textTransform: "uppercase" }}>Ganho por Sessão Extra</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: C.accent, marginTop: 6 }}>
-            {brl(totalSessoesIdealMes > totalSessoesRealMes
-              ? (lucroIdeal - lucroReal) / (totalSessoesIdealMes - totalSessoesRealMes)
-              : 0)}
-          </div>
-          <div style={{ fontSize: 12, color: C.taupe, marginTop: 4 }}>margem incremental</div>
-        </Card>
-      </div>
-
-      {/* DRE resumida */}
+      {/* DRE */}
       <Card>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>DRE Resumida — Real vs Ideal</h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: C.beige }}>
-                {["Linha", "Real (R$)", "Ideal (R$)", "Gap (R$)"].map((h, i) => (
-                  <th key={i} style={{
-                    padding: "10px 12px", textAlign: i === 0 ? "left" : "right",
-                    fontSize: 11, fontWeight: 700, color: C.taupe,
-                    textTransform: "uppercase", letterSpacing: 0.3,
-                  }}>{h}</th>
+                {["Linha","Real (R$)","Ideal (R$)","Gap (R$)"].map((h, i) => (
+                  <th key={i} style={{ padding: "10px 12px", textAlign: i === 0 ? "left" : "right", fontSize: 11, fontWeight: 700, color: C.taupe, textTransform: "uppercase", letterSpacing: 0.3 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {[
-                { label: "(+) Receita Bruta",          r: recBrutaReal,   i: recBrutaIdeal,   bold: false },
-                { label: "  (-) Glosa/Inadimplência",  r: -glosaReal,     i: -glosaIdeal,     bold: false },
-                { label: "  (-) Impostos",             r: -impReal,       i: -impIdeal,       bold: false },
-                { label: "(=) Rec. Pós-impostos",      r: recPosImpReal,  i: recPosImpIdeal,  bold: true  },
-                { label: "  (-) Custo Fixo",           r: -params.custoFixo, i: -params.custoFixo, bold: false },
-                { label: "  (-) Custos Variáveis",     r: -cvReal,        i: -cvIdeal,        bold: false },
-                { label: "  (-) Remuneração Profs.",   r: -remunReal,     i: -remunIdeal,     bold: false },
-                { label: "(=) EBITDA",                 r: ebitdaReal,     i: ebitdaIdeal,     bold: true  },
-                { label: "  (-) Pró-labore",           r: -params.prolabore, i: -params.prolabore, bold: false },
-                { label: "(=) LUCRO LÍQUIDO",          r: lucroReal,      i: lucroIdeal,      bold: true, highlight: true },
-              ].map(({ label, r, i, bold, highlight }, idx) => (
-                <tr key={idx} style={{ background: highlight ? "#f0fdf4" : idx % 2 === 0 ? C.cream : "transparent" }}>
-                  <td style={{ padding: "10px 12px", fontWeight: bold ? 700 : 400, color: C.dark }}>{label}</td>
+                { l: "(+) Receita Bruta",         r: recBrutaReal,   i: recBrutaIdeal,   bold: false },
+                { l: "  (-) Glosa/Impostos",       r: -(glosaReal+impReal), i: -(glosaIdeal+impIdeal), bold: false },
+                { l: "(=) Rec. Pós-impostos",      r: recPosImpReal,  i: recPosImpIdeal,  bold: true  },
+                { l: "  (-) Custo Fixo",           r: -params.custoFixo, i: -params.custoFixo, bold: false },
+                { l: "  (-) Custos Variáveis",     r: -cvReal,        i: -cvIdeal,        bold: false },
+                { l: "  (-) Remuneração Profs.",   r: -remunReal,     i: -remunIdeal,     bold: false },
+                { l: "(=) EBITDA",                 r: ebitdaReal,     i: ebitdaIdeal,     bold: true  },
+                { l: "  (-) Pró-labore",           r: -params.prolabore, i: -params.prolabore, bold: false },
+                { l: "(=) LUCRO LÍQUIDO",          r: lucroReal,      i: lucroIdeal,      bold: true, hl: true },
+              ].map(({ l, r, i, bold, hl }, idx) => (
+                <tr key={idx} style={{ background: hl ? "#f0fdf4" : idx % 2 === 0 ? C.cream : "transparent" }}>
+                  <td style={{ padding: "10px 12px", fontWeight: bold ? 700 : 400 }}>{l}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: bold ? 700 : 400, color: r >= 0 ? C.dark : C.danger }}>{brl(r)}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: bold ? 700 : 400, color: i >= 0 ? C.success : C.danger }}>{brl(i)}</td>
-                  <td style={{ padding: "10px 12px", textAlign: "right", fontSize: 12, color: (i - r) > 0 ? C.success : (i - r) < 0 ? C.danger : C.taupe }}>
-                    {(i - r) !== 0 ? brl(i - r) : "—"}
-                  </td>
+                  <td style={{ padding: "10px 12px", textAlign: "right", fontSize: 12, color: (i-r) > 0 ? C.success : (i-r) < 0 ? C.danger : C.taupe }}>{(i-r) !== 0 ? brl(i-r) : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {/* Breakeven */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+        {[
+          { l: "Breakeven (sess/mês)", v: sessoesBreakeven, s: `≈ ${(sessoesBreakeven/dias).toFixed(1)} sess/dia`, color: C.warning },
+          { l: "Sessões/Dia (Real)", v: totalSessRealDia, s: `Meta: ${totalSessIdealDia}/dia`, color: C.accent },
+          { l: "Receita Adicional Disponível", v: brl(recBrutaIdeal - recBrutaReal), s: `${totalSessIdealMes - totalSessRealMes} sessões a mais/mês`, color: C.success, isStr: true },
+        ].map((k, i) => (
+          <div key={i} className="card" style={{ padding: 18, borderLeft: `4px solid ${k.color}` }}>
+            <div style={{ fontSize: 10, color: C.taupe, fontWeight: 600, textTransform: "uppercase" }}>{k.l}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: C.dark, marginTop: 6 }}>{k.isStr ? k.v : k.v.toLocaleString("pt-BR")}</div>
+            <div style={{ fontSize: 12, color: C.taupe, marginTop: 4 }}>{k.s}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 
-  // ── ABA CONVÊNIOS ──────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ABA RELATÓRIO
+  // ═══════════════════════════════════════════════════════════════════════════
+  const renderRelatorio = () => {
+    const DropZone = () => (
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        onClick={() => fileRef.current?.click()}
+        style={{
+          border: `2px dashed ${dragOver ? C.accent : C.sand}`,
+          borderRadius: 16, padding: "52px 24px", textAlign: "center", cursor: "pointer",
+          background: dragOver ? "#fdf8f2" : C.cream, transition: "all .2s",
+        }}
+      >
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📥</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 8 }}>
+          Arraste o relatório de frequência aqui
+        </div>
+        <div style={{ fontSize: 13, color: C.taupe, marginBottom: 16 }}>
+          ou clique para selecionar o arquivo <strong>.xlsx</strong>
+        </div>
+        <div style={{ display: "inline-block", padding: "10px 24px", borderRadius: 8, background: C.accent, color: "white", fontSize: 14, fontWeight: 600 }}>
+          {reportLoading ? "Processando..." : "Selecionar arquivo"}
+        </div>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+      </div>
+    );
+
+    if (!reportStats) return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <DropZone />
+        {reportError && (
+          <div style={{ padding: "12px 16px", borderRadius: 8, background: "#ffebee", color: "#c62828", fontSize: 13 }}>{reportError}</div>
+        )}
+        <div style={{ padding: "16px 20px", borderRadius: 12, background: C.beige, fontSize: 13, color: C.taupe }}>
+          <strong>Como usar:</strong> Exporte o relatório de frequência do seu sistema de agendamento como .xlsx, arraste aqui e o sistema calcula automaticamente a receita por convênio e o custo por profissional com base nas configurações da aba ⚙ Parâmetros.
+        </div>
+      </div>
+    );
+
+    // Dados carregados
+    const convs = Object.values(reportStats.byConv).sort((a, b) => b.recBruta - a.recBruta);
+    const profs = Object.values(reportStats.byProf).sort((a, b) => b.recBruta - a.recBruta);
+    const meses = Object.values(reportStats.byMes).sort((a, b) => (a.mes > b.mes ? 1 : -1));
+    const totalRec   = convs.reduce((a, c) => a + c.recBruta, 0);
+    const totalCusto = convs.reduce((a, c) => a + c.custoProf, 0);
+    const totalSess  = convs.reduce((a, c) => a + c.fev + c.mar + c.outros, 0);
+    const maxRec = Math.max(...convs.map(c => c.recBruta), 1);
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Cabeçalho com nome do arquivo e botão de re-upload */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 13, color: C.taupe }}>Arquivo carregado:</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>📄 {reportName}</div>
+          </div>
+          <button onClick={() => { setReportData(null); setReportStats(null); setReportName(""); }} style={{ padding: "8px 16px", borderRadius: 8, border: `1.5px solid ${C.sand}`, background: "transparent", color: C.taupe, fontFamily: "inherit", fontSize: 13, cursor: "pointer" }}>
+            Trocar arquivo
+          </button>
+        </div>
+
+        {/* KPIs do relatório */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
+          {[
+            { l: "Sessões Concluídas", v: totalSess.toLocaleString("pt-BR"), color: C.accent },
+            { l: "Receita Bruta Total",  v: brl(totalRec),   color: C.success },
+            { l: "Custo Profissionais",  v: brl(totalCusto), color: C.danger  },
+            { l: "Margem Clínica",       v: brl(totalRec - totalCusto), color: C.success },
+            { l: "Margem %",             v: pct(totalRec > 0 ? (totalRec - totalCusto) / totalRec : 0), color: C.accent },
+          ].map((k, i) => (
+            <div key={i} className="card anim-expand" style={{ padding: 16, animationDelay: `${i*0.06}s` }}>
+              <div style={{ fontSize: 10, color: C.taupe, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>{k.l}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: k.color, marginTop: 6 }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Por convênio */}
+        <Card>
+          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>📋 Receita e Custo por Convênio</h3>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: C.beige }}>
+                  {["Convênio","Fev","Mar","Total Sess.","Valor/Sessão","Receita Bruta","Custo Prof.","Margem","Margem %"].map((h, i) => (
+                    <th key={i} style={{ padding: "10px 12px", textAlign: i === 0 ? "left" : "right", fontSize: 11, fontWeight: 700, color: C.taupe, textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {convs.map((c, idx) => {
+                  const total = c.fev + c.mar + c.outros;
+                  const margem = c.recBruta - c.custoProf;
+                  const margemPct = c.recBruta > 0 ? margem / c.recBruta : 0;
+                  return (
+                    <tr key={idx} style={{ borderBottom: `1px solid ${C.beige}` }}>
+                      <td style={{ padding: "12px 12px" }}>
+                        <div style={{ fontWeight: 600 }}>{c.nome}</div>
+                        <div style={{ marginTop: 4 }}>
+                          <HBar value={c.recBruta} max={maxRec} color={C.accent} />
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", color: C.taupe }}>{c.fev}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", color: C.taupe }}>{c.mar}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 700 }}>{total}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                        <span style={{ fontSize: 12, color: c.valor > 0 ? C.dark : C.danger, fontWeight: c.valor > 0 ? 600 : 400 }}>
+                          {c.valor > 0 ? brl(c.valor) : "⚠ config."}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 700, color: C.success }}>{brl(c.recBruta)}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", color: C.danger }}>{brl(c.custoProf)}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 700, color: margem >= 0 ? C.success : C.danger }}>{brl(margem)}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                        <span style={{ padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: margemPct >= 0.5 ? "#e8f5e9" : margemPct >= 0.3 ? "#fff8e1" : "#ffebee", color: margemPct >= 0.5 ? "#2e7d32" : margemPct >= 0.3 ? "#f57f17" : "#c62828" }}>
+                          {pct(margemPct)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: C.beige, fontWeight: 700 }}>
+                  <td style={{ padding: "12px 12px" }}>TOTAL</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right" }}>{convs.reduce((a,c)=>a+c.fev,0)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right" }}>{convs.reduce((a,c)=>a+c.mar,0)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right" }}>{totalSess}</td>
+                  <td />
+                  <td style={{ padding: "12px 12px", textAlign: "right", color: C.success }}>{brl(totalRec)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right", color: C.danger }}>{brl(totalCusto)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right", color: C.success }}>{brl(totalRec - totalCusto)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right" }}>{pct(totalRec > 0 ? (totalRec-totalCusto)/totalRec : 0)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+
+        {/* Por profissional */}
+        <Card>
+          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>👥 Sessões e Custo por Profissional</h3>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: C.beige }}>
+                  {["Profissional","Fev","Mar","Total","Receita Gerada","Repasse (%)","Custo Total","Valor Neto"].map((h, i) => (
+                    <th key={i} style={{ padding: "10px 12px", textAlign: i === 0 ? "left" : "right", fontSize: 11, fontWeight: 700, color: C.taupe, textTransform: "uppercase", letterSpacing: 0.3 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {profs.map((p, idx) => {
+                  const total = p.fev + p.mar;
+                  const neto = p.recBruta - p.custoProf;
+                  return (
+                    <tr key={idx} style={{ borderBottom: `1px solid ${C.beige}` }}>
+                      <td style={{ padding: "12px 12px", fontWeight: 600 }}>{p.nome}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", color: C.taupe }}>{p.fev}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", color: C.taupe }}>{p.mar}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 700 }}>{total}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", color: C.success }}>{brl(p.recBruta)}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                        {p.tipo === "pct" ? <span style={{ padding: "2px 8px", borderRadius: 4, background: "#e3f2fd", color: "#1565c0", fontWeight: 700 }}>{pct(p.valor)}</span>
+                        : p.tipo === "fixo" ? <span style={{ padding: "2px 8px", borderRadius: 4, background: "#fff8e1", color: "#f57f17", fontWeight: 700 }}>{brl(p.valor)}/sess</span>
+                        : <span style={{ fontSize: 11, color: C.taupe }}>Pró-labore</span>}
+                      </td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", color: C.danger, fontWeight: 700 }}>{brl(p.custoProf)}</td>
+                      <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 700, color: neto >= 0 ? C.success : C.danger }}>{brl(neto)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: C.beige, fontWeight: 700 }}>
+                  <td style={{ padding: "12px 12px" }}>TOTAL</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right" }}>{profs.reduce((a,p)=>a+p.fev,0)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right" }}>{profs.reduce((a,p)=>a+p.mar,0)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right" }}>{profs.reduce((a,p)=>a+p.fev+p.mar,0)}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right", color: C.success }}>{brl(profs.reduce((a,p)=>a+p.recBruta,0))}</td>
+                  <td />
+                  <td style={{ padding: "12px 12px", textAlign: "right", color: C.danger }}>{brl(profs.reduce((a,p)=>a+p.custoProf,0))}</td>
+                  <td style={{ padding: "12px 12px", textAlign: "right", color: C.success }}>{brl(profs.reduce((a,p)=>a+p.recBruta-p.custoProf,0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+
+        {/* Fev vs Mar */}
+        {meses.length > 1 && (
+          <Card>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>📅 Fevereiro vs Março</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+              {meses.map((m, i) => (
+                <div key={i} style={{ padding: 16, borderRadius: 10, background: C.cream, border: `1px solid ${C.sand}` }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{m.mes}</div>
+                  {[
+                    { l: "Sessões", v: m.sessoes.toLocaleString("pt-BR"), color: C.accent },
+                    { l: "Receita Bruta", v: brl(m.recBruta), color: C.success },
+                    { l: "Custo Profis.", v: brl(m.custoProf), color: C.danger },
+                    { l: "Margem", v: brl(m.recBruta - m.custoProf), color: C.success },
+                  ].map((k, j) => (
+                    <div key={j} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: j < 3 ? `1px solid ${C.beige}` : "none" }}>
+                      <span style={{ fontSize: 12, color: C.taupe }}>{k.l}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: k.color }}>{k.v}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {/* Delta */}
+              {meses.length === 2 && (() => {
+                const [fev, mar] = meses;
+                const dSess = mar.sessoes - fev.sessoes;
+                const dRec  = mar.recBruta - fev.recBruta;
+                return (
+                  <div style={{ padding: 16, borderRadius: 10, background: dRec >= 0 ? "#e8f5e9" : "#ffebee", border: `1px solid ${dRec >= 0 ? "#a5d6a7" : "#ef9a9a"}` }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Variação (Δ)</div>
+                    {[
+                      { l: "Sessões",      v: (dSess >= 0 ? "+" : "") + dSess,          color: dSess >= 0 ? C.success : C.danger },
+                      { l: "Receita",      v: (dRec >= 0 ? "+" : "") + brl(dRec),       color: dRec  >= 0 ? C.success : C.danger },
+                      { l: "Custo",        v: (+(mar.custoProf-fev.custoProf) >= 0 ? "+" : "") + brl(mar.custoProf-fev.custoProf), color: C.taupe },
+                      { l: "Margem",       v: (+(mar.recBruta-mar.custoProf-fev.recBruta+fev.custoProf) >= 0 ? "+" : "") + brl(mar.recBruta-mar.custoProf-fev.recBruta+fev.custoProf), color: dRec >= 0 ? C.success : C.danger },
+                    ].map((k, j) => (
+                      <div key={j} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: j < 3 ? `1px solid ${C.beige}` : "none" }}>
+                        <span style={{ fontSize: 12, color: C.taupe }}>{k.l}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: k.color }}>{k.v}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </Card>
+        )}
+
+        {/* Convênios não mapeados */}
+        {convs.some(c => c.valor === 0) && (
+          <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff8e1", border: "1px solid #ffe082", fontSize: 13, color: "#f57f17" }}>
+            ⚠️ Alguns convênios não foram encontrados nas configurações (valor = R$0). Abra a aba <strong>⚙ Parâmetros</strong> e adicione-os para ver os valores corretos.
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ABA CONVÊNIOS
+  // ═══════════════════════════════════════════════════════════════════════════
   const renderConvenios = () => {
     const ativos = convenios.filter(c => c.ativo);
-    const maxVal = Math.max(...ativos.map(c => c.valor));
+    const maxVal = Math.max(...ativos.map(c => c.valor), 1);
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <Card>
@@ -414,12 +679,8 @@ export default function ClinicaPage({ transactions = [], companyId }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: C.beige }}>
-                  {["#", "Convênio", "Sigla", "Valor/Sessão", "Referência", "Ativo"].map((h, i) => (
-                    <th key={i} style={{
-                      padding: "10px 12px", textAlign: i >= 3 ? "right" : "left",
-                      fontSize: 11, fontWeight: 700, color: C.taupe,
-                      textTransform: "uppercase", letterSpacing: 0.3,
-                    }}>{h}</th>
+                  {["#","Convênio","Sigla","Valor/Sessão","Referência","Ativo"].map((h, i) => (
+                    <th key={i} style={{ padding: "10px 12px", textAlign: i >= 3 ? "right" : "left", fontSize: 11, fontWeight: 700, color: C.taupe, textTransform: "uppercase", letterSpacing: 0.3 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -428,83 +689,34 @@ export default function ClinicaPage({ transactions = [], companyId }) {
                   <tr key={c.id} style={{ borderBottom: `1px solid ${C.beige}`, opacity: c.ativo ? 1 : 0.5 }}>
                     <td style={{ padding: "10px 12px", color: C.taupe, fontSize: 12 }}>{c.id}</td>
                     <td style={{ padding: "10px 12px", fontWeight: 600 }}>
-                      <input
-                        style={{
-                          border: "none", background: "transparent", fontFamily: "inherit",
-                          fontSize: 13, fontWeight: 600, color: C.dark, width: "100%",
-                          outline: "none", cursor: "text",
-                          borderBottom: "1.5px dashed transparent",
-                        }}
+                      <input style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: C.dark, width: "100%", outline: "none", borderBottom: "1.5px dashed transparent" }}
                         value={c.nome}
-                        onChange={e => {
-                          const updated = [...convenios];
-                          updated[idx] = { ...updated[idx], nome: e.target.value };
-                          setConvenios(updated);
-                        }}
-                        onFocus={e => e.target.style.borderBottomColor = C.accent}
-                        onBlur={e => { e.target.style.borderBottomColor = "transparent"; saveCfg(); }}
-                      />
+                        onChange={e => { const u = [...convenios]; u[idx] = { ...u[idx], nome: e.target.value }; setConvenios(u); }}
+                        onBlur={saveCfg} />
                     </td>
-                    <td style={{ padding: "10px 12px", color: C.taupe, fontSize: 11, fontFamily: "monospace" }}>
-                      <input
-                        style={{
-                          border: "none", background: "transparent", fontFamily: "monospace",
-                          fontSize: 11, color: C.taupe, width: 50, outline: "none",
-                          borderBottom: "1.5px dashed transparent",
-                        }}
+                    <td style={{ padding: "10px 12px", color: C.taupe, fontSize: 11 }}>
+                      <input style={{ border: "none", background: "transparent", fontFamily: "monospace", fontSize: 11, color: C.taupe, width: 50, outline: "none" }}
                         value={c.sigla}
-                        onChange={e => {
-                          const updated = [...convenios];
-                          updated[idx] = { ...updated[idx], sigla: e.target.value.toUpperCase().slice(0, 6) };
-                          setConvenios(updated);
-                        }}
-                        onFocus={e => e.target.style.borderBottomColor = C.accent}
-                        onBlur={e => { e.target.style.borderBottomColor = "transparent"; saveCfg(); }}
-                      />
+                        onChange={e => { const u = [...convenios]; u[idx] = { ...u[idx], sigla: e.target.value.toUpperCase().slice(0,6) }; setConvenios(u); }}
+                        onBlur={saveCfg} />
                     </td>
                     <td style={{ padding: "10px 12px", textAlign: "right" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                        <div style={{ flex: 1, maxWidth: 80 }}>
-                          <HBar value={c.valor} max={maxVal} color={C.accent} fmt={() => ""} />
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <span style={{ fontSize: 12, color: C.taupe }}>R$</span>
-                          <input
-                            type="number"
-                            style={{
-                              width: 72, border: "none", background: C.cream, fontFamily: "inherit",
-                              fontSize: 14, fontWeight: 700, color: C.dark, textAlign: "right",
-                              borderRadius: 6, padding: "4px 6px", outline: "none",
-                              border: `1.5px solid transparent`,
-                            }}
-                            value={c.valor}
-                            onChange={e => {
-                              const updated = [...convenios];
-                              updated[idx] = { ...updated[idx], valor: parseFloat(e.target.value) || 0 };
-                              setConvenios(updated);
-                            }}
-                            onFocus={e => e.target.style.border = `1.5px solid ${C.accent}`}
-                            onBlur={e => { e.target.style.border = "1.5px solid transparent"; saveCfg(); }}
-                          />
-                        </div>
+                        <div style={{ flex: 1, maxWidth: 80 }}><HBar value={c.valor} max={maxVal} color={C.accent} /></div>
+                        <span style={{ fontSize: 12, color: C.taupe }}>R$</span>
+                        <input type="number" style={{ width: 72, border: "none", background: C.cream, fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: C.dark, textAlign: "right", borderRadius: 6, padding: "4px 6px", outline: "none" }}
+                          value={c.valor}
+                          onChange={e => { const u = [...convenios]; u[idx] = { ...u[idx], valor: parseFloat(e.target.value)||0 }; setConvenios(u); }}
+                          onBlur={saveCfg} />
                       </div>
                     </td>
                     <td style={{ padding: "10px 12px", textAlign: "right", fontSize: 12, color: C.taupe }}>
                       {c.valor >= 300 ? "🟢 Premium" : c.valor >= 180 ? "🟡 Médio" : "🔴 Básico"}
                     </td>
                     <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                      <div
-                        onClick={() => { const u = [...convenios]; u[idx] = { ...u[idx], ativo: !u[idx].ativo }; setConvenios(u); saveCfg(); }}
-                        style={{
-                          display: "inline-flex", alignItems: "center", justifyContent: "center",
-                          width: 36, height: 20, borderRadius: 10, cursor: "pointer", transition: "all .2s",
-                          background: c.ativo ? C.success : C.sand,
-                        }}
-                      >
-                        <div style={{
-                          width: 14, height: 14, borderRadius: "50%", background: "white",
-                          transform: `translateX(${c.ativo ? 8 : -8}px)`, transition: "transform .2s",
-                        }} />
+                      <div onClick={() => { const u = [...convenios]; u[idx] = { ...u[idx], ativo: !u[idx].ativo }; setConvenios(u); saveCfg(); }}
+                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 36, height: 20, borderRadius: 10, cursor: "pointer", transition: "all .2s", background: c.ativo ? C.success : C.sand }}>
+                        <div style={{ width: 14, height: 14, borderRadius: "50%", background: "white", transform: `translateX(${c.ativo ? 8 : -8}px)`, transition: "transform .2s" }} />
                       </div>
                     </td>
                   </tr>
@@ -513,34 +725,13 @@ export default function ClinicaPage({ transactions = [], companyId }) {
             </table>
           </div>
         </Card>
-
-        {/* Ranking de rentabilidade */}
-        <Card>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Ranking de Rentabilidade</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[...ativos].sort((a, b) => b.valor - a.valor).map((c, idx) => {
-              const margem = (c.valor * (1 - params.glosa) * (1 - params.imposto) - params.custoVariavel);
-              return (
-                <div key={c.id} style={{ display: "grid", gridTemplateColumns: "24px 1fr 80px 80px", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: C.taupe }}>#{idx + 1}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{c.nome}</div>
-                    <HBar value={c.valor} max={maxVal} color={
-                      idx === 0 ? C.success : idx === ativos.length - 1 ? C.danger : C.accent
-                    } fmt={() => ""} />
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, textAlign: "right" }}>{brl(c.valor)}</span>
-                  <span style={{ fontSize: 12, color: C.taupe, textAlign: "right" }}>marg: {brl(margem)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
       </div>
     );
   };
 
-  // ── ABA PROFISSIONAIS ──────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ABA PROFISSIONAIS
+  // ═══════════════════════════════════════════════════════════════════════════
   const renderProfissionais = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Card>
@@ -552,136 +743,71 @@ export default function ClinicaPage({ transactions = [], companyId }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: C.beige }}>
-                {["Profissional","Cargo","Contrato","Tipo Pag.","Valor","Sess./Dia Meta","Sess./Dia Real","Custo/Sessão","Custo/Mês"].map((h, i) => (
-                  <th key={i} style={{
-                    padding: "10px 10px", textAlign: i >= 4 ? "right" : "left",
-                    fontSize: 10, fontWeight: 700, color: C.taupe,
-                    textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap",
-                  }}>{h}</th>
+                {["Profissional","Cargo","Contrato","Tipo Pag.","Valor","Meta/Dia","Real/Dia","Custo/Sessão","Custo/Mês"].map((h, i) => (
+                  <th key={i} style={{ padding: "10px 10px", textAlign: i >= 4 ? "right" : "left", fontSize: 10, fontWeight: 700, color: C.taupe, textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {profissionais.map((p, idx) => {
-                const sessMesReal = (p.real || 0) * dias;
-                const recProf = sessMesReal * ticket;
-                const pctVal = Math.min(p.valor, 1); // guard: cap at 100%
-                const custoSessao = p.tipo === "pct" ? ticket * pctVal
-                  : p.tipo === "fixo" ? p.valor : 0;
-                const custoMes = p.tipo === "pct" ? recProf * pctVal
-                  : p.tipo === "fixo" ? sessMesReal * p.valor : params.prolabore;
-
-                const editCell = (field, value, type = "text") => (
-                  <input
-                    type={type}
-                    style={{
-                      width: type === "number" ? 60 : "100%",
-                      border: "none", background: "transparent", fontFamily: "inherit",
-                      fontSize: 13, color: C.dark, outline: "none",
-                      borderBottom: "1.5px dashed transparent", textAlign: type === "number" ? "right" : "left",
-                    }}
-                    value={value}
-                    step={field === "valor" && p.tipo === "pct" ? "0.01" : "1"}
-                    min={0}
-                    onChange={e => {
-                      const updated = [...profissionais];
-                      updated[idx] = {
-                        ...updated[idx],
-                        [field]: type === "number" ? parseFloat(e.target.value) || 0 : e.target.value,
-                      };
-                      setProfissionais(updated);
-                    }}
-                    onFocus={e => e.target.style.borderBottomColor = C.accent}
-                    onBlur={e => { e.target.style.borderBottomColor = "transparent"; saveCfg(); }}
-                  />
-                );
-
+                const sessMesReal = (p.real || 0) * params.diasUteis;
+                const recProf = sessMesReal * params.ticketMedio;
+                const custoSessao = p.tipo === "pct" ? params.ticketMedio * p.valor : p.tipo === "fixo" ? p.valor : 0;
+                const custoMes = p.tipo === "pct" ? recProf * p.valor : p.tipo === "fixo" ? sessMesReal * p.valor : params.prolabore;
                 const ocup = p.meta > 0 ? p.real / p.meta : 0;
                 const corOcup = ocup >= 0.8 ? C.success : ocup >= 0.6 ? C.warning : C.danger;
 
                 return (
                   <tr key={p.id} style={{ borderBottom: `1px solid ${C.beige}` }}>
-                    <td style={{ padding: "10px 10px", fontWeight: 600, minWidth: 140 }}>{editCell("nome", p.nome)}</td>
-                    <td style={{ padding: "10px 10px", color: C.taupe, minWidth: 120 }}>{editCell("cargo", p.cargo)}</td>
+                    <td style={{ padding: "10px 10px", fontWeight: 600, minWidth: 140 }}>
+                      <input style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: C.dark, width: "100%", outline: "none" }}
+                        value={p.nome}
+                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], nome: e.target.value }; setProfissionais(u); }}
+                        onBlur={saveCfg} />
+                    </td>
+                    <td style={{ padding: "10px 10px", color: C.taupe, minWidth: 120 }}>
+                      <input style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, color: C.taupe, width: "100%", outline: "none" }}
+                        value={p.cargo}
+                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], cargo: e.target.value }; setProfissionais(u); }}
+                        onBlur={saveCfg} />
+                    </td>
                     <td style={{ padding: "10px 10px" }}>
-                      <select
-                        value={p.contrato}
-                        style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, color: C.dark, cursor: "pointer" }}
-                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], contrato: e.target.value }; setProfissionais(u); saveCfg(); }}
-                      >
+                      <select value={p.contrato} style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, color: C.dark, cursor: "pointer" }}
+                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], contrato: e.target.value }; setProfissionais(u); saveCfg(); }}>
                         {["Sócio","CLT","PJ","CLT/PJ","Estag."].map(o => <option key={o}>{o}</option>)}
                       </select>
                     </td>
                     <td style={{ padding: "10px 10px" }}>
-                      <select
-                        value={p.tipo}
-                        style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, color: C.dark, cursor: "pointer" }}
-                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], tipo: e.target.value, valor: 0 }; setProfissionais(u); saveCfg(); }}
-                      >
+                      <select value={p.tipo} style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, color: C.dark, cursor: "pointer" }}
+                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], tipo: e.target.value, valor: 0 }; setProfissionais(u); saveCfg(); }}>
                         <option value="pct">% Repasse</option>
-                        <option value="fixo">R$ Fixo/Sessão</option>
+                        <option value="fixo">R$ Fixo/Sess.</option>
                         <option value="prolabore">Pró-labore</option>
                       </select>
                     </td>
                     <td style={{ padding: "10px 10px", textAlign: "right" }}>
                       {p.tipo !== "prolabore" ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 2, justifyContent: "flex-end" }}>
-                          {p.tipo === "pct" ? (
-                            <>
-                              <input
-                                type="number"
-                                style={{
-                                  width: 60, border: "none", background: "transparent", fontFamily: "inherit",
-                                  fontSize: 13, color: C.dark, outline: "none",
-                                  borderBottom: "1.5px dashed transparent", textAlign: "right",
-                                }}
-                                value={Math.round(p.valor * 100)}
-                                step="1" min="0" max="100"
-                                onChange={e => {
-                                  const pctVal = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
-                                  const u = [...profissionais];
-                                  u[idx] = { ...u[idx], valor: pctVal / 100 };
-                                  setProfissionais(u);
-                                }}
-                                onFocus={e => e.target.style.borderBottomColor = C.accent}
-                                onBlur={e => { e.target.style.borderBottomColor = "transparent"; saveCfg(); }}
-                              />
-                              <span style={{ color: C.taupe }}>%</span>
-                            </>
-                          ) : (
-                            <>{editCell("valor", p.valor, "number")}<span style={{ color: C.taupe, fontSize: 11 }}>R$</span></>
-                          )}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                          <input type="number" style={{ width: 60, border: "none", background: C.cream, fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: C.dark, textAlign: "right", borderRadius: 6, padding: "3px 6px", outline: "none" }}
+                            value={p.tipo === "pct" ? (p.valor * 100).toFixed(0) : p.valor}
+                            step={p.tipo === "pct" ? "1" : "10"}
+                            onChange={e => { const v = parseFloat(e.target.value)||0; const u = [...profissionais]; u[idx] = { ...u[idx], valor: p.tipo === "pct" ? v/100 : v }; setProfissionais(u); }}
+                            onBlur={saveCfg} />
+                          <span style={{ fontSize: 11, color: C.taupe }}>{p.tipo === "pct" ? "%" : "R$"}</span>
                         </div>
-                      ) : (
-                        <span style={{ fontSize: 12, color: C.taupe }}>ver parâmetros</span>
-                      )}
+                      ) : <span style={{ fontSize: 12, color: C.taupe }}>ver params.</span>}
                     </td>
                     <td style={{ padding: "10px 10px", textAlign: "right" }}>
-                      <input
-                        type="number" min={0} max={12} step={1}
-                        value={p.meta}
-                        style={{
-                          width: 40, border: "none", background: C.cream, fontFamily: "inherit",
-                          fontSize: 13, fontWeight: 600, color: C.dark, textAlign: "center",
-                          borderRadius: 6, padding: "3px 4px", outline: "none",
-                        }}
-                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], meta: parseInt(e.target.value) || 0 }; setProfissionais(u); }}
-                        onBlur={saveCfg}
-                      />
+                      <input type="number" min={0} max={12} value={p.meta}
+                        style={{ width: 40, border: "none", background: C.cream, fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: C.dark, textAlign: "center", borderRadius: 6, padding: "3px 4px", outline: "none" }}
+                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], meta: parseInt(e.target.value)||0 }; setProfissionais(u); }}
+                        onBlur={saveCfg} />
                     </td>
                     <td style={{ padding: "10px 10px", textAlign: "right" }}>
-                      <input
-                        type="number" min={0} max={12} step={1}
-                        value={p.real}
-                        style={{
-                          width: 40, border: "none",
-                          background: ocup >= 0.8 ? "#e8f5e9" : ocup >= 0.6 ? "#fff8e1" : "#ffebee",
-                          fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: corOcup, textAlign: "center",
-                          borderRadius: 6, padding: "3px 4px", outline: "none",
-                        }}
-                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], real: parseInt(e.target.value) || 0 }; setProfissionais(u); }}
-                        onBlur={saveCfg}
-                      />
+                      <input type="number" min={0} max={12} value={p.real}
+                        style={{ width: 40, border: "none", background: ocup >= 0.8 ? "#e8f5e9" : ocup >= 0.6 ? "#fff8e1" : "#ffebee", fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: corOcup, textAlign: "center", borderRadius: 6, padding: "3px 4px", outline: "none" }}
+                        onChange={e => { const u = [...profissionais]; u[idx] = { ...u[idx], real: parseInt(e.target.value)||0 }; setProfissionais(u); }}
+                        onBlur={saveCfg} />
                     </td>
                     <td style={{ padding: "10px 10px", textAlign: "right", fontSize: 12, color: C.taupe }}>{brl(custoSessao)}</td>
                     <td style={{ padding: "10px 10px", textAlign: "right", fontWeight: 700, color: C.danger }}>{brl(custoMes)}</td>
@@ -689,124 +815,15 @@ export default function ClinicaPage({ transactions = [], companyId }) {
                 );
               })}
             </tbody>
-            <tfoot>
-              <tr style={{ background: C.beige, fontWeight: 700 }}>
-                <td colSpan={5} style={{ padding: "10px 10px", fontSize: 13 }}>TOTAL</td>
-                <td style={{ padding: "10px 10px", textAlign: "right" }}>{totalSessoesIdealDia}/dia</td>
-                <td style={{ padding: "10px 10px", textAlign: "right" }}>{totalSessoesRealDia}/dia</td>
-                <td />
-                <td style={{ padding: "10px 10px", textAlign: "right", color: C.danger }}>{brl(remunReal + params.prolabore)}</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </Card>
     </div>
   );
 
-  // ── ABA ROI ───────────────────────────────────────────────────────────────
-  const renderROI = () => {
-    const rows = [
-      { label: "Receita Bruta",              r: recBrutaReal,   i: recBrutaIdeal,   pctR: 1,          pctI: 1       },
-      { label: "Glosa / Inadimplência",      r: glosaReal,      i: glosaIdeal,      pctR: params.glosa,   pctI: params.glosa   },
-      { label: "Impostos",                   r: impReal,        i: impIdeal,        pctR: params.imposto, pctI: params.imposto },
-      { label: "Custos Fixos",               r: params.custoFixo, i: params.custoFixo, pctR: recBrutaReal > 0 ? params.custoFixo/recBrutaReal : 0, pctI: recBrutaIdeal > 0 ? params.custoFixo/recBrutaIdeal : 0 },
-      { label: "Custos Variáveis",           r: cvReal,         i: cvIdeal,         pctR: recBrutaReal > 0 ? cvReal/recBrutaReal : 0, pctI: recBrutaIdeal > 0 ? cvIdeal/recBrutaIdeal : 0 },
-      { label: "Remuneração Profissionais",  r: remunReal,      i: remunIdeal,      pctR: recBrutaReal > 0 ? remunReal/recBrutaReal : 0, pctI: recBrutaIdeal > 0 ? remunIdeal/recBrutaIdeal : 0 },
-      { label: "Pró-labore",                 r: params.prolabore, i: params.prolabore, pctR: recBrutaReal > 0 ? params.prolabore/recBrutaReal : 0, pctI: recBrutaIdeal > 0 ? params.prolabore/recBrutaIdeal : 0 },
-      { label: "LUCRO LÍQUIDO",              r: lucroReal,      i: lucroIdeal,      bold: true,       pctR: margemReal, pctI: margemIdeal },
-    ];
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {/* Waterfall-style ROI */}
-        <Card>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Decomposição do ROI</h3>
-          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-            {/* Real */}
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.taupe, textTransform: "uppercase", marginBottom: 12 }}>Cenário Real</div>
-              {rows.map(({ label, r, pctR, bold }, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <div style={{ width: 140, fontSize: 12, fontWeight: bold ? 700 : 400 }}>{label}</div>
-                  <div style={{ flex: 1 }}>
-                    <HBar
-                      value={Math.abs(r)}
-                      max={recBrutaReal}
-                      color={bold ? (r >= 0 ? C.success : C.danger) : r >= 0 ? C.accent : C.danger}
-                      fmt={() => ""}
-                    />
-                  </div>
-                  <div style={{ width: 70, textAlign: "right", fontSize: 12, fontWeight: bold ? 700 : 400 }}>{pct(pctR)}</div>
-                </div>
-              ))}
-              <div style={{
-                marginTop: 14, padding: "12px 16px", borderRadius: 10,
-                background: roiReal >= 0 ? "#e8f5e9" : "#ffebee",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>ROI Mensal</span>
-                <span style={{ fontSize: 20, fontWeight: 700, color: roiReal >= 0 ? C.success : C.danger }}>{pct(roiReal)}</span>
-              </div>
-            </div>
-            {/* Ideal */}
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.success, textTransform: "uppercase", marginBottom: 12 }}>Cenário Ideal</div>
-              {rows.map(({ label, i: iv, pctI, bold }, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <div style={{ width: 140, fontSize: 12, fontWeight: bold ? 700 : 400 }}>{label}</div>
-                  <div style={{ flex: 1 }}>
-                    <HBar
-                      value={Math.abs(iv)}
-                      max={recBrutaIdeal}
-                      color={bold ? (iv >= 0 ? C.success : C.danger) : iv >= 0 ? C.success : C.danger}
-                      fmt={() => ""}
-                    />
-                  </div>
-                  <div style={{ width: 70, textAlign: "right", fontSize: 12, fontWeight: bold ? 700 : 400 }}>{pct(pctI)}</div>
-                </div>
-              ))}
-              <div style={{
-                marginTop: 14, padding: "12px 16px", borderRadius: 10,
-                background: roiIdeal >= 0 ? "#e8f5e9" : "#ffebee",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>ROI Mensal</span>
-                <span style={{ fontSize: 20, fontWeight: 700, color: roiIdeal >= 0 ? C.success : C.danger }}>{pct(roiIdeal)}</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Recomendações */}
-        <Card>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>📋 Recomendações</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[
-              lucroReal < 0 && { tipo: "danger",  msg: `Operação no prejuízo (${brl(lucroReal)}). Prioridade: aumentar sessões ou reduzir custos fixos.` },
-              totalSessoesRealDia < sessoesBreakevenDia && { tipo: "warning", msg: `Abaixo do breakeven (${sessoesBreakevenDia} sess/dia). Atual: ${totalSessoesRealDia} sess/dia.` },
-              roiReal < 0.10 && roiReal >= 0 && { tipo: "warning", msg: `ROI abaixo de 10% (${pct(roiReal)}). Considere revisar o mix de convênios.` },
-              (totalSessoesIdealMes - totalSessoesRealMes) > 10 && { tipo: "success", msg: `Potencial de +${totalSessoesIdealMes - totalSessoesRealMes} sessões/mês = +${brl(recBrutaIdeal - recBrutaReal)} em receita.` },
-              params.glosa > 0.07 && { tipo: "warning", msg: `Taxa de glosa elevada (${pct(params.glosa)}). Revise o faturamento com convênios.` },
-              convenios.filter(c => c.ativo && c.valor < 150).length > 0 && { tipo: "warning", msg: `${convenios.filter(c => c.ativo && c.valor < 150).length} convênio(s) com valor abaixo de R$150. Considere reajuste ou descredenciamento.` },
-              roiReal >= 0.20 && { tipo: "success", msg: `ROI saudável (${pct(roiReal)}). Modelo operacional está funcionando bem.` },
-            ].filter(Boolean).map((r, i) => r && (
-              <div key={i} style={{
-                padding: "10px 14px", borderRadius: 8, fontSize: 13,
-                background: r.tipo === "danger" ? "#ffebee" : r.tipo === "warning" ? "#fff8e1" : "#e8f5e9",
-                color: r.tipo === "danger" ? "#c62828" : r.tipo === "warning" ? "#f57f17" : "#2e7d32",
-                borderLeft: `4px solid ${r.tipo === "danger" ? "#ef9a9a" : r.tipo === "warning" ? "#ffd54f" : "#a5d6a7"}`,
-              }}>
-                {r.msg}
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-    );
-  };
-
-  // ── ABA PARÂMETROS ─────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  ABA PARÂMETROS
+  // ═══════════════════════════════════════════════════════════════════════════
   const renderParametros = () => {
     const fields = [
       { key: "diasUteis",    label: "Dias úteis por mês",             tipo: "number", suffix: "dias" },
@@ -817,9 +834,8 @@ export default function ClinicaPage({ transactions = [], companyId }) {
       { key: "glosa",        label: "Glosa / inadimplência (%)",      tipo: "pct"                    },
       { key: "prolabore",    label: "Pró-labore do sócio (R$)",       tipo: "number", prefix: "R$"   },
     ];
-
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 600 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 580 }}>
         <Card>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Parâmetros Gerais</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -828,24 +844,12 @@ export default function ClinicaPage({ transactions = [], companyId }) {
                 <label style={{ fontSize: 13, color: C.dark, flex: 1 }}>{label}</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   {prefix && <span style={{ fontSize: 12, color: C.taupe }}>{prefix}</span>}
-                  <input
-                    type="number"
-                    style={{
-                      width: 90, border: `1.5px solid ${C.sand}`, borderRadius: 8,
-                      padding: "8px 10px", fontFamily: "inherit", fontSize: 14,
-                      fontWeight: 700, color: C.accent, textAlign: "right",
-                      background: C.cream, outline: "none",
-                    }}
+                  <input type="number"
+                    style={{ width: 90, border: `1.5px solid ${C.sand}`, borderRadius: 8, padding: "8px 10px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: C.accent, textAlign: "right", background: C.cream, outline: "none" }}
                     value={tipo === "pct" ? (params[key] * 100).toFixed(1) : params[key]}
                     step={tipo === "pct" ? "0.1" : "1"}
-                    min={0}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value) || 0;
-                      setParams(prev => ({ ...prev, [key]: tipo === "pct" ? v / 100 : v }));
-                    }}
-                    onBlur={saveCfg}
-                    onFocus={e => e.target.style.borderColor = C.accent}
-                  />
+                    onChange={e => { const v = parseFloat(e.target.value)||0; setParams(p => ({ ...p, [key]: tipo === "pct" ? v/100 : v })); }}
+                    onBlur={saveCfg} />
                   {suffix && <span style={{ fontSize: 12, color: C.taupe }}>{suffix}</span>}
                   {tipo === "pct" && <span style={{ fontSize: 12, color: C.taupe }}>%</span>}
                 </div>
@@ -853,49 +857,12 @@ export default function ClinicaPage({ transactions = [], companyId }) {
             ))}
           </div>
         </Card>
-
-        <Card>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Resumo dos Parâmetros</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[
-              { l: "Margem por sessão (antes custo fixo)", v: brl(ticket * (1 - params.glosa) * (1 - params.imposto) - params.custoVariavel) },
-              { l: "Custo fixo por sessão (breakeven)", v: brl(custosTotaisFixos / Math.max(1, sessoesBreakeven)) },
-              { l: "Receita necessária (breakeven/mês)", v: brl(sessoesBreakeven * ticket) },
-              { l: "Horas/dia disponíveis (50min/sessão)", v: `${((totalSessoesIdealDia * 50) / 60).toFixed(1)}h` },
-            ].map(({ l, v }, i) => (
-              <div key={i} style={{ background: C.cream, borderRadius: 8, padding: 12 }}>
-                <div style={{ fontSize: 10, color: C.taupe, marginBottom: 4 }}>{l}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: C.accent }}>{v}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={saveCfg}
-            style={{
-              flex: 1, padding: "12px", borderRadius: 8, border: "none",
-              background: C.accent, color: "white", fontFamily: "inherit",
-              fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all .2s",
-            }}
-          >
+          <button onClick={saveCfg} style={{ flex: 1, padding: "12px", borderRadius: 8, border: "none", background: saved ? C.success : C.accent, color: "white", fontFamily: "inherit", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all .2s" }}>
             {saved ? "✓ Salvo!" : "Salvar Configurações"}
           </button>
-          <button
-            onClick={() => {
-              if (!confirm("Restaurar configurações padrão?")) return;
-              setConvenios(DEFAULT_CONVENIOS);
-              setProfissionais(DEFAULT_PROFISSIONAIS);
-              setParams(DEFAULT_PARAMS);
-              localStorage.removeItem(lsKey);
-            }}
-            style={{
-              padding: "12px 20px", borderRadius: 8,
-              border: `1.5px solid ${C.sand}`, background: "transparent",
-              color: C.taupe, fontFamily: "inherit", fontSize: 14, cursor: "pointer",
-            }}
-          >
+          <button onClick={() => { if (!confirm("Restaurar padrões?")) return; setConvenios(DEFAULT_CONVENIOS); setProfissionais(DEFAULT_PROFISSIONAIS); setParams(DEFAULT_PARAMS); localStorage.removeItem(lsKey); }}
+            style={{ padding: "12px 20px", borderRadius: 8, border: `1.5px solid ${C.sand}`, background: "transparent", color: C.taupe, fontFamily: "inherit", fontSize: 14, cursor: "pointer" }}>
             Resetar
           </button>
         </div>
@@ -903,21 +870,21 @@ export default function ClinicaPage({ transactions = [], companyId }) {
     );
   };
 
-  // ── render principal ───────────────────────────────────────────────────────
+  // ── nav ────────────────────────────────────────────────────────────────────
   const TABS = [
-    { id: "dashboard",     label: "📊 Dashboard"      },
-    { id: "convenios",     label: "🏥 Convênios"       },
-    { id: "profissionais", label: "👥 Profissionais"   },
-    { id: "roi",           label: "📈 ROI & Análise"   },
-    { id: "parametros",    label: "⚙ Parâmetros"      },
+    { id: "dashboard",     label: "📊 Dashboard"    },
+    { id: "relatorio",     label: reportStats ? `📥 Relatório (${reportStats.total})` : "📥 Relatório" },
+    { id: "convenios",     label: "🏥 Convênios"    },
+    { id: "profissionais", label: "👥 Profissionais" },
+    { id: "parametros",    label: "⚙ Parâmetros"   },
   ];
 
   const renderTab = () => {
     switch (tab) {
       case "dashboard":     return renderDashboard();
+      case "relatorio":     return renderRelatorio();
       case "convenios":     return renderConvenios();
       case "profissionais": return renderProfissionais();
-      case "roi":           return renderROI();
       case "parametros":    return renderParametros();
       default:              return renderDashboard();
     }
@@ -925,41 +892,19 @@ export default function ClinicaPage({ transactions = [], companyId }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-      {/* Header da página */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>
-            Gestão Operacional da Clínica
-          </h2>
-          <p style={{ color: C.taupe, fontSize: 13, marginTop: 2 }}>
-            Sessões · Convênios · Remuneração · ROI · Real vs Ideal
-          </p>
+          <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>Gestão Operacional da Clínica</h2>
+          <p style={{ color: C.taupe, fontSize: 13, marginTop: 2 }}>Sessões · Convênios · Remuneração · ROI · Real vs Ideal</p>
         </div>
         {saved && (
-          <div style={{
-            padding: "6px 14px", borderRadius: 20, background: "#e8f5e9",
-            color: "#2e7d32", fontSize: 12, fontWeight: 600,
-          }}>
-            ✓ Configurações salvas
-          </div>
+          <div style={{ padding: "6px 14px", borderRadius: 20, background: "#e8f5e9", color: "#2e7d32", fontSize: 12, fontWeight: 600 }}>✓ Configurações salvas</div>
         )}
       </div>
-
-      {/* Sub-abas */}
-      <div style={{
-        display: "flex", overflowX: "auto", borderBottom: `1px solid ${C.beige}`,
-        marginBottom: 20, gap: 0,
-        scrollbarWidth: "none",
-      }}>
-        {TABS.map(t => (
-          <Tab key={t.id} label={t.label} active={tab === t.id} onClick={() => setTab(t.id)} />
-        ))}
+      <div style={{ display: "flex", overflowX: "auto", borderBottom: `1px solid ${C.beige}`, marginBottom: 20, scrollbarWidth: "none" }}>
+        {TABS.map(t => <Tab key={t.id} label={t.label} active={tab === t.id} onClick={() => setTab(t.id)} />)}
       </div>
-
-      {/* Conteúdo */}
-      <div key={tab} className="anim-fade">
-        {renderTab()}
-      </div>
+      <div key={tab} className="anim-fade">{renderTab()}</div>
     </div>
   );
 }
