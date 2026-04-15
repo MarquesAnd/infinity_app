@@ -2,14 +2,19 @@
 // Integra-se ao Infinity App (Supabase + React)
 // Config salva em localStorage; receita real puxada das transactions do Supabase
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 // ── helpers de formato ────────────────────────────────────────────────────────
-const brl = (v) =>
-  Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const pct = (v) =>
-  Number(v || 0).toLocaleString("pt-BR", { style: "percent", minimumFractionDigits: 1 });
-const num = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1 });
+const brl = (v) => {
+  const n = Number(v || 0);
+  if (!isFinite(n)) return "R$ 0,00";
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+};
+const pct = (v) => {
+  const n = Number(v || 0);
+  if (!isFinite(n)) return "0,0%";
+  return n.toLocaleString("pt-BR", { style: "percent", minimumFractionDigits: 1 });
+};
 
 // ── paleta (mesma do Infinity App) ────────────────────────────────────────────
 const C = {
@@ -99,7 +104,6 @@ const Card = ({ children, style: s, delay = 0 }) => (
 
 const KPICard = ({ label, real, ideal, fmt: fmtFn = brl, color, delay = 0 }) => {
   const diff = ideal - real;
-  const pctDiff = real !== 0 ? diff / Math.abs(real) : 0;
   return (
     <div className="card anim-expand" style={{ padding: 18, animationDelay: `${delay}s` }}>
       <span style={{ fontSize: 10, color: C.taupe, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -130,7 +134,7 @@ const KPICard = ({ label, real, ideal, fmt: fmtFn = brl, color, delay = 0 }) => 
 };
 
 // ── mini barra horizontal ────────────────────────────────────────────────────
-const HBar = ({ value, max, color = C.accent, label, fmt: fmtFn = brl }) => (
+const HBar = ({ value, max, color = C.accent, fmt: fmtFn = brl }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
     <div style={{ flex: 1, height: 8, borderRadius: 4, background: C.beige, overflow: "hidden" }}>
       <div style={{
@@ -165,9 +169,6 @@ export default function ClinicaPage({ transactions = [], companyId }) {
   const [params, setParams] = useState(() => loadCfg()?.params || DEFAULT_PARAMS);
   const [saved, setSaved] = useState(false);
 
-  // ── edição inline ───────────────────────────────────────────────────────────
-  const [editConv, setEditConv] = useState(null);   // { index, field, value }
-  const [editProf, setEditProf] = useState(null);
 
   const saveCfg = useCallback(() => {
     localStorage.setItem(lsKey, JSON.stringify({ convenios, profissionais, params }));
@@ -211,17 +212,21 @@ export default function ClinicaPage({ transactions = [], companyId }) {
   const cvIdeal = totalSessoesIdealMes * params.custoVariavel;
 
   // Remuneração profissionais
+  // IMPORTANTE: p.valor para tipo "pct" é DECIMAL (0.40 = 40%)
   const calcRemunProf = (sessoesDiaProp) =>
     profissionais.reduce((total, p) => {
       const sessMes = (p[sessoesDiaProp] || 0) * dias;
       const recProf = sessMes * ticket;
-      if (p.tipo === "pct")   return total + recProf * p.valor;
+      if (p.tipo === "pct")   return total + recProf * Math.min(p.valor, 1); // cap at 100%
       if (p.tipo === "fixo")  return total + sessMes * p.valor;
       return total; // prolabore: descontado separado
     }, 0);
 
   const remunReal  = calcRemunProf("real");
   const remunIdeal = calcRemunProf("meta");
+
+  // Custo médio de remuneração por sessão (para breakeven)
+  const remunPorSessaoReal = totalSessoesRealMes > 0 ? remunReal / totalSessoesRealMes : 0;
 
   // EBITDA
   const ebitdaReal  = recPosImpReal - params.custoFixo - cvReal - remunReal;
@@ -235,15 +240,18 @@ export default function ClinicaPage({ transactions = [], companyId }) {
   const margemReal  = recBrutaReal  > 0 ? lucroReal  / recBrutaReal  : 0;
   const margemIdeal = recBrutaIdeal > 0 ? lucroIdeal / recBrutaIdeal : 0;
 
-  // ROI
-  const investReal  = recBrutaReal  - lucroReal;
-  const investIdeal = recBrutaIdeal - lucroIdeal;
-  const roiReal  = investReal  > 0 ? lucroReal  / investReal  : 0;
-  const roiIdeal = investIdeal > 0 ? lucroIdeal / investIdeal : 0;
+  // ROI = Lucro / Custos Totais
+  const custosReais = params.custoFixo + cvReal + remunReal + params.prolabore + impReal + glosaReal;
+  const custosIdeais = params.custoFixo + cvIdeal + remunIdeal + params.prolabore + impIdeal + glosaIdeal;
+  const roiReal  = custosReais  > 0 ? lucroReal  / custosReais  : 0;
+  const roiIdeal = custosIdeais > 0 ? lucroIdeal / custosIdeais : 0;
 
-  // Breakeven: sessões necessárias para cobrir custos fixos
+  // Breakeven: sessões necessárias para cobrir custos fixos + pró-labore
+  // Margem de contribuição por sessão = receita por sessão - custos variáveis por sessão
   const custosTotaisFixos = params.custoFixo + params.prolabore;
-  const margemContribuicaoPorSessao = ticket * (1 - params.glosa) * (1 - params.imposto) - params.custoVariavel;
+  const receitaPorSessao = ticket * (1 - params.glosa) * (1 - params.imposto);
+  const custoVarPorSessao = params.custoVariavel + remunPorSessaoReal;
+  const margemContribuicaoPorSessao = receitaPorSessao - custoVarPorSessao;
   const sessoesBreakeven = margemContribuicaoPorSessao > 0
     ? Math.ceil(custosTotaisFixos / margemContribuicaoPorSessao)
     : 0;
@@ -557,9 +565,10 @@ export default function ClinicaPage({ transactions = [], companyId }) {
               {profissionais.map((p, idx) => {
                 const sessMesReal = (p.real || 0) * dias;
                 const recProf = sessMesReal * ticket;
-                const custoSessao = p.tipo === "pct" ? ticket * p.valor
+                const pctVal = Math.min(p.valor, 1); // guard: cap at 100%
+                const custoSessao = p.tipo === "pct" ? ticket * pctVal
                   : p.tipo === "fixo" ? p.valor : 0;
-                const custoMes = p.tipo === "pct" ? recProf * p.valor
+                const custoMes = p.tipo === "pct" ? recProf * pctVal
                   : p.tipo === "fixo" ? sessMesReal * p.valor : params.prolabore;
 
                 const editCell = (field, value, type = "text") => (
@@ -618,7 +627,27 @@ export default function ClinicaPage({ transactions = [], companyId }) {
                       {p.tipo !== "prolabore" ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 2, justifyContent: "flex-end" }}>
                           {p.tipo === "pct" ? (
-                            <>{editCell("valor", (p.valor * 100).toFixed(0), "number")}<span style={{ color: C.taupe }}>%</span></>
+                            <>
+                              <input
+                                type="number"
+                                style={{
+                                  width: 60, border: "none", background: "transparent", fontFamily: "inherit",
+                                  fontSize: 13, color: C.dark, outline: "none",
+                                  borderBottom: "1.5px dashed transparent", textAlign: "right",
+                                }}
+                                value={Math.round(p.valor * 100)}
+                                step="1" min="0" max="100"
+                                onChange={e => {
+                                  const pctVal = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+                                  const u = [...profissionais];
+                                  u[idx] = { ...u[idx], valor: pctVal / 100 };
+                                  setProfissionais(u);
+                                }}
+                                onFocus={e => e.target.style.borderBottomColor = C.accent}
+                                onBlur={e => { e.target.style.borderBottomColor = "transparent"; saveCfg(); }}
+                              />
+                              <span style={{ color: C.taupe }}>%</span>
+                            </>
                           ) : (
                             <>{editCell("valor", p.valor, "number")}<span style={{ color: C.taupe, fontSize: 11 }}>R$</span></>
                           )}
