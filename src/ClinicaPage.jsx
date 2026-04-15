@@ -95,61 +95,77 @@ const HBar = ({ value, max, color = C.accent }) => (
   </div>
 );
 
-// ── Parse da planilha real (lê aba "🧪 Testes por Profissional") ─────────────
-function parseExcelToGrid(workbook, conveniosConfig, profissionaisConfig) {
-  // Resultado: { [profIdx]: { [convIdx]: { fev, mar } } }
-  const grid = {};
+const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const MONTH_MAP = { jan:1,fev:2,feb:2,mar:3,abr:4,apr:4,mai:5,may:5,jun:6,jul:7,ago:8,aug:8,set:9,sep:9,out:10,oct:10,nov:11,dez:12,dec:12 };
 
-  // Tentar aba "🧪 Testes por Profissional" ou aba "Resumo"
-  const testesSheet = workbook.SheetNames.find(n => n.includes("Testes") || n.includes("Profissional"));
-
-  if (testesSheet) {
-    const ws = workbook.Sheets[testesSheet];
-    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-    if (data.length < 4) return grid;
-
-    // Row 1 has convênio names every 4 columns starting from col 2
-    const headerRow = data[1] || [];
-    const convCols = []; // { colFev, colMar, convIdx }
-    for (let c = 2; c < headerRow.length; c++) {
-      const name = String(headerRow[c] || "").trim();
-      if (!name) continue;
-      const matchIdx = conveniosConfig.findIndex(cv =>
-        cv.nome.toLowerCase().includes(name.toLowerCase()) ||
-        name.toLowerCase().includes(cv.nome.toLowerCase())
-      );
-      if (matchIdx >= 0) {
-        convCols.push({ colFev: c, colMar: c + 1, convIdx: matchIdx });
+// Preview: lista abas do Excel com info sobre dados detectados
+function previewWorkbook(wb, conveniosConfig, profissionaisConfig) {
+  return wb.SheetNames.map(name => {
+    const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
+    let convNames = [], profNames = [], monthCols = [];
+    for (const row of data.slice(0, 5)) {
+      for (const cell of row) {
+        const s = String(cell || "").trim();
+        if (!s) continue;
+        const sl = s.toLowerCase();
+        if (conveniosConfig.some(c => c.nome.toLowerCase().includes(sl) || sl.includes(c.nome.toLowerCase())) && !convNames.includes(s)) convNames.push(s);
+        const mk = sl.slice(0,3);
+        if (MONTH_MAP[mk] && !monthCols.includes(mk)) monthCols.push(mk);
       }
-      c += 3; // skip to next group (Fev, Mar, Receita, Custo)
     }
+    for (const row of data.slice(2)) {
+      const n = String(row[0] || "").trim();
+      if (n && profissionaisConfig.some(p => (p.tags || []).some(t => n.toUpperCase().includes(t.toUpperCase())) || p.nome.toUpperCase().split(" ").some(part => part.length > 3 && n.toUpperCase().includes(part))) && !profNames.includes(n)) profNames.push(n);
+    }
+    return { name, rows: data.length, convNames, profNames, monthCols, data, importable: convNames.length > 0 && profNames.length > 0 };
+  });
+}
 
-    // Row 3+ has professional data
-    for (let r = 3; r < data.length; r++) {
-      const row = data[r];
-      const profName = String(row[0] || "").trim();
-      if (!profName) continue;
-      const profIdx = profissionaisConfig.findIndex(p =>
-        (p.tags || []).some(tag => profName.toUpperCase().includes(tag.toUpperCase())) ||
-        p.nome.toUpperCase().split(" ").some(part => part.length > 3 && profName.toUpperCase().includes(part))
-      );
-      if (profIdx < 0) continue;
-      if (!grid[profIdx]) grid[profIdx] = {};
-      for (const { colFev, colMar, convIdx } of convCols) {
-        const fev = parseInt(row[colFev]) || 0;
-        const mar = parseInt(row[colMar]) || 0;
-        if (fev > 0 || mar > 0) {
-          if (!grid[profIdx][convIdx]) grid[profIdx][convIdx] = { fev: 0, mar: 0 };
-          grid[profIdx][convIdx].fev += fev;
-          grid[profIdx][convIdx].mar += mar;
-        }
+// Parse uma aba para a grade de sessões
+function parseSheetToGrid(sheetData, conveniosConfig, profissionaisConfig) {
+  const result = {};
+  if (!sheetData || sheetData.length < 3) return result;
+  // Achar linha com nomes de convênios
+  let hdrIdx = -1;
+  for (let r = 0; r < Math.min(5, sheetData.length); r++) {
+    if (sheetData[r].some(cell => { const s = String(cell||"").trim().toLowerCase(); return conveniosConfig.some(c => c.nome.toLowerCase().includes(s) || s.includes(c.nome.toLowerCase())); })) { hdrIdx = r; break; }
+  }
+  if (hdrIdx < 0) return result;
+  const hdr = sheetData[hdrIdx];
+  const subHdr = sheetData[hdrIdx + 1] || [];
+  // Mapear colunas: convênio + mês
+  const colMap = [];
+  let curConv = -1;
+  for (let c = 0; c < hdr.length; c++) {
+    const h = String(hdr[c] || "").trim();
+    if (h) {
+      const mi = conveniosConfig.findIndex(cv => cv.nome.toLowerCase().includes(h.toLowerCase()) || h.toLowerCase().includes(cv.nome.toLowerCase()));
+      if (mi >= 0) curConv = mi;
+    }
+    if (curConv < 0) continue;
+    const sub = String(subHdr[c] || "").trim().toLowerCase().slice(0, 3);
+    const month = MONTH_MAP[sub];
+    if (month) colMap.push({ col: c, convIdx: curConv, month });
+  }
+  if (colMap.length === 0) return result;
+  // Parse linhas de dados
+  for (let r = hdrIdx + 2; r < sheetData.length; r++) {
+    const row = sheetData[r];
+    const name = String(row[0] || "").trim();
+    if (!name || name.toUpperCase().startsWith("TOTAL")) continue;
+    const pi = profissionaisConfig.findIndex(p => (p.tags || []).some(t => name.toUpperCase().includes(t.toUpperCase())) || p.nome.toUpperCase().split(" ").some(part => part.length > 3 && name.toUpperCase().includes(part)));
+    if (pi < 0) continue;
+    if (!result[pi]) result[pi] = {};
+    for (const { col, convIdx, month } of colMap) {
+      const v = parseInt(row[col]) || 0;
+      if (v > 0) {
+        if (!result[pi][convIdx]) result[pi][convIdx] = {};
+        result[pi][convIdx][String(month)] = (result[pi][convIdx][String(month)] || 0) + v;
       }
     }
   }
-  return grid;
+  return result;
 }
-
-const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 // Calcular stats a partir da grade de sessões (filtrado por meses selecionados)
 function calcStatsFromGrid(grid, conveniosConfig, profissionaisConfig, selectedMonths) {
@@ -221,6 +237,7 @@ export default function ClinicaPage({ companyId }) {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [excelPreview, setExcelPreview] = useState(null); // array of sheet previews
   const fileRef = useRef();
 
   const saveCfg = useCallback(() => {
@@ -245,7 +262,7 @@ export default function ClinicaPage({ companyId }) {
   };
   const getCell = (pi, ci, month) => sessionsGrid[pi]?.[ci]?.[String(month)] || 0;
 
-  // ── Upload handler ──────────────────────────────────────────────────────────
+  // ── Upload handler: abre preview para escolher aba ───────────────────────
   const handleFile = async (file) => {
     if (!file) return;
     if (!file.name.match(/\.xlsx?$/i)) { setReportError("Envie um arquivo .xlsx"); return; }
@@ -253,15 +270,35 @@ export default function ClinicaPage({ companyId }) {
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array", cellDates: true });
-      const grid = parseExcelToGrid(wb, convenios, profissionais);
-      setSessionsGrid(grid);
+      const preview = previewWorkbook(wb, convenios, profissionais);
+      setExcelPreview(preview);
       setReportName(file.name);
       setTab("relatorio");
     } catch (e) {
-      setReportError("Erro ao ler arquivo: " + e.message);
+      setReportError("Erro ao ler: " + e.message);
     } finally {
       setReportLoading(false);
     }
+  };
+
+  // Importar uma aba específica → mescla com a grade existente (não apaga dados antigos)
+  const importSheet = (sheetPreview) => {
+    const parsed = parseSheetToGrid(sheetPreview.data, convenios, profissionais);
+    setSessionsGrid(prev => {
+      const g = JSON.parse(JSON.stringify(prev));
+      for (const [pi, convs] of Object.entries(parsed)) {
+        if (!g[pi]) g[pi] = {};
+        for (const [ci, months] of Object.entries(convs)) {
+          if (!g[pi][ci]) g[pi][ci] = {};
+          for (const [m, v] of Object.entries(months)) {
+            g[pi][ci][m] = (g[pi][ci][m] || 0) + v; // soma ao existente
+          }
+        }
+      }
+      return g;
+    });
+    setExcelPreview(null);
+    setTimeout(saveCfg, 100);
   };
 
   // ── Cálculos operacionais (config) ──────────────────────────────────────────
@@ -444,6 +481,39 @@ export default function ClinicaPage({ companyId }) {
           </div>
           {reportError && <span style={{ fontSize: 12, color: C.danger }}>{reportError}</span>}
         </div>
+
+        {/* Preview do Excel — escolher aba para importar */}
+        {excelPreview && (
+          <Card>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700 }}>📂 Abas encontradas em "{reportName}"</h3>
+              <button onClick={() => setExcelPreview(null)} style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${C.sand}`, background: "transparent", color: C.taupe, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Fechar</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {excelPreview.map((sheet, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: 10, background: sheet.importable ? C.cream : "#f5f5f5", border: `1px solid ${sheet.importable ? C.sand : "#e0e0e0"}` }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: sheet.importable ? C.dark : C.taupe }}>{sheet.name}</div>
+                    <div style={{ fontSize: 11, color: C.taupe, marginTop: 2 }}>
+                      {sheet.rows} linhas · {sheet.convNames.length > 0 ? `Convênios: ${sheet.convNames.join(", ")}` : "Sem convênios"} · {sheet.profNames.length > 0 ? `Profissionais: ${sheet.profNames.length}` : "Sem profissionais"}
+                      {sheet.monthCols.length > 0 && ` · Meses: ${sheet.monthCols.join(", ").toUpperCase()}`}
+                    </div>
+                  </div>
+                  {sheet.importable ? (
+                    <button onClick={() => importSheet(sheet)} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: C.accent, color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                      Importar esta aba
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11, color: C.taupe }}>Sem dados compatíveis</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: C.taupe, marginTop: 10 }}>
+              Os dados serão somados à grade existente. Seus convênios e profissionais configurados não serão alterados.
+            </p>
+          </Card>
+        )}
 
         {/* Grade: Profissional × Convênio → Sessões do mês selecionado */}
         <Card>
