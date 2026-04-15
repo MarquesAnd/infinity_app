@@ -150,46 +150,47 @@ function parseExcelToGrid(workbook, conveniosConfig, profissionaisConfig) {
   return grid;
 }
 
-// Calcular stats a partir da grade de sessões
-function calcStatsFromGrid(grid, conveniosConfig, profissionaisConfig) {
+const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+// Calcular stats a partir da grade de sessões (filtrado por meses selecionados)
+function calcStatsFromGrid(grid, conveniosConfig, profissionaisConfig, selectedMonths) {
   const byConv = {};
   const byProf = {};
-  let totalSessoes = 0;
-  let totalReceita = 0;
-  let totalCusto = 0;
+  let totalSessoes = 0, totalReceita = 0, totalCusto = 0;
 
   for (const [pi, convs] of Object.entries(grid)) {
     const prof = profissionaisConfig[parseInt(pi)];
     if (!prof) continue;
     const pKey = prof.nome;
-    if (!byProf[pKey]) byProf[pKey] = { nome: prof.nome, tipo: prof.tipo, valor: prof.valor, fev: 0, mar: 0, total: 0, receita: 0, custo: 0 };
+    if (!byProf[pKey]) byProf[pKey] = { nome: prof.nome, tipo: prof.tipo, valor: prof.valor, byMonth: {}, total: 0, receita: 0, custo: 0 };
 
-    for (const [ci, cells] of Object.entries(convs)) {
+    for (const [ci, months] of Object.entries(convs)) {
       const conv = conveniosConfig[parseInt(ci)];
       if (!conv) continue;
       const cKey = conv.nome;
-      if (!byConv[cKey]) byConv[cKey] = { nome: conv.nome, valor: conv.valor, fev: 0, mar: 0, total: 0, receita: 0, custo: 0 };
+      if (!byConv[cKey]) byConv[cKey] = { nome: conv.nome, valor: conv.valor, byMonth: {}, total: 0, receita: 0, custo: 0 };
 
-      const sess = (cells.fev || 0) + (cells.mar || 0);
-      const receita = sess * conv.valor;
-      const pctVal = Math.min(prof.valor, 1);
-      const custo = prof.tipo === "pct" ? receita * pctVal : prof.tipo === "fixo" ? sess * prof.valor : 0;
+      for (const m of selectedMonths) {
+        const sess = months[m] || 0;
+        if (sess === 0) continue;
+        const receita = sess * conv.valor;
+        const pctVal = Math.min(prof.valor, 1);
+        const custo = prof.tipo === "pct" ? receita * pctVal : prof.tipo === "fixo" ? sess * prof.valor : 0;
 
-      byConv[cKey].fev += cells.fev || 0;
-      byConv[cKey].mar += cells.mar || 0;
-      byConv[cKey].total += sess;
-      byConv[cKey].receita += receita;
-      byConv[cKey].custo += custo;
+        byConv[cKey].byMonth[m] = (byConv[cKey].byMonth[m] || 0) + sess;
+        byConv[cKey].total += sess;
+        byConv[cKey].receita += receita;
+        byConv[cKey].custo += custo;
 
-      byProf[pKey].fev += cells.fev || 0;
-      byProf[pKey].mar += cells.mar || 0;
-      byProf[pKey].total += sess;
-      byProf[pKey].receita += receita;
-      byProf[pKey].custo += custo;
+        byProf[pKey].byMonth[m] = (byProf[pKey].byMonth[m] || 0) + sess;
+        byProf[pKey].total += sess;
+        byProf[pKey].receita += receita;
+        byProf[pKey].custo += custo;
 
-      totalSessoes += sess;
-      totalReceita += receita;
-      totalCusto += custo;
+        totalSessoes += sess;
+        totalReceita += receita;
+        totalCusto += custo;
+      }
     }
   }
   return { byConv, byProf, totalSessoes, totalReceita, totalCusto };
@@ -212,8 +213,9 @@ export default function ClinicaPage({ companyId }) {
   const [params, setParams]               = useState(() => loadCfg()?.params || DEFAULT_PARAMS);
   const [saved, setSaved]                 = useState(false);
 
-  // Grade de sessões: { [profIdx]: { [convIdx]: { fev, mar } } }
+  // Grade de sessões: { [profIdx]: { [convIdx]: { "1": N, "2": N, ... "12": N } } }
   const [sessionsGrid, setSessionsGrid] = useState(() => loadCfg()?.sessionsGrid || {});
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [reportName, setReportName] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState("");
@@ -226,20 +228,21 @@ export default function ClinicaPage({ companyId }) {
     setTimeout(() => setSaved(false), 2000);
   }, [convenios, profissionais, params, sessionsGrid, lsKey]);
 
-  // Stats calculados a partir da grade
-  const reportStats = calcStatsFromGrid(sessionsGrid, convenios, profissionais);
+  // Meses selecionados para calcular stats (o mês escolhido)
+  const selMonths = [String(selectedMonth)];
+  const reportStats = calcStatsFromGrid(sessionsGrid, convenios, profissionais, selMonths);
 
-  // Atualizar célula da grade
-  const updateCell = (pi, ci, field, val) => {
+  // Atualizar célula: profissional × convênio × mês
+  const updateCell = (pi, ci, month, val) => {
     setSessionsGrid(prev => {
-      const g = { ...prev };
+      const g = JSON.parse(JSON.stringify(prev)); // deep clone
       if (!g[pi]) g[pi] = {};
-      if (!g[pi][ci]) g[pi][ci] = { fev: 0, mar: 0 };
-      g[pi][ci] = { ...g[pi][ci], [field]: Math.max(0, parseInt(val) || 0) };
+      if (!g[pi][ci]) g[pi][ci] = {};
+      g[pi][ci][String(month)] = Math.max(0, parseInt(val) || 0);
       return g;
     });
   };
-  const getCell = (pi, ci, field) => sessionsGrid[pi]?.[ci]?.[field] || 0;
+  const getCell = (pi, ci, month) => sessionsGrid[pi]?.[ci]?.[String(month)] || 0;
 
   // ── Upload handler ──────────────────────────────────────────────────────────
   const handleFile = async (file) => {
@@ -407,59 +410,58 @@ export default function ClinicaPage({ companyId }) {
     const convList = Object.values(byConv).sort((a, b) => b.receita - a.receita);
     const profList = Object.values(byProf).sort((a, b) => b.receita - a.receita);
     const hasSessions = totalSessoes > 0;
+    const mesLabel = MESES[selectedMonth - 1];
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-        {/* Upload / Import */}
+        {/* Seletor de mês + Import */}
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: `1.5px solid ${C.sand}`, flexShrink: 0 }}>
+            {MESES.map((m, i) => (
+              <button key={i} onClick={() => setSelectedMonth(i + 1)} style={{
+                padding: "8px 10px", border: "none", fontSize: 11, fontWeight: selectedMonth === i + 1 ? 700 : 400,
+                background: selectedMonth === i + 1 ? C.accent : "transparent",
+                color: selectedMonth === i + 1 ? "white" : C.taupe,
+                cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
+              }}>{m}</button>
+            ))}
+          </div>
           <div
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
             onClick={() => fileRef.current?.click()}
             style={{
-              flex: 1, minWidth: 200, border: `2px dashed ${dragOver ? C.accent : C.sand}`,
-              borderRadius: 12, padding: "16px 20px", textAlign: "center", cursor: "pointer",
-              background: dragOver ? "#fdf8f2" : C.cream, transition: "all .2s",
+              flex: 1, minWidth: 150, border: `2px dashed ${dragOver ? C.accent : C.sand}`,
+              borderRadius: 10, padding: "10px 16px", textAlign: "center", cursor: "pointer",
+              background: dragOver ? "#fdf8f2" : C.cream, transition: "all .2s", fontSize: 12,
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
-              {reportLoading ? "Processando..." : reportName ? `📄 ${reportName} — clique para trocar` : "📥 Importar Excel (.xlsx)"}
-            </span>
+            {reportLoading ? "Processando..." : reportName ? `📄 ${reportName}` : "📥 Importar .xlsx"}
             <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
           </div>
           {reportError && <span style={{ fontSize: 12, color: C.danger }}>{reportError}</span>}
         </div>
 
-        {/* Grade editável: Profissional × Convênio → Sessões */}
+        {/* Grade: Profissional × Convênio → Sessões do mês selecionado */}
         <Card>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700 }}>📝 Sessões por Profissional × Convênio</h3>
-            <span style={{ fontSize: 11, color: C.taupe }}>Edite as células ou importe o Excel</span>
+            <h3 style={{ fontSize: 14, fontWeight: 700 }}>📝 Sessões — {mesLabel} 2026</h3>
+            <span style={{ fontSize: 11, color: C.taupe }}>Preencha as sessões de cada profissional por convênio</span>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr style={{ background: C.beige }}>
-                  <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 10, fontWeight: 700, color: C.taupe, minWidth: 120 }}>PROFISSIONAL</th>
-                  {activeConvs.map((c, ci) => (
-                    <th key={c.id} colSpan={2} style={{ padding: "8px 6px", textAlign: "center", fontSize: 10, fontWeight: 700, color: C.taupe, borderLeft: `1px solid ${C.sand}` }}>
-                      {c.sigla} <span style={{ fontWeight: 400 }}>({brl(c.valor)})</span>
+                  <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 10, fontWeight: 700, color: C.taupe, minWidth: 130 }}>PROFISSIONAL</th>
+                  {activeConvs.map(c => (
+                    <th key={c.id} style={{ padding: "8px 6px", textAlign: "center", fontSize: 10, fontWeight: 700, color: C.taupe, borderLeft: `1px solid ${C.sand}`, minWidth: 60 }}>
+                      {c.sigla}<br/><span style={{ fontWeight: 400, fontSize: 9 }}>{brl(c.valor)}</span>
                     </th>
                   ))}
-                  <th colSpan={2} style={{ padding: "8px 6px", textAlign: "center", fontSize: 10, fontWeight: 700, color: C.accent, borderLeft: `2px solid ${C.accent}` }}>TOTAL</th>
-                </tr>
-                <tr style={{ background: C.cream }}>
-                  <th />
-                  {activeConvs.map(c => (
-                    <React.Fragment key={c.id+"sub"}>
-                      <th style={{ padding: "4px 4px", fontSize: 9, color: C.taupe, fontWeight: 600, borderLeft: `1px solid ${C.sand}` }}>Fev</th>
-                      <th style={{ padding: "4px 4px", fontSize: 9, color: C.taupe, fontWeight: 600 }}>Mar</th>
-                    </React.Fragment>
-                  ))}
-                  <th style={{ padding: "4px 4px", fontSize: 9, color: C.accent, fontWeight: 700, borderLeft: `2px solid ${C.accent}` }}>Sess</th>
-                  <th style={{ padding: "4px 4px", fontSize: 9, color: C.accent, fontWeight: 700 }}>Receita</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", fontSize: 10, fontWeight: 700, color: C.accent, borderLeft: `2px solid ${C.accent}` }}>TOTAL</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", fontSize: 10, fontWeight: 700, color: C.success }}>RECEITA</th>
                 </tr>
               </thead>
               <tbody>
@@ -467,50 +469,36 @@ export default function ClinicaPage({ companyId }) {
                   let rowTotal = 0, rowReceita = 0;
                   return (
                     <tr key={p.id} style={{ borderBottom: `1px solid ${C.beige}` }}>
-                      <td style={{ padding: "6px 10px", fontWeight: 600, fontSize: 12 }}>
-                        {p.nome}
-                        <div style={{ fontSize: 10, color: C.taupe, fontWeight: 400 }}>{p.cargo}</div>
+                      <td style={{ padding: "6px 10px" }}>
+                        <div style={{ fontWeight: 600, fontSize: 12 }}>{p.nome}</div>
+                        <div style={{ fontSize: 10, color: C.taupe }}>{p.cargo} · {p.tipo === "pct" ? `${Math.round(p.valor*100)}%` : p.tipo === "fixo" ? brl(p.valor) : "PL"}</div>
                       </td>
-                      {activeConvs.map((c, ci) => {
-                        const realCI = convenios.indexOf(c);
-                        const fev = getCell(pi, realCI, "fev");
-                        const mar = getCell(pi, realCI, "mar");
-                        rowTotal += fev + mar;
-                        rowReceita += (fev + mar) * c.valor;
+                      {activeConvs.map(c => {
+                        const ci = convenios.indexOf(c);
+                        const val = getCell(pi, ci, selectedMonth);
+                        rowTotal += val;
+                        rowReceita += val * c.valor;
                         return (
-                          <React.Fragment key={c.id}>
-                            <td style={{ padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${C.sand}` }}>
-                              <input type="number" min="0" value={fev || ""} placeholder="0"
-                                style={{ width: 36, border: "none", background: fev > 0 ? "#e8f5e9" : "transparent", borderRadius: 4, textAlign: "center", fontSize: 12, fontWeight: 600, color: C.dark, outline: "none", padding: "3px 2px", fontFamily: "inherit" }}
-                                onChange={e => updateCell(pi, realCI, "fev", e.target.value)} onBlur={saveCfg} />
-                            </td>
-                            <td style={{ padding: "4px 2px", textAlign: "center" }}>
-                              <input type="number" min="0" value={mar || ""} placeholder="0"
-                                style={{ width: 36, border: "none", background: mar > 0 ? "#e8f5e9" : "transparent", borderRadius: 4, textAlign: "center", fontSize: 12, fontWeight: 600, color: C.dark, outline: "none", padding: "3px 2px", fontFamily: "inherit" }}
-                                onChange={e => updateCell(pi, realCI, "mar", e.target.value)} onBlur={saveCfg} />
-                            </td>
-                          </React.Fragment>
+                          <td key={c.id} style={{ padding: "4px 2px", textAlign: "center", borderLeft: `1px solid ${C.sand}` }}>
+                            <input type="number" min="0" value={val || ""} placeholder="0"
+                              style={{ width: 42, border: "none", background: val > 0 ? "#e8f5e9" : "transparent", borderRadius: 4, textAlign: "center", fontSize: 13, fontWeight: 700, color: C.dark, outline: "none", padding: "4px 2px", fontFamily: "inherit" }}
+                              onChange={e => updateCell(pi, ci, selectedMonth, e.target.value)} onBlur={saveCfg} />
+                          </td>
                         );
                       })}
-                      <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 700, borderLeft: `2px solid ${C.accent}` }}>{rowTotal}</td>
+                      <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 700, fontSize: 14, borderLeft: `2px solid ${C.accent}` }}>{rowTotal}</td>
                       <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 700, color: C.success, fontSize: 11 }}>{brl(rowReceita)}</td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
-                <tr style={{ background: C.beige, fontWeight: 700 }}>
-                  <td style={{ padding: "8px 10px" }}>TOTAL</td>
+                <tr style={{ background: C.beige, fontWeight: 700, fontSize: 13 }}>
+                  <td style={{ padding: "8px 10px" }}>TOTAL {mesLabel}</td>
                   {activeConvs.map(c => {
-                    const realCI = convenios.indexOf(c);
-                    const fev = profissionais.reduce((a, _, pi) => a + getCell(pi, realCI, "fev"), 0);
-                    const mar = profissionais.reduce((a, _, pi) => a + getCell(pi, realCI, "mar"), 0);
-                    return (
-                      <React.Fragment key={c.id}>
-                        <td style={{ padding: "6px 4px", textAlign: "center", borderLeft: `1px solid ${C.sand}` }}>{fev}</td>
-                        <td style={{ padding: "6px 4px", textAlign: "center" }}>{mar}</td>
-                      </React.Fragment>
-                    );
+                    const ci = convenios.indexOf(c);
+                    const total = profissionais.reduce((a, _, pi) => a + getCell(pi, ci, selectedMonth), 0);
+                    return <td key={c.id} style={{ padding: "6px 4px", textAlign: "center", borderLeft: `1px solid ${C.sand}` }}>{total}</td>;
                   })}
                   <td style={{ padding: "6px 4px", textAlign: "center", color: C.accent, borderLeft: `2px solid ${C.accent}` }}>{totalSessoes}</td>
                   <td style={{ padding: "6px 4px", textAlign: "center", color: C.success, fontSize: 11 }}>{brl(totalReceita)}</td>
@@ -520,11 +508,11 @@ export default function ClinicaPage({ companyId }) {
           </div>
         </Card>
 
-        {/* KPIs */}
+        {/* KPIs do mês */}
         {hasSessions && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
             {[
-              { l: "Total Sessões", v: totalSessoes, color: C.accent },
+              { l: `Sessões ${mesLabel}`, v: totalSessoes, color: C.accent },
               { l: "Receita Bruta", v: brl(totalReceita), color: C.success },
               { l: "Custo Profissionais", v: brl(totalCusto), color: C.danger },
               { l: "Margem Clínica", v: brl(totalReceita - totalCusto), color: totalReceita - totalCusto >= 0 ? C.success : C.danger },
@@ -541,11 +529,11 @@ export default function ClinicaPage({ companyId }) {
         {/* Receita por Convênio */}
         {convList.length > 0 && (
           <Card>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>📋 Receita por Convênio</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>📋 Receita por Convênio — {mesLabel}</h3>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead><tr style={{ background: C.beige }}>
-                  {["Convênio","Fev","Mar","Total","Val/Sessão","Receita","Custo Prof.","Margem","Margem %"].map((h, i) => (
+                  {["Convênio","Sessões","Val/Sessão","Receita","Custo Prof.","Margem","Margem %"].map((h, i) => (
                     <th key={i} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 10, fontWeight: 700, color: C.taupe, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr></thead>
@@ -554,8 +542,6 @@ export default function ClinicaPage({ companyId }) {
                   return (
                     <tr key={i} style={{ borderBottom: `1px solid ${C.beige}` }}>
                       <td style={{ padding: "10px 10px", fontWeight: 600 }}>{c.nome}</td>
-                      <td style={{ padding: "10px 10px", textAlign: "right" }}>{c.fev}</td>
-                      <td style={{ padding: "10px 10px", textAlign: "right" }}>{c.mar}</td>
                       <td style={{ padding: "10px 10px", textAlign: "right", fontWeight: 700 }}>{c.total}</td>
                       <td style={{ padding: "10px 10px", textAlign: "right" }}>{brl(c.valor)}</td>
                       <td style={{ padding: "10px 10px", textAlign: "right", fontWeight: 700, color: C.success }}>{brl(c.receita)}</td>
@@ -577,19 +563,17 @@ export default function ClinicaPage({ companyId }) {
         {/* Custo por Profissional */}
         {profList.length > 0 && (
           <Card>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>👥 Custo por Profissional</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>👥 Custo por Profissional — {mesLabel}</h3>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead><tr style={{ background: C.beige }}>
-                  {["Profissional","Fev","Mar","Total","Receita","Repasse","Custo","Valor Neto"].map((h, i) => (
+                  {["Profissional","Sessões","Receita","Repasse","Custo","Valor Neto"].map((h, i) => (
                     <th key={i} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 10, fontWeight: 700, color: C.taupe, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>{profList.map((p, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${C.beige}` }}>
                     <td style={{ padding: "10px 10px", fontWeight: 600 }}>{p.nome}</td>
-                    <td style={{ padding: "10px 10px", textAlign: "right" }}>{p.fev}</td>
-                    <td style={{ padding: "10px 10px", textAlign: "right" }}>{p.mar}</td>
                     <td style={{ padding: "10px 10px", textAlign: "right", fontWeight: 700 }}>{p.total}</td>
                     <td style={{ padding: "10px 10px", textAlign: "right", color: C.success }}>{brl(p.receita)}</td>
                     <td style={{ padding: "10px 10px", textAlign: "right" }}>
