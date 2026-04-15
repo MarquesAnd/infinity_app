@@ -48,7 +48,6 @@ const DEFAULT_PROFISSIONAIS = [
 const DEFAULT_PARAMS = {
   diasUteis: 22, ticketMedio: 180, custoFixo: 8000,
   custoVariavel: 25, imposto: 0.06, glosa: 0.05, prolabore: 5000,
-  custoTestes: 0,
 };
 
 // ── mini componentes ──────────────────────────────────────────────────────────
@@ -215,6 +214,8 @@ export default function ClinicaPage({ companyId }) {
 
   // Grade de sessões: { [profIdx]: { [convIdx]: { "1": N, "2": N, ... "12": N } } }
   const [sessionsGrid, setSessionsGrid] = useState(() => loadCfg()?.sessionsGrid || {});
+  // Custo de testes por mês: { "1": 0, "2": 0, ... "12": 0 }
+  const [custoTestesMes, setCustoTestesMes] = useState(() => loadCfg()?.custoTestesMes || {});
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [reportName, setReportName] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
@@ -223,10 +224,10 @@ export default function ClinicaPage({ companyId }) {
   const fileRef = useRef();
 
   const saveCfg = useCallback(() => {
-    localStorage.setItem(lsKey, JSON.stringify({ convenios, profissionais, params, sessionsGrid }));
+    localStorage.setItem(lsKey, JSON.stringify({ convenios, profissionais, params, sessionsGrid, custoTestesMes }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [convenios, profissionais, params, sessionsGrid, lsKey]);
+  }, [convenios, profissionais, params, sessionsGrid, custoTestesMes, lsKey]);
 
   // Meses selecionados para calcular stats (o mês escolhido)
   const selMonths = [String(selectedMonth)];
@@ -288,7 +289,7 @@ export default function ClinicaPage({ companyId }) {
   }, 0);
   const remunReal  = calcRemuneracao("real");
   const remunIdeal = calcRemuneracao("meta");
-  const custoTestes = params.custoTestes || 0;
+  const custoTestes = custoTestesMes[String(selectedMonth)] || 0;
   const ebitdaReal  = recPosImpReal - params.custoFixo - cvReal - remunReal - custoTestes;
   const ebitdaIdeal = recPosImpIdeal - params.custoFixo - cvIdeal - remunIdeal - custoTestes;
   const lucroReal  = ebitdaReal - params.prolabore;
@@ -507,6 +508,23 @@ export default function ClinicaPage({ companyId }) {
             </table>
           </div>
         </Card>
+
+        {/* Custo com testes do mês */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: C.cream, borderRadius: 10, border: `1px solid ${C.sand}` }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>🧪 Custo com testes — {mesLabel}:</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 12, color: C.taupe }}>R$</span>
+            <input type="number" min="0" step="100"
+              value={custoTestes || ""}
+              placeholder="0"
+              style={{ width: 100, border: `1.5px solid ${C.sand}`, borderRadius: 6, padding: "6px 8px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: C.danger, textAlign: "right", background: "white", outline: "none" }}
+              onChange={e => setCustoTestesMes(prev => ({ ...prev, [String(selectedMonth)]: parseFloat(e.target.value) || 0 }))}
+              onBlur={saveCfg}
+              onFocus={e => e.target.style.borderColor = C.accent}
+            />
+          </div>
+          <span style={{ fontSize: 11, color: C.taupe }}>Valor gasto comprando testes neste mês</span>
+        </div>
 
         {/* KPIs do mês */}
         {hasSessions && (
@@ -762,7 +780,6 @@ export default function ClinicaPage({ companyId }) {
       { key: "imposto",      label: "Alíquota de impostos (%)",       tipo: "pct"                    },
       { key: "glosa",        label: "Glosa / inadimplência (%)",      tipo: "pct"                    },
       { key: "prolabore",    label: "Pró-labore do sócio (R$)",       tipo: "number", prefix: "R$"   },
-      { key: "custoTestes", label: "Custo mensal com testes (R$)",    tipo: "number", prefix: "R$"   },
     ];
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 580 }}>
