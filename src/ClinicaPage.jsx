@@ -48,6 +48,7 @@ const DEFAULT_PROFISSIONAIS = [
 const DEFAULT_PARAMS = {
   diasUteis: 22, ticketMedio: 180, custoFixo: 8000,
   custoVariavel: 25, imposto: 0.06, glosa: 0.05, prolabore: 5000,
+  custoTestes: 0,
 };
 
 // ── mini componentes ──────────────────────────────────────────────────────────
@@ -284,8 +285,9 @@ export default function ClinicaPage({ companyId }) {
   }, 0);
   const remunReal  = calcRemuneracao("real");
   const remunIdeal = calcRemuneracao("meta");
-  const ebitdaReal  = recPosImpReal - params.custoFixo - cvReal - remunReal;
-  const ebitdaIdeal = recPosImpIdeal - params.custoFixo - cvIdeal - remunIdeal;
+  const custoTestes = params.custoTestes || 0;
+  const ebitdaReal  = recPosImpReal - params.custoFixo - cvReal - remunReal - custoTestes;
+  const ebitdaIdeal = recPosImpIdeal - params.custoFixo - cvIdeal - remunIdeal - custoTestes;
   const lucroReal  = ebitdaReal - params.prolabore;
   const lucroIdeal = ebitdaIdeal - params.prolabore;
   const margemReal  = recBrutaReal  > 0 ? lucroReal  / recBrutaReal  : 0;
@@ -294,7 +296,7 @@ export default function ClinicaPage({ companyId }) {
   const roiIdeal = (recBrutaIdeal - lucroIdeal) > 0 ? lucroIdeal / (recBrutaIdeal - lucroIdeal) : 0;
   const margemPorSessao = ticket * (1 - params.glosa) * (1 - params.imposto) - params.custoVariavel;
   const sessoesBreakeven = margemPorSessao > 0
-    ? Math.ceil((params.custoFixo + params.prolabore) / margemPorSessao) : 0;
+    ? Math.ceil((params.custoFixo + params.prolabore + custoTestes) / margemPorSessao) : 0;
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  ABA DASHBOARD
@@ -361,6 +363,7 @@ export default function ClinicaPage({ companyId }) {
                 { l: "(=) Rec. Pós-impostos",      r: recPosImpReal,  i: recPosImpIdeal,  bold: true  },
                 { l: "  (-) Custo Fixo",           r: -params.custoFixo, i: -params.custoFixo, bold: false },
                 { l: "  (-) Custos Variáveis",     r: -cvReal,        i: -cvIdeal,        bold: false },
+                { l: "  (-) Custo com Testes",       r: -custoTestes,   i: -custoTestes,    bold: false },
                 { l: "  (-) Remuneração Profs.",   r: -remunReal,     i: -remunIdeal,     bold: false },
                 { l: "(=) EBITDA",                 r: ebitdaReal,     i: ebitdaIdeal,     bold: true  },
                 { l: "  (-) Pró-labore",           r: -params.prolabore, i: -params.prolabore, bold: false },
@@ -775,6 +778,7 @@ export default function ClinicaPage({ companyId }) {
       { key: "imposto",      label: "Alíquota de impostos (%)",       tipo: "pct"                    },
       { key: "glosa",        label: "Glosa / inadimplência (%)",      tipo: "pct"                    },
       { key: "prolabore",    label: "Pró-labore do sócio (R$)",       tipo: "number", prefix: "R$"   },
+      { key: "custoTestes", label: "Custo mensal com testes (R$)",    tipo: "number", prefix: "R$"   },
     ];
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 580 }}>
