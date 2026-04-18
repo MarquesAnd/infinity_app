@@ -1192,7 +1192,7 @@ export default function InfinityApp() {
             category: "Conciliação Bancária",
             type: valor >= 0 ? "entrada" : "saida",
             value: Math.abs(valor),
-            status: "confirmado",
+            status: valor >= 0 ? "recebido" : "pago",
             _banco: sheetName.trim(),
           });
         }
@@ -2493,7 +2493,7 @@ export default function InfinityApp() {
                 )}
               </div>
               <p style={{ fontSize:12, color:"var(--taupe)", textAlign:"center" }}>
-                Todos os lançamentos serão criados com categoria <strong>Conciliação Bancária</strong> e status <strong>Confirmado</strong>.
+                Todos os lançamentos serão criados com categoria <strong>Conciliação Bancária</strong>. Entradas como <strong>Recebido</strong>, saídas como <strong>Pago</strong>.
               </p>
               <Btn icon="check" onClick={executeImport} style={{ width:"100%" }}>
                 Importar {importRows.length} lançamentos
