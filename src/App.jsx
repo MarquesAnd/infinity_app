@@ -1145,8 +1145,8 @@ export default function InfinityApp() {
       for (const sheetName of wb.SheetNames) {
         if (sheetName === "Planilha2") continue;
         const ws = wb.Sheets[sheetName];
-        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: "yyyy-mm-dd" });
-        // Detectar linha de cabeçalho (contém "DATA LANÇAMENTO")
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: "dd/mm/yyyy" });
+        // Detectar linha de cabeçalho (contém "DATA LAN")
         let headerRow = -1;
         for (let i = 0; i < raw.length; i++) {
           if (raw[i] && raw[i].some(c => typeof c === "string" && c.toUpperCase().includes("DATA LAN"))) {
@@ -1155,27 +1155,37 @@ export default function InfinityApp() {
           }
         }
         if (headerRow === -1) continue;
-        // Colunas: B=1 data, C=2 dataMov, D=3 historico, E=4 documento, F=5 valor, H=7 descricao
         for (let i = headerRow + 1; i < raw.length; i++) {
           const r = raw[i];
           if (!r || r.length < 6) continue;
-          const dateVal = r[1]; // coluna B
-          const valorRaw = r[5]; // coluna F
+          const dateVal = String(r[1] || "").trim();   // coluna B: "05/01/2026"
+          const valorRaw = String(r[5] || "").trim();  // coluna F: "-R$ 20,000.00 "
           const desc = String(r[7] || r[3] || "").trim();
-          const valor = parseFloat(String(valorRaw || "").replace(/\./g, "").replace(",", "."));
+          // Parsear valor: remover "R$", espaços, e tratar separadores pt-BR (1.234,56) ou en-US (1,234.56)
+          const valorClean = valorRaw
+            .replace(/R\$\s*/g, "")
+            .replace(/\s/g, "")
+            .trim();
+          // Detectar formato: se tem ponto antes de vírgula → pt-BR  (ex: 12.670,50)
+          // Se tem vírgula antes de ponto → en-US (ex: 12,670.50)
+          let valor;
+          if (valorClean.match(/\d\.\d{3},\d{2}/)) {
+            // pt-BR: 12.670,50
+            valor = parseFloat(valorClean.replace(/\./g, "").replace(",", "."));
+          } else if (valorClean.match(/\d,\d{3}\.\d{2}/)) {
+            // en-US: 12,670.50
+            valor = parseFloat(valorClean.replace(/,/g, ""));
+          } else {
+            valor = parseFloat(valorClean.replace(",", "."));
+          }
           if (!dateVal || isNaN(valor) || desc === "SALDO ANTERIOR" || desc === "") continue;
-          // Parsear data — pode vir como string "dd/mm/yyyy", "yyyy-mm-dd" ou objeto Date serializado
+          // Parsear data dd/mm/yyyy
           let dateStr = "";
-          const dStr = String(dateVal).trim();
-          if (dStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-            dateStr = dStr.slice(0, 10);
-          } else if (dStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
-            const [d, m, y] = dStr.split("/");
-            dateStr = `${y}-${m}-${d}`;
-          } else if (dStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
-            const parts = dStr.split("/");
-            dateStr = `${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}`;
-          } else continue;
+          const m1 = dateVal.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          const m2 = dateVal.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (m1) dateStr = `${m1[3]}-${m1[2].padStart(2,"0")}-${m1[1].padStart(2,"0")}`;
+          else if (m2) dateStr = `${m2[1]}-${m2[2]}-${m2[3]}`;
+          else continue;
           rows.push({
             date: dateStr,
             description: desc,
