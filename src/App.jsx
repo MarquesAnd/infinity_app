@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import LOGO_BASE64 from "./logoBase64.js";
 import ClinicaPage from "./ClinicaPage.jsx";
+import * as XLSX from "xlsx";
 
 // ─── SUPABASE ───
 const SUPABASE_URL = "https://yresgunnnazzjexbajyk.supabase.co";
@@ -1138,7 +1139,6 @@ export default function InfinityApp() {
     setImportError("");
     setImportRows([]);
     try {
-      const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array", cellDates: true });
       const rows = [];
@@ -1149,7 +1149,7 @@ export default function InfinityApp() {
         // Detectar linha de cabeçalho (contém "DATA LANÇAMENTO")
         let headerRow = -1;
         for (let i = 0; i < raw.length; i++) {
-          if (raw[i] && raw[i].some(c => typeof c === "string" && c.includes("DATA LANÇAMENTO"))) {
+          if (raw[i] && raw[i].some(c => typeof c === "string" && c.toUpperCase().includes("DATA LAN"))) {
             headerRow = i;
             break;
           }
@@ -1160,16 +1160,21 @@ export default function InfinityApp() {
           const r = raw[i];
           if (!r || r.length < 6) continue;
           const dateVal = r[1]; // coluna B
-          const valor = parseFloat(String(r[5] || "").replace(",", "."));
+          const valorRaw = r[5]; // coluna F
           const desc = String(r[7] || r[3] || "").trim();
+          const valor = parseFloat(String(valorRaw || "").replace(/\./g, "").replace(",", "."));
           if (!dateVal || isNaN(valor) || desc === "SALDO ANTERIOR" || desc === "") continue;
-          // Parsear data
+          // Parsear data — pode vir como string "dd/mm/yyyy", "yyyy-mm-dd" ou objeto Date serializado
           let dateStr = "";
-          if (typeof dateVal === "string" && dateVal.match(/\d{4}-\d{2}-\d{2}/)) {
-            dateStr = dateVal.slice(0, 10);
-          } else if (typeof dateVal === "string" && dateVal.match(/\d{2}\/\d{2}\/\d{4}/)) {
-            const [d, m, y] = dateVal.split("/");
+          const dStr = String(dateVal).trim();
+          if (dStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+            dateStr = dStr.slice(0, 10);
+          } else if (dStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+            const [d, m, y] = dStr.split("/");
             dateStr = `${y}-${m}-${d}`;
+          } else if (dStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
+            const parts = dStr.split("/");
+            dateStr = `${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}`;
           } else continue;
           rows.push({
             date: dateStr,
