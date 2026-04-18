@@ -996,6 +996,11 @@ export default function InfinityApp() {
   const [newPurchase, setNewPurchase] = useState(emptyPurchase);
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [newMember, setNewMember] = useState({ email:"", name:"", role:"viewer" });
+  // ─── IMPORTADOR ───
+  const [importRows, setImportRows] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [importError, setImportError] = useState("");
   const [profileForm, setProfileForm] = useState({ name:"", email:"", password:"" });
   const [saveMsg, setSaveMsg] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
@@ -1126,6 +1131,95 @@ export default function InfinityApp() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setPage("dashboard");
+  };
+
+  // ─── IMPORTADOR DE CONCILIAÇÕES ───
+  const parseExcelImport = async (file) => {
+    setImportError("");
+    setImportRows([]);
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const rows = [];
+      for (const sheetName of wb.SheetNames) {
+        if (sheetName === "Planilha2") continue;
+        const ws = wb.Sheets[sheetName];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: "yyyy-mm-dd" });
+        // Detectar linha de cabeçalho (contém "DATA LANÇAMENTO")
+        let headerRow = -1;
+        for (let i = 0; i < raw.length; i++) {
+          if (raw[i] && raw[i].some(c => typeof c === "string" && c.includes("DATA LANÇAMENTO"))) {
+            headerRow = i;
+            break;
+          }
+        }
+        if (headerRow === -1) continue;
+        // Colunas: B=1 data, C=2 dataMov, D=3 historico, E=4 documento, F=5 valor, H=7 descricao
+        for (let i = headerRow + 1; i < raw.length; i++) {
+          const r = raw[i];
+          if (!r || r.length < 6) continue;
+          const dateVal = r[1]; // coluna B
+          const valor = parseFloat(String(r[5] || "").replace(",", "."));
+          const desc = String(r[7] || r[3] || "").trim();
+          if (!dateVal || isNaN(valor) || desc === "SALDO ANTERIOR" || desc === "") continue;
+          // Parsear data
+          let dateStr = "";
+          if (typeof dateVal === "string" && dateVal.match(/\d{4}-\d{2}-\d{2}/)) {
+            dateStr = dateVal.slice(0, 10);
+          } else if (typeof dateVal === "string" && dateVal.match(/\d{2}\/\d{2}\/\d{4}/)) {
+            const [d, m, y] = dateVal.split("/");
+            dateStr = `${y}-${m}-${d}`;
+          } else continue;
+          rows.push({
+            date: dateStr,
+            description: desc,
+            category: "Conciliação Bancária",
+            type: valor >= 0 ? "entrada" : "saida",
+            value: Math.abs(valor),
+            status: "confirmado",
+            _banco: sheetName.trim(),
+          });
+        }
+      }
+      setImportRows(rows);
+      if (rows.length === 0) setImportError("Nenhum lançamento encontrado. Verifique o formato da planilha.");
+    } catch (e) {
+      setImportError("Erro ao ler o arquivo: " + e.message);
+    }
+  };
+
+  const executeImport = async () => {
+    if (!importRows.length) return;
+    setImportLoading(true);
+    setImportProgress({ done: 0, total: importRows.length });
+    const BATCH = 50;
+    let done = 0;
+    try {
+      for (let i = 0; i < importRows.length; i += BATCH) {
+        const batch = importRows.slice(i, i + BATCH).map(r => ({
+          company_id: currentUser.company_id,
+          created_by: session.user.id,
+          description: r.description,
+          category: r.category,
+          type: r.type,
+          value: r.value,
+          status: r.status,
+          date: r.date,
+        }));
+        const { data, error } = await supabase.from("transactions").insert(batch).select();
+        if (error) throw new Error(error.message);
+        if (data) setTransactions(prev => [...data, ...prev]);
+        done += batch.length;
+        setImportProgress({ done, total: importRows.length });
+      }
+      setImportRows([]);
+      setModalOpen(null);
+    } catch (e) {
+      setImportError("Erro ao importar: " + e.message);
+    } finally {
+      setImportLoading(false);
+    }
   };
 
   // ─── TRANSACTION HANDLERS ───
@@ -1707,6 +1801,7 @@ export default function InfinityApp() {
         <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display', serif" }}>Gestão de Contas</h2>
         <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
           {canEdit && <Btn icon="plus" onClick={() => setModalOpen("addTx")}>Nova Conta</Btn>}
+          {canEdit && <Btn icon="upload" variant="ghost" onClick={() => { setImportRows([]); setImportError(""); setModalOpen("importXlsx"); }}>Importar Excel</Btn>}
           <Btn icon="download" variant="ghost" onClick={() => buildPDF({ type:"transactions", company:companyName, user:currentUser.name, transactions, purchases, filteredTx, monthLabel })}>PDF</Btn>
         </div>
       </div>
@@ -2309,6 +2404,100 @@ export default function InfinityApp() {
           </div>
         </main>
       </div>
+
+      {/* ══ MODAL: Importar Excel ══ */}
+      <Modal open={modalOpen === "importXlsx"} onClose={() => { setModalOpen(null); setImportRows([]); setImportError(""); }} title="Importar Conciliação Bancária" width={620}>
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+          {/* Upload */}
+          <div style={{ border:"2px dashed var(--sand)", borderRadius:12, padding:32, textAlign:"center", background:"var(--cream)", cursor:"pointer" }}
+            onClick={() => document.getElementById("xlsx-upload-input").click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if(f) parseExcelImport(f); }}>
+            <Icon name="upload" size={32} />
+            <p style={{ marginTop:10, fontWeight:600, color:"var(--brown)" }}>Clique ou arraste o arquivo Excel aqui</p>
+            <p style={{ fontSize:12, color:"var(--taupe)", marginTop:4 }}>Formato: Conciliações Bancárias 2026 - EQUILIBRIUM.xlsx</p>
+            <input id="xlsx-upload-input" type="file" accept=".xlsx" style={{ display:"none" }}
+              onChange={e => { const f = e.target.files[0]; if(f) parseExcelImport(f); e.target.value=""; }} />
+          </div>
+
+          {/* Erro */}
+          {importError && (
+            <div style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:10, padding:"12px 16px", color:"#b91c1c", fontSize:13 }}>
+              {importError}
+            </div>
+          )}
+
+          {/* Preview */}
+          {importRows.length > 0 && !importLoading && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {/* Resumo */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+                {[
+                  { label:"Total de lançamentos", value: importRows.length, color:"var(--dark)" },
+                  { label:"Entradas", value: `R$ ${importRows.filter(r=>r.type==="entrada").reduce((s,r)=>s+r.value,0).toLocaleString("pt-BR",{minimumFractionDigits:2})}`, color:"var(--success)" },
+                  { label:"Saídas", value: `R$ ${importRows.filter(r=>r.type==="saida").reduce((s,r)=>s+r.value,0).toLocaleString("pt-BR",{minimumFractionDigits:2})}`, color:"var(--danger)" },
+                ].map(c => (
+                  <div key={c.label} style={{ background:"var(--white)", border:"1px solid var(--sand)", borderRadius:10, padding:"12px 14px", textAlign:"center" }}>
+                    <p style={{ fontSize:11, color:"var(--taupe)", marginBottom:4 }}>{c.label}</p>
+                    <p style={{ fontSize:16, fontWeight:700, color:c.color }}>{c.value}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Tabela preview */}
+              <div style={{ maxHeight:260, overflowY:"auto", border:"1px solid var(--sand)", borderRadius:10 }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                  <thead>
+                    <tr style={{ background:"var(--beige)", position:"sticky", top:0 }}>
+                      {["Data","Descrição","Tipo","Valor","Banco"].map(h => (
+                        <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:600, color:"var(--brown)", whiteSpace:"nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importRows.slice(0,50).map((r,i) => (
+                      <tr key={i} style={{ borderTop:"1px solid var(--beige)", background: i%2===0?"var(--white)":"var(--cream)" }}>
+                        <td style={{ padding:"7px 10px", whiteSpace:"nowrap" }}>{r.date.split("-").reverse().join("/")}</td>
+                        <td style={{ padding:"7px 10px", maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.description}</td>
+                        <td style={{ padding:"7px 10px" }}>
+                          <span style={{ background: r.type==="entrada"?"#dcfce7":"#fee2e2", color: r.type==="entrada"?"#15803d":"#b91c1c", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:600 }}>
+                            {r.type==="entrada"?"Entrada":"Saída"}
+                          </span>
+                        </td>
+                        <td style={{ padding:"7px 10px", fontWeight:600, color: r.type==="entrada"?"var(--success)":"var(--danger)", whiteSpace:"nowrap" }}>
+                          R$ {r.value.toLocaleString("pt-BR",{minimumFractionDigits:2})}
+                        </td>
+                        <td style={{ padding:"7px 10px", color:"var(--taupe)", whiteSpace:"nowrap", fontSize:11 }}>{r._banco}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {importRows.length > 50 && (
+                  <p style={{ textAlign:"center", padding:"8px", color:"var(--taupe)", fontSize:12 }}>
+                    … e mais {importRows.length - 50} lançamentos
+                  </p>
+                )}
+              </div>
+              <p style={{ fontSize:12, color:"var(--taupe)", textAlign:"center" }}>
+                Todos os lançamentos serão criados com categoria <strong>Conciliação Bancária</strong> e status <strong>Confirmado</strong>.
+              </p>
+              <Btn icon="check" onClick={executeImport} style={{ width:"100%" }}>
+                Importar {importRows.length} lançamentos
+              </Btn>
+            </div>
+          )}
+
+          {/* Progresso */}
+          {importLoading && (
+            <div style={{ textAlign:"center", padding:"20px 0" }}>
+              <p style={{ fontWeight:600, marginBottom:12 }}>Importando lançamentos…</p>
+              <div style={{ background:"var(--sand)", borderRadius:100, height:10, overflow:"hidden" }}>
+                <div style={{ width:`${(importProgress.done/importProgress.total)*100}%`, background:"var(--accent)", height:"100%", borderRadius:100, transition:"width 0.3s" }} />
+              </div>
+              <p style={{ fontSize:13, color:"var(--taupe)", marginTop:8 }}>{importProgress.done} / {importProgress.total}</p>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* ══ MODAL: Nova Transação ══ */}
       <Modal open={modalOpen === "addTx"} onClose={() => setModalOpen(null)} title="Nova Transação" width={560}>
