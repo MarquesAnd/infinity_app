@@ -103,7 +103,7 @@ function calcStats(grid, conveniosConfig, profissionaisConfig, selectedMonths) {
   return { byConv, byProf, totalSessoes, totalReceita, totalCusto };
 }
 
-export default function ClinicaPage({ companyId }) {
+function ClinicaPage({ companyId }) {
   const [tab, setTab] = useState("dashboard");
   const lsKey = `clinica_cfg_v3_${companyId || "default"}`;
   const loadCfg = () => { try { const r = localStorage.getItem(lsKey); if (r) return JSON.parse(r); } catch (_) {} return null; };
@@ -426,3 +426,5 @@ export default function ClinicaPage({ companyId }) {
     </div>
   );
 }
+
+window.ClinicaPage = ClinicaPage;
