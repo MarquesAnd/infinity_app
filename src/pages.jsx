@@ -370,10 +370,17 @@ const ContasPage = ({ filter, setFilter }) => {
     return true;
   });
 
-  const tot_prev = filtered.reduce((s, c) => s + c.previsto, 0);
-  // Realizado: se pago e actual_value nao foi preenchido, usa previsto como fallback
-  const tot_real = filtered.reduce((s, c) => s + (c.pago ? (c.realizado || c.previsto) : 0), 0);
+  // Entradas e saídas separadas
+  const entradas = filtered.filter(c => c.tipo === 'receber');
+  const saidas   = filtered.filter(c => c.tipo === 'pagar');
+  const tot_prev_in  = entradas.reduce((s, c) => s + c.previsto, 0);
+  const tot_prev_out = saidas.reduce((s, c) => s + c.previsto, 0);
+  const tot_real_in  = entradas.reduce((s, c) => s + (c.pago ? (c.realizado || c.previsto) : 0), 0);
+  const tot_real_out = saidas.reduce((s, c) => s + (c.pago ? (c.realizado || c.previsto) : 0), 0);
   const tot_pend = filtered.filter(c => !c.pago).reduce((s, c) => s + c.previsto, 0);
+  // Mantém compat com código abaixo
+  const tot_prev = tot_prev_in + tot_prev_out;
+  const tot_real = tot_real_in + tot_real_out;
 
   return (
     <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -388,11 +395,13 @@ const ContasPage = ({ filter, setFilter }) => {
 
       <FilterBar filter={filter} setFilter={setFilter} />
 
-      {/* KPIs dos 3 totais */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
-        <KPI label={tab === 'todos' ? 'Total previsto' : tab === 'pagar' ? 'Total previsto (saídas)' : 'Total previsto (entradas)'} value={tot_prev} color="var(--c-secondary)" icon="pulse" />
-        <KPI label="Realizado" value={tot_real} color={tab === 'pagar' ? 'var(--c-danger)' : 'var(--c-primary)'} icon="check" />
-        <KPI label="Pendente" value={tot_pend} color="var(--c-warning)" icon="calendar" />
+      {/* KPIs: Entradas e Saídas separadas */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
+        <KPI label="Prev. Entradas" value={tot_prev_in}  color="var(--c-primary)" icon="arrow_down" />
+        <KPI label="Real. Entradas" value={tot_real_in}  color="var(--c-primary)" icon="check" />
+        <KPI label="Pendente"       value={tot_pend}     color="var(--c-warning)" icon="calendar" />
+        <KPI label="Real. Saídas"   value={tot_real_out} color="var(--c-danger)" icon="check" />
+        <KPI label="Prev. Saídas"   value={tot_prev_out} color="var(--c-danger)" icon="arrow_up" />
       </div>
 
       <TiltCard interactive={false} padding={20}>
