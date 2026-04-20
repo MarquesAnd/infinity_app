@@ -437,37 +437,6 @@ const RelatoriosPage = () => {
   );
 };
 
-const ClinicaPage = () => (
-  <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-    <PageHeader title="Clínica" subtitle="Gestão de equipe, salas e convênios" />
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 18 }}>
-      {[
-        { label: 'Consultas no mês', value: '284', trend: 12.3, icon: 'stethoscope', color: 'var(--c-primary)' },
-        { label: 'Ticket médio', value: 'R$ 387', trend: 4.1, icon: 'wallet', color: 'var(--c-secondary)' },
-        { label: 'Taxa de retorno', value: '68%', trend: -2.1, icon: 'pulse', color: 'var(--c-tertiary)' },
-        { label: 'Pacientes ativos', value: '152', trend: 8.7, icon: 'users', color: 'var(--c-violet)' },
-      ].map((k, i) => (
-        <TiltCard key={i} glowColor={k.color} padding={24}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 14,
-              background: `color-mix(in oklch, ${k.color} 16%, transparent)`,
-              color: k.color, display: 'grid', placeItems: 'center',
-            }}>
-              <Icon name={k.icon} size={20} stroke={2} />
-            </div>
-            <Pill color={k.trend >= 0 ? 'var(--c-primary)' : 'var(--c-danger)'} size="sm">
-              {k.trend >= 0 ? '↑' : '↓'} {Math.abs(k.trend)}%
-            </Pill>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--ink-mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.label}</div>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--ink)', letterSpacing: -1, marginTop: 4 }} className="mono">{k.value}</div>
-        </TiltCard>
-      ))}
-    </div>
-  </div>
-);
-
 // ─── Tweaks panel ───
 const TweaksPanel = ({ tweaks, setTweaks, visible }) => {
   if (!visible) return null;
