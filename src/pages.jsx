@@ -358,12 +358,12 @@ const ContasPage = ({ filter, setFilter }) => {
     window.addEventListener('sb-data-hydrated', h);
     return () => window.removeEventListener('sb-data-hydrated', h);
   }, []);
-  const [tab, setTab] = React.useState('pagar');
+  const [tab, setTab] = React.useState('todos'); // todos | pagar | receber
   const [status, setStatus] = React.useState('all'); // all | pago | pendente
   const [q, setQ] = React.useState('');
   const contas = window.filterContas(filter.mode === 'month' ? { month: filter.month } : { from: filter.from, to: filter.to });
   const filtered = contas.filter(c => {
-    if (c.tipo !== tab) return false;
+    if (tab !== 'todos' && c.tipo !== tab) return false;
     if (status === 'pago' && !c.pago) return false;
     if (status === 'pendente' && c.pago) return false;
     if (q && !(c.description.toLowerCase().includes(q.toLowerCase()) || c.category.toLowerCase().includes(q.toLowerCase()))) return false;
@@ -371,7 +371,8 @@ const ContasPage = ({ filter, setFilter }) => {
   });
 
   const tot_prev = filtered.reduce((s, c) => s + c.previsto, 0);
-  const tot_real = filtered.reduce((s, c) => s + c.realizado, 0);
+  // Realizado: se pago e actual_value nao foi preenchido, usa previsto como fallback
+  const tot_real = filtered.reduce((s, c) => s + (c.pago ? (c.realizado || c.previsto) : 0), 0);
   const tot_pend = filtered.filter(c => !c.pago).reduce((s, c) => s + c.previsto, 0);
 
   return (
@@ -389,15 +390,16 @@ const ContasPage = ({ filter, setFilter }) => {
 
       {/* KPIs dos 3 totais */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
-        <KPI label={tab === 'pagar' ? 'Total previsto (saídas)' : 'Total previsto (entradas)'} value={tot_prev} color="var(--c-secondary)" icon="pulse" />
+        <KPI label={tab === 'todos' ? 'Total previsto' : tab === 'pagar' ? 'Total previsto (saídas)' : 'Total previsto (entradas)'} value={tot_prev} color="var(--c-secondary)" icon="pulse" />
         <KPI label="Realizado" value={tot_real} color={tab === 'pagar' ? 'var(--c-danger)' : 'var(--c-primary)'} icon="check" />
         <KPI label="Pendente" value={tot_pend} color="var(--c-warning)" icon="calendar" />
       </div>
 
       <TiltCard interactive={false} padding={20}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Tab a pagar / a receber */}
+          {/* Tab todos / a pagar / a receber */}
           <div style={{ display: 'flex', gap: 4, background: 'var(--bg-alt)', padding: 4, borderRadius: 999, border: '1px solid var(--line)' }}>
+            <button onClick={() => setTab('todos')} style={tabBtnStyle(tab === 'todos')}>Todos</button>
             <button onClick={() => setTab('pagar')} style={tabBtnStyle(tab === 'pagar')}>A pagar</button>
             <button onClick={() => setTab('receber')} style={tabBtnStyle(tab === 'receber')}>A receber</button>
           </div>
@@ -455,7 +457,7 @@ const ContasPage = ({ filter, setFilter }) => {
                     <td style={{ padding: '14px 20px', textAlign: 'right' }} className="mono">
                       {c.pago ? (
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: tab === 'pagar' ? 'var(--c-danger)' : 'var(--c-primary)' }}>{window.fmt(c.realizado)}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: c.tipo === 'pagar' ? 'var(--c-danger)' : 'var(--c-primary)' }}>{window.fmt(c.realizado)}</div>
                           <div style={{ fontSize: 10, color: diff === 0 ? 'var(--ink-mute)' : (tab === 'pagar' ? (diff < 0 ? 'var(--c-primary)' : 'var(--c-danger)') : (diff > 0 ? 'var(--c-primary)' : 'var(--c-danger)')) }}>
                             {diff >= 0 ? '+' : ''}{window.fmtShort(diff)}
                           </div>
@@ -464,7 +466,7 @@ const ContasPage = ({ filter, setFilter }) => {
                     </td>
                     <td style={{ padding: '14px 20px' }}>
                       <Pill color={c.pago ? 'var(--c-primary)' : 'var(--c-warning)'} size="sm">
-                        {c.pago ? '✓ ' + (tab === 'pagar' ? 'Pago' : 'Recebido') : '⏳ Pendente'}
+                        {c.pago ? '✓ ' + (c.tipo === 'pagar' ? 'Pago' : 'Recebido') : '⏳ Pendente'}
                       </Pill>
                     </td>
                     <td style={{ padding: '14px 14px' }}>
