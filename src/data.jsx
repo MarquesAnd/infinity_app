@@ -240,13 +240,15 @@ function monthlyAggregates() {
 }
 
 // Saldo anterior — net cumulative balance up to (but not including) a month
+// Usa realizado de Contas (real_in - real_out) + caixa de Compras (in - out)
 function saldoAnterior(monthKeyStr) {
   let saldo = 0;
   const agg = monthlyAggregates();
   for (const m of agg) {
     if (m.key >= monthKeyStr) break;
-    // Use REALIZADO for cash position (compras são efetivas, contas realizadas também)
-    saldo += m.compras.in - m.compras.out;
+    const contasNet  = (m.contas?.real_in  || 0) - (m.contas?.real_out || 0);
+    const comprasNet = (m.compras?.in || 0) - (m.compras?.out || 0);
+    saldo += contasNet + comprasNet;
   }
   return saldo;
 }
