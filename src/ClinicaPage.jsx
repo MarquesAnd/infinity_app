@@ -1,9 +1,8 @@
 // ─── ClinicaPage.jsx — Gestão Operacional da Clínica ───────────────────────
 // v3: Modelo de pacotes + pagamento por sessão + simulador
-// Dependência: xlsx (SheetJS) — npm install xlsx
 
-import React, { useState, useCallback, useRef } from "react";
-import * as XLSX from "xlsx";
+const { useState, useCallback, useRef, useEffect, useMemo } = React;
+
 
 const brl = (v) => { const n = Number(v || 0); if (!isFinite(n)) return "R$ 0,00"; return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); };
 const pct = (v) => { const n = Number(v || 0); if (!isFinite(n)) return "0,0%"; return n.toLocaleString("pt-BR", { style: "percent", minimumFractionDigits: 1 }); };
