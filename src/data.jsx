@@ -204,7 +204,7 @@ function availableMonths() {
 
 // Filter compras by range { from, to } (YYYY-MM-DD strings) or single month (YYYY-MM)
 function filterCompras({ from, to, month }) {
-  return COMPRAS.filter(t => {
+  return (window.COMPRAS || COMPRAS).filter(t => {
     if (month) return t.date.slice(0, 7) === month;
     if (from && t.date < from) return false;
     if (to && t.date > to) return false;
@@ -212,7 +212,7 @@ function filterCompras({ from, to, month }) {
   });
 }
 function filterContas({ from, to, month }) {
-  return CONTAS.filter(c => {
+  return (window.CONTAS || CONTAS).filter(c => {
     if (month) return c.vencimento.slice(0, 7) === month;
     if (from && c.vencimento < from) return false;
     if (to && c.vencimento > to) return false;
@@ -227,11 +227,12 @@ function monthlyAggregates() {
     if (!map.has(k)) map.set(k, { key: k, label: monthLabel(k), compras: { in: 0, out: 0 }, contas: { prev_in: 0, prev_out: 0, real_in: 0, real_out: 0 } });
     return map.get(k);
   };
-  COMPRAS.forEach(t => {
+  // Sempre usa window.CONTAS/COMPRAS para refletir dados após hydrate
+  (window.COMPRAS || COMPRAS).forEach(t => {
     const m = ensure(monthKey(t.date));
     if (t.type === 'entrada') m.compras.in += t.amount; else m.compras.out += t.amount;
   });
-  CONTAS.forEach(c => {
+  (window.CONTAS || CONTAS).forEach(c => {
     const m = ensure(monthKey(c.vencimento));
     if (c.tipo === 'receber') { m.contas.prev_in += c.previsto; m.contas.real_in += c.realizado; }
     else { m.contas.prev_out += c.previsto; m.contas.real_out += c.realizado; }
