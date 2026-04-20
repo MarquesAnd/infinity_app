@@ -382,6 +382,19 @@ const ContasPage = ({ filter, setFilter }) => {
   const tot_prev = tot_prev_in + tot_prev_out;
   const tot_real = tot_real_in + tot_real_out;
 
+  // Saldo restante do mês anterior — entra como linha na tabela
+  const saldo_ant = filter.mode === 'month'
+    ? window.saldoAnterior(filter.month)
+    : (filter.from ? window.saldoAnterior(filter.from.slice(0, 7)) : 0);
+  // Mês anterior para exibir no label
+  const mesAntLabel = (() => {
+    const ref = filter.mode === 'month' ? filter.month : (filter.from || '').slice(0, 7);
+    if (!ref) return 'mês anterior';
+    const [y, m] = ref.split('-').map(Number);
+    const prev = new Date(y, m - 2, 1);
+    return (window.months || [])[prev.getMonth()] + '/' + String(prev.getFullYear()).slice(2);
+  })();
+
   return (
     <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader title="Contas"
@@ -395,13 +408,14 @@ const ContasPage = ({ filter, setFilter }) => {
 
       <FilterBar filter={filter} setFilter={setFilter} />
 
-      {/* KPIs: Entradas e Saídas separadas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
-        <KPI label="Prev. Entradas" value={tot_prev_in}  color="var(--c-primary)" icon="arrow_down" />
-        <KPI label="Real. Entradas" value={tot_real_in}  color="var(--c-primary)" icon="check" />
-        <KPI label="Pendente"       value={tot_pend}     color="var(--c-warning)" icon="calendar" />
-        <KPI label="Real. Saídas"   value={tot_real_out} color="var(--c-danger)" icon="check" />
-        <KPI label="Prev. Saídas"   value={tot_prev_out} color="var(--c-danger)" icon="arrow_up" />
+      {/* KPIs: Saldo anterior + Entradas e Saídas separadas + Saldo do período */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
+        <KPI label="Saldo anterior"  value={saldo_ant}    color="var(--c-secondary)" icon="arrow_right" subtle />
+        <KPI label="Prev. Entradas"  value={tot_prev_in}  color="var(--c-primary)" icon="arrow_down" />
+        <KPI label="Real. Entradas"  value={tot_real_in + (saldo_ant > 0 ? saldo_ant : 0)} color="var(--c-primary)" icon="check" />
+        <KPI label="Prev. Saídas"    value={tot_prev_out} color="var(--c-danger)" icon="arrow_up" />
+        <KPI label="Real. Saídas"    value={tot_real_out} color="var(--c-danger)" icon="check" />
+        <KPI label="Saldo do período" value={tot_real_in + (saldo_ant > 0 ? saldo_ant : 0) - tot_real_out} color={(tot_real_in + (saldo_ant > 0 ? saldo_ant : 0) - tot_real_out) >= 0 ? 'var(--c-primary)' : 'var(--c-danger)'} icon="wallet" emphasis />
       </div>
 
       <TiltCard interactive={false} padding={20}>
@@ -444,6 +458,31 @@ const ContasPage = ({ filter, setFilter }) => {
               </tr>
             </thead>
             <tbody>
+              {/* Linha especial: Saldo Anterior */}
+              {saldo_ant !== 0 && (tab === 'todos' || tab === 'receber') && (
+                <tr style={{ borderBottom: '2px solid var(--c-secondary)', background: 'color-mix(in oklch, var(--c-secondary) 6%, transparent)' }}>
+                  <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--ink-soft)' }} className="mono">—</td>
+                  <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 700, color: 'var(--c-secondary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, background: 'color-mix(in oklch, var(--c-secondary) 18%, transparent)', color: 'var(--c-secondary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                        <Icon name="arrow_right" size={14} stroke={2.4} />
+                      </div>
+                      Saldo anterior ({mesAntLabel})
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}><Pill color="var(--c-secondary)" size="sm">Saldo</Pill></td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right', fontSize: 13, color: 'var(--ink-mute)' }} className="mono">—</td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }} className="mono">
+                    <div style={{ fontSize: 14, fontWeight: 700, color: saldo_ant >= 0 ? 'var(--c-primary)' : 'var(--c-danger)' }}>
+                      {window.fmt(saldo_ant)}
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <Pill color="var(--c-secondary)" size="sm">✓ Transitado</Pill>
+                  </td>
+                  <td></td>
+                </tr>
+              )}
               {filtered.slice(0, 80).map((c, i) => {
                 const color = window.catColor(c.category, tab === 'pagar' ? 'saida' : 'entrada');
                 const diff = c.realizado - c.previsto;
