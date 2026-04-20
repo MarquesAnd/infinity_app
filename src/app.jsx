@@ -404,20 +404,116 @@ const Dashboard = ({ filter, setFilter }) => {
   );
 };
 
-// Relatórios (simple placeholder with tiles)
+// Relatórios — exportação real em Excel
 const RelatoriosPage = () => {
+  const [mes, setMes] = React.useState(() => window.availableMonths?.().slice(-1)[0] || '');
+  const [gerado, setGerado] = React.useState(null);
+
+  function exportXLSX(nome, dados, colunas) {
+    if (!window.XLSX) { alert('Biblioteca XLSX não carregada.'); return; }
+    const ws = window.XLSX.utils.json_to_sheet(dados);
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, ws, nome.slice(0, 31));
+    window.XLSX.writeFile(wb, nome + '.xlsx');
+    setGerado(nome);
+    setTimeout(() => setGerado(null), 3000);
+  }
+
+  function gerarDRE() {
+    const contas = (window.CONTAS||[]).filter(c => c.vencimento?.startsWith(mes));
+    const entradas = contas.filter(c => c.tipo==='receber');
+    const saidas   = contas.filter(c => c.tipo==='pagar');
+    const dados = [
+      { Categoria: '── RECEITAS ──', Previsto: '', Realizado: '', Status: '' },
+      ...entradas.map(c => ({ Categoria: c.category, Descrição: c.description, Vencimento: c.vencimento, Previsto: c.previsto, Realizado: c.realizado||0, Status: c.pago?'Recebido':'Pendente' })),
+      { Categoria: '── DESPESAS ──', Previsto: '', Realizado: '', Status: '' },
+      ...saidas.map(c => ({ Categoria: c.category, Descrição: c.description, Vencimento: c.vencimento, Previsto: c.previsto, Realizado: c.realizado||0, Status: c.pago?'Pago':'Pendente' })),
+      { Categoria: '── RESULTADO ──', Descrição: 'Líquido (Receitas - Despesas)',
+        Previsto: entradas.reduce((s,c)=>s+c.previsto,0) - saidas.reduce((s,c)=>s+c.previsto,0),
+        Realizado: entradas.reduce((s,c)=>s+(c.realizado||0),0) - saidas.reduce((s,c)=>s+(c.realizado||0),0),
+        Status: '' },
+    ];
+    exportXLSX('DRE_' + mes, dados);
+  }
+
+  function gerarFluxo() {
+    const agg = window.monthlyAggregates();
+    let saldo = 0;
+    const dados = agg.map(m => {
+      const net = (m.contas.real_in - m.contas.real_out) + (m.compras.in - m.compras.out);
+      const row = {
+        Mês: window.monthLabel(m.key),
+        'Prev. Entradas': +m.contas.prev_in.toFixed(2),
+        'Real. Entradas': +m.contas.real_in.toFixed(2),
+        'Prev. Saídas':   +m.contas.prev_out.toFixed(2),
+        'Real. Saídas':   +m.contas.real_out.toFixed(2),
+        'Saldo Anterior': +saldo.toFixed(2),
+        'Resultado':      +net.toFixed(2),
+        'Saldo Acumulado': +(saldo + net).toFixed(2),
+      };
+      saldo += net;
+      return row;
+    });
+    exportXLSX('Fluxo_de_Caixa', dados);
+  }
+
+  function gerarConvenios() {
+    const contas = (window.CONTAS||[]).filter(c => c.tipo==='receber');
+    const agrup = {};
+    contas.forEach(c => {
+      if (!agrup[c.category]) agrup[c.category] = { Convênio: c.category, Previsto: 0, Realizado: 0, Pendente: 0, Qtd: 0 };
+      agrup[c.category].Previsto  += c.previsto;
+      agrup[c.category].Realizado += c.realizado||0;
+      if (!c.pago) agrup[c.category].Pendente += c.previsto;
+      agrup[c.category].Qtd++;
+    });
+    const dados = Object.values(agrup).sort((a,b) => b.Realizado - a.Realizado)
+      .map(r => ({ ...r, Previsto: +r.Previsto.toFixed(2), Realizado: +r.Realizado.toFixed(2), Pendente: +r.Pendente.toFixed(2) }));
+    exportXLSX('Receita_por_Convenio', dados);
+  }
+
+  function gerarContas() {
+    const contas = (window.CONTAS||[]).filter(c => c.vencimento?.startsWith(mes));
+    const dados = contas.map(c => ({
+      Tipo: c.tipo==='receber'?'A Receber':'A Pagar',
+      Descrição: c.description, Categoria: c.category,
+      Vencimento: c.vencimento, Previsto: +c.previsto.toFixed(2),
+      Realizado: +(c.realizado||0).toFixed(2),
+      Status: c.pago?(c.tipo==='receber'?'Recebido':'Pago'):'Pendente',
+    }));
+    exportXLSX('Contas_' + mes, dados);
+  }
+
+  const meses = window.availableMonths?.() || [];
   const tiles = [
-    { title: 'DRE mensal', desc: 'Demonstrativo de resultados do exercício', icon: 'file', color: 'var(--c-primary)' },
-    { title: 'Fluxo de caixa', desc: 'Entradas vs saídas, projeção 90 dias', icon: 'chart', color: 'var(--c-secondary)' },
-    { title: 'Receita por convênio', desc: 'Ranking de repasses e glosas', icon: 'tag', color: 'var(--c-tertiary)' },
-    { title: 'Produtividade', desc: 'Consultas, ticket médio, ocupação', icon: 'pulse', color: 'var(--c-violet)' },
+    { title: 'DRE Mensal', desc: 'Receitas × Despesas — previsto e realizado', icon: 'file', color: 'var(--c-primary)', fn: gerarDRE, precisaMes: true },
+    { title: 'Fluxo de Caixa', desc: 'Saldo acumulado mês a mês com saldo anterior', icon: 'chart', color: 'var(--c-secondary)', fn: gerarFluxo, precisaMes: false },
+    { title: 'Receita por Convênio', desc: 'Ranking de repasses — previsto vs realizado', icon: 'tag', color: 'var(--c-tertiary)', fn: gerarConvenios, precisaMes: false },
+    { title: 'Extrato de Contas', desc: 'Todas as contas do mês selecionado', icon: 'calendar', color: 'var(--c-violet)', fn: gerarContas, precisaMes: true },
   ];
+
   return (
     <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <PageHeader title="Relatórios" subtitle="Exporte PDF ou Excel com um clique" />
+      <PageHeader title="Relatórios" subtitle="Exporte em Excel com um clique" />
+
+      {/* Seletor de mês */}
+      <TiltCard interactive={false} padding={18}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Icon name="calendar" size={18} color="var(--ink-mute)" />
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-mute)' }}>Mês de referência:</span>
+          <select value={mes} onChange={e => setMes(e.target.value)} style={{
+            background: 'var(--bg-alt)', border: '1.5px solid var(--line)', borderRadius: 10,
+            padding: '6px 12px', fontSize: 14, color: 'var(--ink)', fontFamily: 'inherit', cursor: 'pointer',
+          }}>
+            {meses.map(m => <option key={m} value={m}>{window.monthLabel(m)}</option>)}
+          </select>
+          {gerado && <Pill color="var(--c-primary)" size="sm">✓ {gerado}.xlsx baixado!</Pill>}
+        </div>
+      </TiltCard>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
         {tiles.map((t, i) => (
-          <TiltCard key={i} glowColor={t.color} padding={24} onClick={() => {}}>
+          <TiltCard key={i} glowColor={t.color} padding={24} onClick={t.fn} style={{ cursor: 'pointer' }}>
             <div style={{
               width: 48, height: 48, borderRadius: 16,
               background: `color-mix(in oklch, ${t.color} 16%, transparent)`,
@@ -427,8 +523,9 @@ const RelatoriosPage = () => {
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)' }}>{t.title}</h3>
             <p style={{ fontSize: 13, color: 'var(--ink-mute)', marginTop: 6, lineHeight: 1.5 }}>{t.desc}</p>
+            {t.precisaMes && <p style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 4 }}>Mês: {window.monthLabel?.(mes)}</p>}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 14, fontSize: 13, fontWeight: 600, color: t.color }}>
-              Gerar relatório <Icon name="arrow_right" size={14} stroke={2.4} />
+              Baixar Excel <Icon name="arrow_right" size={14} stroke={2.4} />
             </div>
           </TiltCard>
         ))}

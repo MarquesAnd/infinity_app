@@ -402,7 +402,7 @@ const ContasPage = ({ filter, setFilter }) => {
         action={
           <div style={{ display: 'flex', gap: 10 }}>
             <ExcelImporter target="contas" />
-            <Btn variant="primary" icon="plus">Nova conta</Btn>
+            <Btn variant="primary" icon="plus" onClick={() => setEditing({tipo:'pagar', pago:false, previsto:0, realizado:0})}>Nova conta</Btn>
           </div>
         } />
 
@@ -569,7 +569,7 @@ const ComprasPage = ({ filter, setFilter }) => {
         action={
           <div style={{ display: 'flex', gap: 10 }}>
             <ExcelImporter onImport={() => tick()} />
-            <Btn variant="primary" icon="plus">Nova compra</Btn>
+            <Btn variant="primary" icon="plus" onClick={() => setEditing({type:'saida', amount:0})}>Nova compra</Btn>
           </div>
         } />
 
