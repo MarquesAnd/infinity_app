@@ -288,6 +288,29 @@ async function parseExcel(file) {
   }).filter(r => r.amount > 0);
 }
 
+async function updateCompraLocal(id, patch) {
+  COMPRAS = COMPRAS.map(c => c.id === id ? { ...c, ...patch, color: window.catColor(patch.category || c.category, patch.type || c.type) } : c);
+  window.COMPRAS = COMPRAS;
+  try {
+    const s = window.getSession?.();
+    if (s && !String(id).startsWith('imp-') && !String(id).startsWith('mock-')) {
+      await window.updateCompra(id, patch);
+    }
+  } catch (e) { console.warn('updateCompra', e); }
+  window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
+}
+async function deleteCompraLocal(id) {
+  COMPRAS = COMPRAS.filter(c => c.id !== id);
+  window.COMPRAS = COMPRAS;
+  try {
+    const s = window.getSession?.();
+    if (s && !String(id).startsWith('imp-') && !String(id).startsWith('mock-')) {
+      await window.deleteCompra(id);
+    }
+  } catch (e) { console.warn('deleteCompra', e); }
+  window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
+}
+
 async function addCompras(rows) {
   COMPRAS = [...rows, ...COMPRAS].sort((a, b) => b.date.localeCompare(a.date));
   window.COMPRAS = COMPRAS;
@@ -347,6 +370,29 @@ async function parseExcelContas(file) {
   }).filter(r => r.previsto > 0);
 }
 
+async function updateContaLocal(id, patch) {
+  CONTAS = CONTAS.map(c => c.id === id ? { ...c, ...patch } : c);
+  window.CONTAS = CONTAS;
+  try {
+    const s = window.getSession?.();
+    if (s && !String(id).startsWith('imp-') && !String(id).startsWith('mock-')) {
+      await window.updateConta(id, patch);
+    }
+  } catch (e) { console.warn('updateConta', e); }
+  window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
+}
+async function deleteContaLocal(id) {
+  CONTAS = CONTAS.filter(c => c.id !== id);
+  window.CONTAS = CONTAS;
+  try {
+    const s = window.getSession?.();
+    if (s && !String(id).startsWith('imp-') && !String(id).startsWith('mock-')) {
+      await window.deleteConta(id);
+    }
+  } catch (e) { console.warn('deleteConta', e); }
+  window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
+}
+
 async function addContas(rows) {
   CONTAS = [...rows, ...CONTAS];
   window.CONTAS = CONTAS;
@@ -383,4 +429,5 @@ Object.assign(window, {
   filterCompras, filterContas, monthlyAggregates, saldoAnterior,
   parseExcel, addCompras, parseExcelContas, addContas, catColor,
   hydrateFromSupabase,
+  updateCompraLocal, deleteCompraLocal, updateContaLocal, deleteContaLocal,
 });

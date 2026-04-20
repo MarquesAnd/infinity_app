@@ -210,8 +210,154 @@ const toastStyle = (c) => ({
   animation: 'slideUp 0.4s cubic-bezier(.22,1,.36,1) both',
 });
 
+// ─── MODAL DE EDIÇÃO (Conta ou Compra) ─────────────────────────
+const EditModal = ({ kind, record, onClose, onSaved }) => {
+  const isConta = kind === 'conta';
+  const [form, setForm] = React.useState(() => ({ ...record }));
+  const [saving, setSaving] = React.useState(false);
+  const [err, setErr] = React.useState('');
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const save = async (e) => {
+    e?.preventDefault();
+    setSaving(true); setErr('');
+    try {
+      if (isConta) await window.updateContaLocal(record.id, form);
+      else await window.updateCompraLocal(record.id, form);
+      onSaved?.();
+      onClose();
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1600,
+      background: 'oklch(0.18 0.02 265 / 0.55)', backdropFilter: 'blur(6px)',
+      display: 'grid', placeItems: 'center', padding: 30,
+      animation: 'fadeIn 0.2s ease both',
+    }} onClick={onClose}>
+      <form onSubmit={save} onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--surface)', borderRadius: 'var(--r-lg)', padding: 28, width: 'min(520px, 100%)',
+        boxShadow: 'var(--shadow-lg)', border: '1px solid var(--line)',
+        display: 'flex', flexDirection: 'column', gap: 14,
+        animation: 'popIn 0.3s cubic-bezier(.22,1,.36,1) both',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5 }}>Editar {isConta ? 'conta' : 'compra'}</h3>
+            <p style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 4 }} className="mono">#{String(record.id).slice(0, 8)}</p>
+          </div>
+          <button type="button" onClick={onClose} style={{ ...navBtn, width: 34, height: 34 }}>
+            <Icon name="x" size={15} stroke={2.4} />
+          </button>
+        </div>
+
+        {isConta ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormField label="Tipo">
+              <select value={form.tipo} onChange={(e) => set('tipo', e.target.value)} style={editInput}>
+                <option value="pagar">A pagar (saída)</option>
+                <option value="receber">A receber (entrada)</option>
+              </select>
+            </FormField>
+            <FormField label="Vencimento">
+              <input type="date" value={form.vencimento || ''} onChange={(e) => set('vencimento', e.target.value)} style={editInput} />
+            </FormField>
+            <div style={{ gridColumn: 'span 2' }}>
+              <FormField label="Descrição">
+                <input value={form.description || ''} onChange={(e) => set('description', e.target.value)} style={editInput} required />
+              </FormField>
+            </div>
+            <FormField label="Categoria">
+              <input value={form.category || ''} onChange={(e) => set('category', e.target.value)} style={editInput} />
+            </FormField>
+            <FormField label="Valor previsto">
+              <input type="number" step="0.01" value={form.previsto || 0} onChange={(e) => set('previsto', parseFloat(e.target.value))} style={editInput} />
+            </FormField>
+            <FormField label="Valor realizado">
+              <input type="number" step="0.01" value={form.realizado || 0} onChange={(e) => set('realizado', parseFloat(e.target.value))} style={editInput} />
+            </FormField>
+            <FormField label="Status">
+              <select value={form.pago ? 'pago' : 'pendente'} onChange={(e) => set('pago', e.target.value === 'pago')} style={editInput}>
+                <option value="pendente">Pendente</option>
+                <option value="pago">{form.tipo === 'receber' ? 'Recebido' : 'Pago'}</option>
+              </select>
+            </FormField>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormField label="Tipo">
+              <select value={form.type} onChange={(e) => set('type', e.target.value)} style={editInput}>
+                <option value="entrada">Entrada</option>
+                <option value="saida">Saída</option>
+              </select>
+            </FormField>
+            <FormField label="Data">
+              <input type="date" value={form.date || ''} onChange={(e) => set('date', e.target.value)} style={editInput} />
+            </FormField>
+            <div style={{ gridColumn: 'span 2' }}>
+              <FormField label="Descrição">
+                <input value={form.description || ''} onChange={(e) => set('description', e.target.value)} style={editInput} required />
+              </FormField>
+            </div>
+            <FormField label="Categoria / Fornecedor">
+              <input value={form.category || ''} onChange={(e) => set('category', e.target.value)} style={editInput} />
+            </FormField>
+            <FormField label="Valor">
+              <input type="number" step="0.01" value={form.amount || 0} onChange={(e) => set('amount', parseFloat(e.target.value))} style={editInput} />
+            </FormField>
+            <div style={{ gridColumn: 'span 2' }}>
+              <FormField label="Método">
+                <input value={form.paymentMethod || ''} onChange={(e) => set('paymentMethod', e.target.value)} style={editInput} />
+              </FormField>
+            </div>
+          </div>
+        )}
+
+        {err && <div style={{ fontSize: 13, color: 'var(--c-danger)', fontWeight: 500 }}>⚠ {err}</div>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+          <Btn variant="secondary" onClick={onClose} type="button">Cancelar</Btn>
+          <Btn variant="primary" icon="check" type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Salvar alterações'}</Btn>
+        </div>
+      </form>
+    </div>
+  );
+};
+const editInput = {
+  width: '100%', padding: '10px 14px', borderRadius: 10,
+  border: '1.5px solid var(--line)', background: 'var(--bg-alt)',
+  fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none',
+};
+
+const RowActions = ({ onEdit, onDelete }) => (
+  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
+    <button onClick={onEdit} title="Editar" style={rowActionBtn('var(--c-secondary)')}>
+      <Icon name="edit" size={14} stroke={2.2} />
+    </button>
+    <button onClick={onDelete} title="Excluir" style={rowActionBtn('var(--c-danger)')}>
+      <Icon name="trash" size={14} stroke={2.2} />
+    </button>
+  </div>
+);
+const rowActionBtn = (color) => ({
+  width: 30, height: 30, borderRadius: 9,
+  background: `color-mix(in oklch, ${color} 10%, transparent)`,
+  color, display: 'grid', placeItems: 'center',
+  transition: 'all 0.2s',
+});
+
 // ─── PÁGINA CONTAS (a pagar / a receber — previsto × realizado) ──────
 const ContasPage = ({ filter, setFilter }) => {
+  const [editing, setEditing] = React.useState(null);
+  const [, tick] = React.useReducer(x => x + 1, 0);
+  React.useEffect(() => {
+    const h = () => tick();
+    window.addEventListener('sb-data-hydrated', h);
+    return () => window.removeEventListener('sb-data-hydrated', h);
+  }, []);
   const [tab, setTab] = React.useState('pagar');
   const [status, setStatus] = React.useState('all'); // all | pago | pendente
   const [q, setQ] = React.useState('');
@@ -277,9 +423,9 @@ const ContasPage = ({ filter, setFilter }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
               <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                {['Vencimento', 'Descrição', 'Categoria', 'Previsto', 'Realizado', 'Status'].map((h, i) => (
-                  <th key={h} style={{
-                    textAlign: i === 3 || i === 4 ? 'right' : 'left',
+                {['Vencimento', 'Descrição', 'Categoria', 'Previsto', 'Realizado', 'Status', ''].map((h, i) => (
+                  <th key={i + h} style={{
+                    textAlign: i === 3 || i === 4 ? 'right' : (i === 6 ? 'right' : 'left'),
                     padding: '14px 20px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
                     color: 'var(--ink-mute)', textTransform: 'uppercase',
                   }}>{h}</th>
@@ -321,6 +467,12 @@ const ContasPage = ({ filter, setFilter }) => {
                         {c.pago ? '✓ ' + (tab === 'pagar' ? 'Pago' : 'Recebido') : '⏳ Pendente'}
                       </Pill>
                     </td>
+                    <td style={{ padding: '14px 14px' }}>
+                      <RowActions
+                        onEdit={() => setEditing(c)}
+                        onDelete={() => { if (confirm(`Excluir "${c.description}"?`)) window.deleteContaLocal(c.id); }}
+                      />
+                    </td>
                   </tr>
                 );
               })}
@@ -331,15 +483,22 @@ const ContasPage = ({ filter, setFilter }) => {
           )}
         </div>
       </TiltCard>
+      {editing && <EditModal kind="conta" record={editing} onClose={() => setEditing(null)} onSaved={() => tick()} />}
     </div>
   );
 };
 
 // ─── PÁGINA COMPRAS (caixa efetivo — lançamentos) ─────────────────
 const ComprasPage = ({ filter, setFilter }) => {
+  const [editing, setEditing] = React.useState(null);
   const [filterType, setFilterType] = React.useState('all');
   const [q, setQ] = React.useState('');
-  const [, tick] = React.useReducer(x => x + 1, 0); // re-render após import
+  const [, tick] = React.useReducer(x => x + 1, 0); // re-render após import/edit
+  React.useEffect(() => {
+    const h = () => tick();
+    window.addEventListener('sb-data-hydrated', h);
+    return () => window.removeEventListener('sb-data-hydrated', h);
+  }, []);
   const compras = window.filterCompras(filter.mode === 'month' ? { month: filter.month } : { from: filter.from, to: filter.to });
 
   const filtered = compras.filter(t => {
@@ -397,9 +556,9 @@ const ComprasPage = ({ filter, setFilter }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
               <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                {['Data', 'Descrição', 'Categoria', 'Método', 'Valor'].map((h, i) => (
-                  <th key={h} style={{
-                    textAlign: i === 4 ? 'right' : 'left',
+                {['Data', 'Descrição', 'Categoria', 'Método', 'Valor', ''].map((h, i) => (
+                  <th key={i + h} style={{
+                    textAlign: i === 4 ? 'right' : (i === 5 ? 'right' : 'left'),
                     padding: '14px 22px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
                     color: 'var(--ink-mute)', textTransform: 'uppercase',
                   }}>{h}</th>
@@ -428,6 +587,12 @@ const ComprasPage = ({ filter, setFilter }) => {
                       {t.type === 'entrada' ? '+' : '−'} {window.fmt(t.amount)}
                     </span>
                   </td>
+                  <td style={{ padding: '14px 14px' }}>
+                    <RowActions
+                      onEdit={() => setEditing(t)}
+                      onDelete={() => { if (confirm(`Excluir "${t.description}"?`)) window.deleteCompraLocal(t.id); }}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -437,6 +602,7 @@ const ComprasPage = ({ filter, setFilter }) => {
           )}
         </div>
       </TiltCard>
+      {editing && <EditModal kind="compra" record={editing} onClose={() => setEditing(null)} onSaved={() => tick()} />}
     </div>
   );
 };

@@ -1,16 +1,171 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/infinity_app/favicon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/infinity_app/apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#3D3229" />
-    <meta name="description" content="Infinity — Gestão Financeira Inteligente" />
-    <title>Infinity App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Infinity — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Accents — shared chroma 0.18, varying hue */
+    --c-primary: oklch(0.72 0.18 165);      /* verde vivo */
+    --c-primary-soft: oklch(0.92 0.08 165);
+    --c-secondary: oklch(0.68 0.20 255);    /* azul elétrico */
+    --c-secondary-soft: oklch(0.92 0.08 255);
+    --c-tertiary: oklch(0.75 0.18 45);      /* laranja vitamina */
+    --c-tertiary-soft: oklch(0.94 0.08 45);
+    --c-danger: oklch(0.68 0.22 20);
+    --c-danger-soft: oklch(0.94 0.08 20);
+    --c-warning: oklch(0.82 0.17 95);
+    --c-violet: oklch(0.68 0.20 305);
+    --c-violet-soft: oklch(0.94 0.08 305);
+    --c-pink: oklch(0.72 0.19 345);
+
+    /* Light theme */
+    --bg: oklch(0.985 0.005 100);
+    --bg-alt: oklch(0.97 0.008 95);
+    --surface: #ffffff;
+    --surface-2: oklch(0.98 0.006 100);
+    --ink: oklch(0.18 0.02 265);
+    --ink-soft: oklch(0.42 0.02 265);
+    --ink-mute: oklch(0.62 0.015 265);
+    --line: oklch(0.92 0.008 260);
+    --line-strong: oklch(0.86 0.01 260);
+    --shadow-sm: 0 1px 2px oklch(0.2 0.02 260 / 0.05), 0 2px 8px oklch(0.2 0.02 260 / 0.04);
+    --shadow-md: 0 4px 16px oklch(0.2 0.02 260 / 0.06), 0 12px 32px oklch(0.2 0.02 260 / 0.06);
+    --shadow-lg: 0 8px 24px oklch(0.2 0.02 260 / 0.08), 0 24px 60px oklch(0.2 0.02 260 / 0.10);
+    --glow-primary: 0 0 0 1px oklch(0.72 0.18 165 / 0.2), 0 10px 40px oklch(0.72 0.18 165 / 0.25);
+
+    /* radii */
+    --r-lg: 34px;
+    --r-md: 22px;
+    --r-sm: 14px;
+    --r-xs: 10px;
+
+    color-scheme: light;
+  }
+
+  [data-theme="dark"] {
+    --bg: oklch(0.16 0.02 265);
+    --bg-alt: oklch(0.19 0.025 265);
+    --surface: oklch(0.22 0.03 265);
+    --surface-2: oklch(0.25 0.035 265);
+    --ink: oklch(0.97 0.01 260);
+    --ink-soft: oklch(0.78 0.02 260);
+    --ink-mute: oklch(0.6 0.025 260);
+    --line: oklch(0.3 0.03 265);
+    --line-strong: oklch(0.36 0.035 265);
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35), 0 2px 8px oklch(0 0 0 / 0.25);
+    --shadow-md: 0 4px 16px oklch(0 0 0 / 0.35), 0 12px 32px oklch(0 0 0 / 0.3);
+    --shadow-lg: 0 8px 24px oklch(0 0 0 / 0.4), 0 24px 60px oklch(0 0 0 / 0.45);
+    --glow-primary: 0 0 0 1px oklch(0.72 0.18 165 / 0.3), 0 10px 50px oklch(0.72 0.18 165 / 0.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "ss01", "ss02";
+    transition: background 0.5s ease, color 0.5s ease;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Living background blobs */
+  .bg-scene {
+    position: fixed; inset: 0; z-index: 0;
+    overflow: hidden; pointer-events: none;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.55;
+    animation: blobFloat 22s ease-in-out infinite;
+    will-change: transform;
+  }
+  [data-theme="dark"] .blob { opacity: 0.35; }
+  .blob.b1 { width: 520px; height: 520px; background: var(--c-primary); top: -100px; left: -80px; }
+  .blob.b2 { width: 460px; height: 460px; background: var(--c-secondary); bottom: -120px; right: -60px; animation-delay: -7s; animation-duration: 26s; }
+  .blob.b3 { width: 360px; height: 360px; background: var(--c-tertiary); top: 40%; left: 45%; animation-delay: -12s; animation-duration: 30s; opacity: 0.35; }
+  [data-theme="dark"] .blob.b3 { opacity: 0.25; }
+  @keyframes blobFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(60px, -40px) scale(1.08); }
+    66% { transform: translate(-40px, 50px) scale(0.94); }
+  }
+
+  /* Grid lines overlay */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+    opacity: 0.35;
+  }
+
+  #root { position: relative; z-index: 1; height: 100vh; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 10px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--ink-mute); }
+
+  /* Focus */
+  :focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; border-radius: var(--r-xs); }
+
+  /* Utility animations */
+  /* Animations animate transform only — never gate visibility on opacity */
+  @keyframes slideUp { from { transform: translateY(16px); } to { transform: none; } }
+  @keyframes fadeIn { from { transform: translateY(4px); } to { transform: none; } }
+  @keyframes popIn { from { transform: scale(0.94); } to { transform: none; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 currentColor; } 100% { box-shadow: 0 0 0 12px transparent; } }
+
+  .anim-slide { animation: slideUp 0.6s cubic-bezier(.22,1,.36,1) both; }
+  .anim-fade { animation: fadeIn 0.5s ease both; }
+  .anim-pop { animation: popIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+</style>
+</head>
+<body data-theme="light">
+  <div class="bg-scene">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+  </div>
+  <div class="bg-grid"></div>
+
+  <div id="root"></div>
+
+  <!-- XLSX (for Excel import) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- React -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- Component scripts (babel) -->
+  <script type="text/babel" src="src/supabase.jsx"></script>
+  <script type="text/babel" src="src/data.jsx"></script>
+  <script type="text/babel" src="src/ui.jsx"></script>
+  <script type="text/babel" src="src/charts.jsx"></script>
+  <script type="text/babel" src="src/widgets.jsx"></script>
+  <script type="text/babel" src="src/pages.jsx"></script>
+  <script type="text/babel" src="src/auth.jsx"></script>
+  <script type="text/babel" src="src/app.jsx"></script>
+</body>
 </html>

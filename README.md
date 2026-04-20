@@ -1,22 +1,48 @@
-# CODING AGENTS: READ THIS FIRST
+# Infinity — Sistema financeiro para clínicas
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+Aplicação single-page em React (via Babel in-browser) + Supabase.
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+## Publicar no GitHub Pages
 
-## What you should do — IMPORTANT
+1. Faça commit de todos os arquivos deste projeto no seu repo `infinity_app`:
+   ```
+   index.html
+   src/
+     app.jsx
+     auth.jsx
+     charts.jsx
+     data.jsx
+     pages.jsx
+     supabase.jsx
+     ui.jsx
+     widgets.jsx
+   ```
+2. Em **Settings → Pages**, defina a fonte como `main` branch, pasta `/ (root)`.
+3. Acesse https://marquesand.github.io/infinity_app/ — a página carrega `index.html` direto.
 
-**Read `infinity/project/Infinity Dashboard.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+## Nota sobre Supabase Auth
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+Como a aplicação usa **Supabase Auth**, o domínio `https://marquesand.github.io` precisa estar autorizado:
 
-## About the design files
+- No painel do Supabase: **Authentication → URL Configuration**
+  - `Site URL`: `https://marquesand.github.io/infinity_app/`
+  - `Redirect URLs`: adicione `https://marquesand.github.io/infinity_app/**`
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+## Desenvolvimento local
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+Basta abrir `index.html` direto no navegador, ou rodar um servidor simples:
+```bash
+python3 -m http.server 8000
+# abra http://localhost:8000
+```
 
-## Bundle contents
+## Estrutura
 
-- `infinity/README.md` — this file
-- `infinity/project/` — the `infinity` project files (HTML prototypes, assets, components)
+- `src/supabase.jsx` — cliente e wrappers CRUD
+- `src/data.jsx` — lógica de dados + fallback mock
+- `src/auth.jsx` — tela de login, Perfil, Equipe
+- `src/pages.jsx` — Contas, Compras, Agenda, etc
+- `src/widgets.jsx` — cards do dashboard
+- `src/charts.jsx` — gráficos
+- `src/ui.jsx` — primitivos (botões, ícones, cards)
+- `src/app.jsx` — shell (sidebar, topbar, router)

@@ -222,6 +222,41 @@ async function createCompra(c, companyId, userId) {
   return sbRest('/purchases', { method: 'POST', body: JSON.stringify(compraToRow(c, companyId, userId)), prefer: 'return=representation' });
 }
 
+async function updateConta(id, patch) {
+  const body = {};
+  if (patch.description !== undefined) body.description = patch.description;
+  if (patch.category !== undefined) body.category = patch.category;
+  if (patch.tipo !== undefined) body.type = patch.tipo === 'receber' ? 'entrada' : 'saida';
+  if (patch.previsto !== undefined) body.value = patch.previsto;
+  if (patch.realizado !== undefined) body.actual_value = patch.realizado || null;
+  if (patch.vencimento !== undefined) body.date = patch.vencimento;
+  if (patch.pago !== undefined) {
+    body.status = patch.pago ? (patch.tipo === 'receber' || (body.type === 'entrada') ? 'recebido' : 'pago') : 'pendente';
+    body.settled_at = patch.pago ? (patch.pagoEm || new Date().toISOString().slice(0,10)) : null;
+  }
+  return sbRest(`/transactions?id=eq.${id}`, {
+    method: 'PATCH', body: JSON.stringify(body), prefer: 'return=representation',
+  });
+}
+async function deleteConta(id) {
+  return sbRest(`/transactions?id=eq.${id}`, { method: 'DELETE' });
+}
+
+async function updateCompra(id, patch) {
+  const body = {};
+  if (patch.description !== undefined) body.item = patch.description;
+  if (patch.category !== undefined) body.supplier = patch.category;
+  if (patch.amount !== undefined) { body.total = patch.amount; body.unit_price = patch.amount; }
+  if (patch.date !== undefined) body.date = patch.date;
+  if (patch.paymentMethod !== undefined) body.status = patch.paymentMethod === 'Em trânsito' ? 'em_transito' : 'entregue';
+  return sbRest(`/purchases?id=eq.${id}`, {
+    method: 'PATCH', body: JSON.stringify(body), prefer: 'return=representation',
+  });
+}
+async function deleteCompra(id) {
+  return sbRest(`/purchases?id=eq.${id}`, { method: 'DELETE' });
+}
+
 // ---- Categories ----
 async function fetchCategories(companyId) {
   return sbRest(`/categories?company_id=eq.${companyId}&is_active=eq.true&select=*&order=name.asc`);
@@ -261,8 +296,8 @@ Object.assign(window, {
   SUPABASE_URL, SUPABASE_ANON_KEY,
   getSession, setSession, signIn, signUp, signOut, updatePassword, getMe,
   getProfile, updateProfile, listTeam, inviteMember, updateMemberRole, removeMember,
-  fetchContas, createConta, markContaPaga, rowToConta, contaToRow,
-  fetchCompras, createCompra, rowToCompra, compraToRow,
+  fetchContas, createConta, updateConta, deleteConta, markContaPaga, rowToConta, contaToRow,
+  fetchCompras, createCompra, updateCompra, deleteCompra, rowToCompra, compraToRow,
   fetchCategories, fetchAuditLog, logAction,
   ROLE_ACCESS, canAccess,
 });
