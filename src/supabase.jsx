@@ -120,40 +120,20 @@ async function listTeam(companyId) {
   return sbRest(`/profiles?company_id=eq.${companyId}&select=*&order=created_at.asc`);
 }
 async function inviteMember(email, role, companyId) {
-  // Passo 1: buscar o UUID do usuário pelo email via tabela profiles
-  // (o trigger handle_new_user cria o profile no signup, mesmo sem company_id)
-  const profileRows = await sbRest(`/profiles?email=eq.${encodeURIComponent(email)}&select=id,company_id`);
-
-  if (!profileRows || profileRows.length === 0) {
-    throw new Error('Usuário não encontrado. Peça para ele se cadastrar primeiro em ' + window.location.origin);
-  }
-
-  const targetProfile = profileRows[0];
-
-  // Passo 2: pegar o company_id do admin logado
-  const me = await getMe();
-  if (!me?.id) throw new Error('Sessão inválida');
-  const myProfileRows = await sbRest(`/profiles?id=eq.${me.id}&select=company_id`);
-  const myCompanyId = myProfileRows?.[0]?.company_id;
-  if (!myCompanyId) throw new Error('Seu perfil não tem empresa associada');
-
-  // Passo 3: verificar se já pertence a outra empresa
-  if (targetProfile.company_id && targetProfile.company_id !== myCompanyId) {
-    throw new Error('Este usuário já pertence a outra empresa');
-  }
-
-  // Passo 4: atualizar o profile com company_id e role corretos
-  const updated = await sbRest(`/profiles?id=eq.${targetProfile.id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ company_id: myCompanyId, role }),
-    prefer: 'return=representation',
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/invite_member_by_email`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${getSession()?.access_token || SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_email: email, p_role: role }),
   });
-
-  if (!updated || updated.length === 0) {
-    throw new Error('Não foi possível atualizar o perfil. Verifique as permissões RLS.');
-  }
-
-  return { email, role, status: 'linked', user_id: targetProfile.id };
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.message || data?.hint || JSON.stringify(data));
+  if (data?.error) throw new Error(data.msg || data.error);
+  if (data?.success) return { email, role, status: 'linked', user_id: data.user_id };
+  throw new Error(JSON.stringify(data));
 }
 async function updateMemberRole(userId, role) {
   return sbRest(`/profiles?id=eq.${userId}`, {
