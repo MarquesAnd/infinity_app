@@ -386,9 +386,150 @@ const rowActionBtn = (color) => ({
   transition: 'all 0.2s',
 });
 
+// ─── MODAL CONFIRMAR PAGAMENTO ────────────────────────────────────────────
+const ConfirmarPagamentoModal = ({ conta, onClose, onSaved }) => {
+  const isReceber = conta.tipo === 'receber';
+  const [valorReal, setValorReal] = React.useState(conta.previsto || 0);
+  const [dataReal, setDataReal] = React.useState(new Date().toISOString().slice(0, 10));
+  const [saving, setSaving] = React.useState(false);
+  const [err, setErr] = React.useState('');
+
+  const confirmar = async (e) => {
+    e?.preventDefault();
+    setSaving(true); setErr('');
+    try {
+      const patch = {
+        pago: true,
+        realizado: Number(valorReal),
+        pagoEm: dataReal,
+      };
+      await window.updateContaLocal(conta.id, patch);
+      onSaved?.();
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const diff = Number(valorReal) - conta.previsto;
+  const diffColor = isReceber
+    ? (diff >= 0 ? 'var(--c-primary)' : 'var(--c-danger)')
+    : (diff <= 0 ? 'var(--c-primary)' : 'var(--c-danger)');
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1600,
+      background: 'oklch(0.18 0.02 265 / 0.55)', backdropFilter: 'blur(6px)',
+      display: 'grid', placeItems: 'center', padding: 30,
+      animation: 'fadeIn 0.2s ease both',
+    }} onClick={onClose}>
+      <form onSubmit={confirmar} onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--surface)', borderRadius: 'var(--r-lg)', padding: 32,
+        width: 'min(480px, 100%)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--line)',
+        display: 'flex', flexDirection: 'column', gap: 20,
+        animation: 'popIn 0.3s cubic-bezier(.22,1,.36,1) both',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <div style={{
+              width: 46, height: 46, borderRadius: 14,
+              background: isReceber ? 'color-mix(in oklch, var(--c-primary) 15%, transparent)' : 'color-mix(in oklch, var(--c-warning) 15%, transparent)',
+              color: isReceber ? 'var(--c-primary)' : 'var(--c-warning)',
+              display: 'grid', placeItems: 'center',
+            }}>
+              <Icon name="check" size={22} stroke={2.5} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.4 }}>
+                Confirmar {isReceber ? 'recebimento' : 'pagamento'}
+              </h3>
+              <p style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 2 }}>{conta.description}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'var(--bg-alt)', border: '1px solid var(--line)',
+            display: 'grid', placeItems: 'center', color: 'var(--ink-soft)', cursor: 'pointer',
+          }}>
+            <Icon name="x" size={15} stroke={2.4} />
+          </button>
+        </div>
+
+        {/* Info da conta */}
+        <div style={{
+          padding: '14px 18px', borderRadius: 'var(--r-sm)',
+          background: 'var(--bg-alt)', border: '1px solid var(--line)',
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-mute)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Categoria</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginTop: 4 }}>{conta.category}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-mute)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Vencimento</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginTop: 4 }}>{window.fmtDate(conta.vencimento)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-mute)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Valor previsto</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginTop: 4 }} className="mono">{window.fmt(conta.previsto)}</div>
+          </div>
+          {diff !== 0 && Number(valorReal) > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-mute)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diferença</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: diffColor, marginTop: 4 }} className="mono">
+                {diff > 0 ? '+' : ''}{window.fmt(diff)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Inputs */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <FormField label={isReceber ? 'Valor recebido (R$)' : 'Valor pago (R$)'}>
+            <input
+              type="number" step="0.01" min="0"
+              value={valorReal}
+              onChange={(e) => setValorReal(e.target.value)}
+              autoFocus
+              style={{
+                width: '100%', padding: '12px 16px', borderRadius: 12,
+                border: '1.5px solid var(--c-primary)', background: 'var(--bg-alt)',
+                fontSize: 18, fontWeight: 700, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none',
+                textAlign: 'right',
+              }}
+            />
+          </FormField>
+          <FormField label="Data de liquidação">
+            <input
+              type="date"
+              value={dataReal}
+              onChange={(e) => setDataReal(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 12,
+                border: '1.5px solid var(--line)', background: 'var(--bg-alt)',
+                fontSize: 14, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none',
+              }}
+            />
+          </FormField>
+        </div>
+
+        {err && <div style={{ fontSize: 13, color: 'var(--c-danger)', fontWeight: 500 }}>⚠ {err}</div>}
+
+        {/* Botões */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+          <Btn variant="secondary" onClick={onClose} type="button">Cancelar</Btn>
+          <Btn variant="primary" icon="check" type="submit" disabled={saving || !valorReal}>
+            {saving ? 'Salvando…' : isReceber ? '✓ Confirmar recebimento' : '✓ Confirmar pagamento'}
+          </Btn>
+        </div>
+      </form>
+    </div>
+  );
+};
+
 // ─── PÁGINA CONTAS (a pagar / a receber — previsto × realizado) ──────
 const ContasPage = ({ filter, setFilter }) => {
   const [editing, setEditing] = React.useState(null);
+  const [confirmando, setConfirmando] = React.useState(null); // conta sendo confirmada
   const [, tick] = React.useReducer(x => x + 1, 0);
   React.useEffect(() => {
     const h = () => tick();
@@ -555,10 +696,30 @@ const ContasPage = ({ filter, setFilter }) => {
                       </Pill>
                     </td>
                     <td style={{ padding: '14px 14px' }}>
-                      <RowActions
-                        onEdit={() => setEditing(c)}
-                        onDelete={() => { if (confirm(`Excluir "${c.description}"?`)) window.deleteContaLocal(c.id); }}
-                      />
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        {/* Botão confirmar pagamento — só para pendentes */}
+                        {!c.pago && (
+                          <button
+                            onClick={() => setConfirmando(c)}
+                            title={c.tipo === 'receber' ? 'Confirmar recebimento' : 'Confirmar pagamento'}
+                            style={{
+                              width: 30, height: 30, borderRadius: 9,
+                              background: 'color-mix(in oklch, var(--c-primary) 12%, transparent)',
+                              color: 'var(--c-primary)',
+                              display: 'grid', placeItems: 'center',
+                              transition: 'all 0.2s', border: 'none', cursor: 'pointer',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in oklch, var(--c-primary) 22%, transparent)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'color-mix(in oklch, var(--c-primary) 12%, transparent)'}
+                          >
+                            <Icon name="check" size={14} stroke={2.5} />
+                          </button>
+                        )}
+                        <RowActions
+                          onEdit={() => setEditing(c)}
+                          onDelete={() => { if (confirm(`Excluir "${c.description}"?`)) window.deleteContaLocal(c.id); }}
+                        />
+                      </div>
                     </td>
                   </tr>
                 );
@@ -571,6 +732,7 @@ const ContasPage = ({ filter, setFilter }) => {
         </div>
       </TiltCard>
       {editing && <EditModal kind="conta" record={editing} onClose={() => setEditing(null)} onSaved={() => tick()} />}
+      {confirmando && <ConfirmarPagamentoModal conta={confirmando} onClose={() => setConfirmando(null)} onSaved={() => { setConfirmando(null); tick(); }} />}
     </div>
   );
 };
