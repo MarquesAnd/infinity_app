@@ -120,20 +120,23 @@ async function listTeam(companyId) {
   return sbRest(`/profiles?company_id=eq.${companyId}&select=*&order=created_at.asc`);
 }
 async function inviteMember(email, role, companyId) {
-  // Usa RPC invite_member_by_email que faz o upsert do profile com company_id correto
-  // Funciona para usuários que já se cadastraram mas ficaram sem empresa
-  try {
-    const result = await sbRest('/rpc/invite_member_by_email', {
-      method: 'POST',
-      body: JSON.stringify({ p_email: email, p_role: role }),
-    });
-    if (result?.error) throw new Error(result.error);
-    return { email, role, status: 'linked', user_id: result.user_id };
-  } catch (e) {
-    // Fallback: registrar localmente se RPC não existir ainda
-    console.warn('invite_member_by_email RPC:', e.message);
-    return { email, role, status: 'pending', note: 'Aplique a migration 003 no Supabase' };
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/invite_member_by_email`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${getSession()?.access_token || SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_email: email, p_role: role }),
+  });
+  const data = await res.json();
+  // Expor erro real para diagnóstico
+  if (!res.ok || data?.error) {
+    const msg = data?.message || data?.error || data?.hint || JSON.stringify(data);
+    throw new Error(msg);
   }
+  if (data?.success) return { email, role, status: 'linked', user_id: data.user_id };
+  throw new Error(JSON.stringify(data));
 }
 async function updateMemberRole(userId, role) {
   return sbRest(`/profiles?id=eq.${userId}`, {
