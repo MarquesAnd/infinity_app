@@ -396,15 +396,28 @@ const EquipePage = () => {
   const companyId = profile?.company_id;
 
   const loadMembers = React.useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    // Aguarda profile estar disponível
+    if (!companyId) {
+      setLoading(true);
+      return;
+    }
+    setLoading(true);
     try {
       const rows = await window.listTeam(companyId);
-      setMembers(rows);
-    } catch (e) { console.warn(e); }
+      setMembers(Array.isArray(rows) ? rows : []);
+    } catch (e) { console.warn('loadMembers error:', e); }
     finally { setLoading(false); }
   }, [companyId]);
 
+  // Recarrega quando companyId chega (após login) ou muda
   React.useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  // Também recarrega quando a página recebe foco (para pegar novos membros)
+  React.useEffect(() => {
+    const onFocus = () => { if (companyId) loadMembers(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [companyId, loadMembers]);
 
   React.useEffect(() => {
     if (companyId) window.fetchAuditLog(companyId, 30).then(setAudit).catch(() => {});
