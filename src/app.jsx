@@ -262,7 +262,7 @@ const UserChip = () => {
         background: 'var(--surface)', border: '1px solid var(--line)',
         boxShadow: 'var(--shadow-sm)',
       }}>
-        <Avatar initials={name.slice(0,2).toUpperCase()} size={34} color="var(--c-secondary)" />
+        <UserAvatar profile={profile} name={name} size={34} color="var(--c-secondary)" />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{name}</span>
           <span style={{ fontSize: 10, color: 'var(--ink-mute)' }}>{roleTxt}</span>

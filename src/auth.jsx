@@ -538,8 +538,7 @@ const EquipePage = () => {
               <tr key={m.id} style={{ borderBottom: i < members.length - 1 ? '1px solid var(--line)' : 'none' }}>
                 <td style={{ padding: '14px 22px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Avatar initials={(m.name || m.email || '??').slice(0, 2).toUpperCase()} size={36}
-                      color={i % 3 === 0 ? 'var(--c-primary)' : i % 3 === 1 ? 'var(--c-secondary)' : 'var(--c-tertiary)'} />
+                    <UserAvatar profile={m} name={m.name || m.email} size={36} color={i % 3 === 0 ? 'var(--c-primary)' : i % 3 === 1 ? 'var(--c-secondary)' : 'var(--c-tertiary)'} />
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{m.name || '—'}</span>
                   </div>
                 </td>
@@ -586,7 +585,7 @@ const EquipePage = () => {
                   display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
                   borderBottom: i < audit.length - 1 ? '1px solid var(--line)' : 'none',
                 }}>
-                  <Avatar initials={(who?.name || who?.email || '??').slice(0, 2).toUpperCase()} size={32} color="var(--c-secondary)" />
+                  <UserAvatar profile={who} name={who?.name || who?.email} size={32} color="var(--c-secondary)" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: 'var(--ink)' }}>
                       <strong>{who?.name || who?.email || 'Usuário'}</strong> · {l.action} em <span style={{ color: 'var(--c-secondary)' }}>{l.table_name}</span>

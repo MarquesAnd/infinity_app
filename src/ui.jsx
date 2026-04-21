@@ -227,4 +227,23 @@ const Avatar = ({ initials, size = 38, color = 'var(--c-primary)' }) => (
   }}>{initials}</div>
 );
 
-Object.assign(window, { Icon, Counter, Btn, TiltCard, Pill, Avatar });
+// Avatar com suporte a foto (avatar_url) ou iniciais
+const UserAvatar = ({ profile, name, size = 38, color = 'var(--c-primary)' }) => {
+  const url = profile?.avatar_url || null;
+  const initials = (name || profile?.name || profile?.email || '?').slice(0, 2).toUpperCase();
+  if (url) {
+    return (
+      <img src={url} alt={initials}
+        style={{
+          width: size, height: size, borderRadius: size / 2.5,
+          objectFit: 'cover', flexShrink: 0,
+          border: '2px solid var(--line)',
+        }}
+        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
+      />
+    );
+  }
+  return <Avatar initials={initials} size={size} color={color} />;
+};
+
+Object.assign(window, { Icon, Counter, Btn, TiltCard, Pill, Avatar, UserAvatar });
