@@ -425,12 +425,22 @@ const EquipePage = () => {
 
   const invite = async (e) => {
     e.preventDefault();
-    setInviteStatus('Enviando...');
+    setInviteStatus('Processando...');
     try {
-      await window.inviteMember(inviteEmail, inviteRole, companyId);
-      setInviteStatus(`✓ Convite registrado para ${inviteEmail}`);
-      setInviteEmail('');
-      setTimeout(() => { setShowInvite(false); setInviteStatus(''); }, 1600);
+      const res = await window.inviteMember(inviteEmail, inviteRole, companyId);
+      if (res.status === 'linked') {
+        setInviteStatus(`✓ ${inviteEmail} adicionado à equipe!`);
+        setInviteEmail('');
+        await loadMembers(); // Recarrega lista imediatamente
+        setTimeout(() => { setShowInvite(false); setInviteStatus(''); }, 1800);
+      } else if (res.status === 'pending') {
+        setInviteStatus(`⚠ ${res.note || 'Usuário precisa se cadastrar primeiro'}`);
+      } else {
+        setInviteStatus(`✓ Processado para ${inviteEmail}`);
+        setInviteEmail('');
+        await loadMembers();
+        setTimeout(() => { setShowInvite(false); setInviteStatus(''); }, 1600);
+      }
     } catch (err) {
       setInviteStatus('⚠ ' + err.message);
     }
