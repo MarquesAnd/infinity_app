@@ -69,7 +69,6 @@ const Sidebar = ({ page, setPage, collapsed, setCollapsed }) => {
     { k: 'compras', label: 'Compras', icon: 'wallet' },
     { k: 'agenda', label: 'Agenda', icon: 'calendar' },
     { k: 'relatorios', label: 'Relatórios', icon: 'chart' },
-    { k: 'clinica', label: 'Clínica', icon: 'stethoscope' },
     { k: 'rh', label: 'RH', icon: 'users' },
     { k: 'equipe', label: 'Equipe', icon: 'users' },
   ];
@@ -675,7 +674,6 @@ const AppShell = () => {
     compras: <ComprasPage filter={filter} setFilter={setFilter} />,
     agenda: <AgendaPage filter={filter} setFilter={setFilter} />,
     relatorios: <RelatoriosPage />,
-    clinica: <ClinicaPage />,
     rh: <window.RHPage />,
     equipe: <EquipePage />,
     perfil: <PerfilPage />,

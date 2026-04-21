@@ -288,7 +288,7 @@ async function logAction(companyId, userId, action, tableName, recordId, newData
 // editor → Dashboard, Contas, Compras, Agenda, Relatórios, RH (sem excluir)
 // viewer → só Dashboard e leitura
 const ROLE_ACCESS = {
-  admin: ['dashboard', 'contas', 'compras', 'agenda', 'relatorios', 'clinica', 'rh', 'equipe', 'perfil', 'config'],
+  admin: ['dashboard', 'contas', 'compras', 'agenda', 'relatorios', 'rh', 'equipe', 'perfil', 'config'],
   editor: ['dashboard', 'contas', 'compras', 'agenda', 'relatorios', 'rh', 'perfil'],
   viewer: ['dashboard', 'agenda', 'rh', 'perfil'],
 };
