@@ -120,15 +120,8 @@ async function listTeam(companyId) {
   return sbRest(`/profiles?company_id=eq.${companyId}&select=*&order=created_at.asc`);
 }
 async function inviteMember(email, role, companyId) {
-  // Convite via signup padrão + patch do profile depois (requisitaria Edge Function para uso real;
-  // aqui registramos em audit_log p/ acompanhamento e devolvemos um placeholder).
-  await sbRest('/audit_log', {
-    method: 'POST',
-    body: JSON.stringify({
-      company_id: companyId, action: 'invite_sent', table_name: 'profiles',
-      new_data: { email, role },
-    }),
-  });
+  // Convite registrado localmente — audit_log requer RLS configurada.
+  // Para envio real de convite, implementar Edge Function com Supabase Auth Admin.
   return { email, role, status: 'invited' };
 }
 async function updateMemberRole(userId, role) {

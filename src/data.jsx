@@ -199,11 +199,15 @@ let COMPRAS = [];
 function monthKey(dateStr) { return dateStr.slice(0, 7); }
 function monthLabel(key) { const [y, m] = key.split('-'); return months[Number(m) - 1] + '/' + y.slice(2); }
 
-// Available months (for filter)
+// Available months (for filter) — sempre lê window.CONTAS/COMPRAS para refletir hydrate
 function availableMonths() {
   const set = new Set();
-  COMPRAS.forEach(t => set.add(monthKey(t.date)));
-  CONTAS.forEach(c => set.add(monthKey(c.vencimento)));
+  (window.COMPRAS || COMPRAS).forEach(t => { if (t.date) set.add(monthKey(t.date)); });
+  (window.CONTAS || CONTAS).forEach(c => { if (c.vencimento) set.add(monthKey(c.vencimento)); });
+  // Garantir mês atual sempre disponível
+  const now = new Date();
+  const cur = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  set.add(cur);
   return [...set].sort();
 }
 

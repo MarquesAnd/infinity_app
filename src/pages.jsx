@@ -213,7 +213,12 @@ const toastStyle = (c) => ({
 // ─── MODAL DE EDIÇÃO (Conta ou Compra) ─────────────────────────
 const EditModal = ({ kind, record, onClose, onSaved }) => {
   const isConta = kind === 'conta';
-  const [form, setForm] = React.useState(() => ({ ...record }));
+  const isNew = !record?.id;
+  const [form, setForm] = React.useState(() => ({
+    // defaults para novo registro
+    ...(isConta ? { tipo: 'pagar', pago: false, previsto: 0, realizado: 0, category: '', description: '', vencimento: new Date().toISOString().slice(0,10) } : { type: 'saida', amount: 0, category: '', description: '', date: new Date().toISOString().slice(0,10), paymentMethod: 'PIX' }),
+    ...record,
+  }));
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
 
@@ -223,8 +228,40 @@ const EditModal = ({ kind, record, onClose, onSaved }) => {
     e?.preventDefault();
     setSaving(true); setErr('');
     try {
-      if (isConta) await window.updateContaLocal(record.id, form);
-      else await window.updateCompraLocal(record.id, form);
+      if (isNew) {
+        // Criar novo registro
+        const tempId = 'new-' + Date.now();
+        const newRecord = { ...form, id: tempId };
+        if (isConta) {
+          window.CONTAS = [newRecord, ...(window.CONTAS || [])];
+          // Persistir no Supabase
+          const s = window.getSession?.();
+          const me = s ? await window.getMe?.() : null;
+          const prof = me ? await window.getProfile?.(me.id) : null;
+          if (prof?.company_id) {
+            const saved = await window.createConta(newRecord, prof.company_id, me.id);
+            if (saved?.[0]?.id) {
+              window.CONTAS = window.CONTAS.map(c => c.id === tempId ? { ...c, id: saved[0].id } : c);
+            }
+          }
+        } else {
+          window.COMPRAS = [newRecord, ...(window.COMPRAS || [])];
+          const s = window.getSession?.();
+          const me = s ? await window.getMe?.() : null;
+          const prof = me ? await window.getProfile?.(me.id) : null;
+          if (prof?.company_id) {
+            const saved = await window.createCompra(newRecord, prof.company_id, me.id);
+            if (saved?.[0]?.id) {
+              window.COMPRAS = window.COMPRAS.map(c => c.id === tempId ? { ...c, id: saved[0].id } : c);
+            }
+          }
+        }
+        window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
+      } else {
+        // Editar existente
+        if (isConta) await window.updateContaLocal(record.id, form);
+        else await window.updateCompraLocal(record.id, form);
+      }
       onSaved?.();
       onClose();
     } catch (e) { setErr(e.message); }
@@ -246,8 +283,8 @@ const EditModal = ({ kind, record, onClose, onSaved }) => {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h3 style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5 }}>Editar {isConta ? 'conta' : 'compra'}</h3>
-            <p style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 4 }} className="mono">#{String(record.id).slice(0, 8)}</p>
+            <h3 style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5 }}>{isNew ? 'Nova' : 'Editar'} {isConta ? 'conta' : 'compra'}</h3>
+            {!isNew && <p style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 4 }} className="mono">#{String(record.id).slice(0, 8)}</p>}
           </div>
           <button type="button" onClick={onClose} style={{ ...navBtn, width: 34, height: 34 }}>
             <Icon name="x" size={15} stroke={2.4} />
@@ -320,7 +357,7 @@ const EditModal = ({ kind, record, onClose, onSaved }) => {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
           <Btn variant="secondary" onClick={onClose} type="button">Cancelar</Btn>
-          <Btn variant="primary" icon="check" type="submit" disabled={saving}>{saving ? 'Salvando…' : 'Salvar alterações'}</Btn>
+          <Btn variant="primary" icon="check" type="submit" disabled={saving}>{saving ? 'Salvando…' : isNew ? 'Criar' : 'Salvar alterações'}</Btn>
         </div>
       </form>
     </div>
@@ -483,7 +520,7 @@ const ContasPage = ({ filter, setFilter }) => {
                   <td></td>
                 </tr>
               )}
-              {filtered.slice(0, 80).map((c, i) => {
+              {filtered.map((c, i) => {
                 const color = window.catColor(c.category, tab === 'pagar' ? 'saida' : 'entrada');
                 const diff = c.realizado - c.previsto;
                 return (
@@ -616,7 +653,7 @@ const ComprasPage = ({ filter, setFilter }) => {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 80).map((t, i) => (
+              {filtered.map((t, i) => (
                 <tr key={t.id} style={{
                   borderBottom: '1px solid var(--line)',
                   animation: `fadeIn 0.3s ease ${Math.min(i * 0.02, 0.6)}s both`,

@@ -18,6 +18,13 @@ const DEFAULT_FILTER = () => {
 
 // Hook: computa dados a partir do filtro global (mês ou período)
 function useWidgetData(filter) {
+  // Re-executa quando sb-data-hydrated dispara (dados reais do Supabase chegaram)
+  const [, tick] = React.useReducer(x => x + 1, 0);
+  React.useEffect(() => {
+    window.addEventListener('sb-data-hydrated', tick);
+    return () => window.removeEventListener('sb-data-hydrated', tick);
+  }, []);
+
   return React.useMemo(() => {
     filter = filter || DEFAULT_FILTER();
     const f = filter.mode === 'month'

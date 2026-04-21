@@ -130,8 +130,42 @@ const PerfilPage = () => {
   const [email, setEmail] = React.useState(profile?.email || user?.email || '');
   const [phone, setPhone] = React.useState(profile?.phone || '');
   const [avatarUrl, setAvatarUrl] = React.useState(profile?.avatar_url || '');
+  const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [savingProfile, setSavingProfile] = React.useState(false);
   const [savedToast, setSavedToast] = React.useState('');
+  const photoInputRef = React.useRef();
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setSavedToast('⚠ Selecione uma imagem'); return; }
+    if (file.size > 2 * 1024 * 1024) { setSavedToast('⚠ Imagem muito grande (máx 2MB)'); return; }
+    setUploadingPhoto(true);
+    try {
+      // Converter para base64 e usar como data URL (sem Supabase Storage)
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target.result;
+        setAvatarUrl(dataUrl);
+        // Salvar automaticamente ao trocar foto
+        if (user?.id && profile?.company_id) {
+          try {
+            await window.updateProfile(user.id, { avatar_url: dataUrl });
+            await refresh();
+            setSavedToast('✓ Foto atualizada');
+            setTimeout(() => setSavedToast(''), 2400);
+          } catch (err) {
+            setSavedToast('⚠ Erro ao salvar foto: ' + err.message);
+          }
+        }
+        setUploadingPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setSavedToast('⚠ Erro ao processar imagem');
+      setUploadingPhoto(false);
+    }
+  };
   const [pwd, setPwd] = React.useState({ novo: '', conf: '' });
   const [pwdState, setPwdState] = React.useState('');
   const [prefs, setPrefs] = React.useState(() => {
@@ -199,10 +233,34 @@ const PerfilPage = () => {
       <TiltCard interactive={false} padding={28}>
         <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <Avatar initials={(name || email || '??').slice(0, 2).toUpperCase()} size={96} color="var(--c-primary)" />
-            <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="URL da foto"
-              style={{ ...authInputStyle, width: 200, fontSize: 12, padding: '8px 12px' }} />
+            {/* Avatar com foto ou iniciais */}
+            <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => photoInputRef.current?.click()}>
+              {avatarUrl && !avatarUrl.startsWith('http://placeholder') ? (
+                <img src={avatarUrl} alt="foto" style={{
+                  width: 96, height: 96, borderRadius: 32, objectFit: 'cover',
+                  border: '3px solid var(--c-primary)',
+                  boxShadow: '0 4px 16px oklch(0.72 0.18 165 / 0.3)',
+                }} onError={() => setAvatarUrl('')} />
+              ) : (
+                <Avatar initials={(name || email || '??').slice(0, 2).toUpperCase()} size={96} color="var(--c-primary)" />
+              )}
+              <div style={{
+                position: 'absolute', bottom: 0, right: 0,
+                width: 28, height: 28, borderRadius: '50%',
+                background: 'var(--c-primary)', color: '#fff',
+                display: 'grid', placeItems: 'center',
+                border: '2px solid var(--surface)',
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                {uploadingPhoto ? (
+                  <span style={{ fontSize: 10, animation: 'spin 1s linear infinite' }}>⟳</span>
+                ) : (
+                  <Icon name="edit" size={12} stroke={2.5} />
+                )}
+              </div>
+            </div>
+            <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+            <span style={{ fontSize: 11, color: 'var(--ink-mute)' }}>Clique para trocar foto</span>
           </div>
           <div style={{ flex: 1, minWidth: 280, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <FormField label="Nome"><input value={name} onChange={(e) => setName(e.target.value)} style={authInputStyle} /></FormField>
