@@ -187,8 +187,13 @@ function generateCompras() {
   return txs.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-let CONTAS = generateContas();
-let COMPRAS = generateCompras();
+// ⚠ BUG FIX (Patch 002): antes estas chamavam generateContas()/generateCompras() a cada
+// carregamento da página, populando a dashboard com números aleatórios.
+// Agora iniciam vazias e são substituídas APENAS pelo hydrateFromSupabase após o login.
+// As funções generateContas/generateCompras permanecem definidas acima caso queira
+// popular dados-exemplo em desenvolvimento via console: window.CONTAS = generateContas()
+let CONTAS = [];
+let COMPRAS = [];
 
 // ─── Helpers ───
 function monthKey(dateStr) { return dateStr.slice(0, 7); }
@@ -412,16 +417,27 @@ async function addContas(rows) {
 }
 
 // Hidrata CONTAS/COMPRAS com dados reais do Supabase (chamado pelo AuthProvider após login)
+// ⚠ BUG FIX (Patch 002): antes só substituía se houvesse dados (`if (contas?.length)`),
+// o que deixava dados fake aparecerem quando a empresa tinha o banco vazio.
+// Agora sempre substitui, mesmo com array vazio (dashboard fica limpa).
 async function hydrateFromSupabase(companyId) {
   try {
     const [contas, compras] = await Promise.all([
       window.fetchContas(companyId),
       window.fetchCompras(companyId),
     ]);
-    if (contas?.length) { CONTAS = contas; window.CONTAS = CONTAS; }
-    if (compras?.length) { COMPRAS = compras; window.COMPRAS = COMPRAS; }
+    CONTAS = Array.isArray(contas) ? contas : [];
+    COMPRAS = Array.isArray(compras) ? compras : [];
+    window.CONTAS = CONTAS;
+    window.COMPRAS = COMPRAS;
     window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
-  } catch (e) { console.warn('hydrateFromSupabase', e); }
+  } catch (e) {
+    console.warn('hydrateFromSupabase', e);
+    // Em caso de erro, mantém arrays vazios em vez de dados antigos
+    CONTAS = []; COMPRAS = [];
+    window.CONTAS = CONTAS; window.COMPRAS = COMPRAS;
+    window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
+  }
 }
 
 Object.assign(window, {

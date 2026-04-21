@@ -365,10 +365,27 @@ const EquipePage = () => {
     }
   };
 
+  const [roleMsg, setRoleMsg] = React.useState(''); // feedback de mudança
+
   const changeRole = async (m, role) => {
-    await window.updateMemberRole(m.id, role);
-    await window.logAction(companyId, user.id, 'role_changed', 'profiles', m.id, { old: m.role, new: role });
-    loadMembers();
+    setRoleMsg('');
+    // Optimistic update
+    setMembers(prev => prev.map(x => x.id === m.id ? { ...x, role } : x));
+    try {
+      const res = await window.updateMemberRole(m.id, role);
+      // Supabase retorna [] quando a RLS bloqueia (nenhuma linha afetada) em vez de erro HTTP
+      if (!res || (Array.isArray(res) && res.length === 0)) {
+        throw new Error('Nenhuma linha foi atualizada. Verifique se a migration 002_rbac_fix_and_rh.sql foi aplicada no Supabase.');
+      }
+      await window.logAction(companyId, user.id, 'role_changed', 'profiles', m.id, { old: m.role, new: role });
+      setRoleMsg(`✓ Cargo de ${m.name || m.email} atualizado para ${roleLabel(role)}.`);
+      setTimeout(() => setRoleMsg(''), 4000);
+      loadMembers();
+    } catch (err) {
+      setRoleMsg('⚠ Falha ao atualizar: ' + (err.message || 'permissão negada'));
+      // Reverte optimistic
+      loadMembers();
+    }
   };
   const removeOne = async (m) => {
     if (!confirm(`Remover ${m.name || m.email}?`)) return;
@@ -415,9 +432,19 @@ const EquipePage = () => {
 
       {/* Lista de membros */}
       <TiltCard interactive={false} padding={0}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600 }}>Membros ({members.length})</h3>
-          {loading && <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>Carregando…</span>}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {roleMsg && (
+              <span style={{
+                fontSize: 12, padding: '6px 12px', borderRadius: 999,
+                background: roleMsg.startsWith('✓') ? 'color-mix(in oklch, var(--c-primary) 15%, transparent)' : 'color-mix(in oklch, var(--c-danger) 15%, transparent)',
+                color: roleMsg.startsWith('✓') ? 'var(--c-primary)' : 'var(--c-danger)',
+                fontWeight: 600,
+              }}>{roleMsg}</span>
+            )}
+            {loading && <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>Carregando…</span>}
+          </div>
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
