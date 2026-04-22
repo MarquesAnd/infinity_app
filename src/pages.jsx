@@ -537,13 +537,13 @@ const ContasPage = ({ filter, setFilter }) => {
     return () => window.removeEventListener('sb-data-hydrated', h);
   }, []);
   const [tab, setTab] = React.useState('todos'); // todos | pagar | receber
-  const [status, setStatus] = React.useState('all'); // all | pago | pendente
+  const [status, setStatus] = React.useState('all'); // all | pago | recebido
   const [q, setQ] = React.useState('');
   const contas = window.filterContas(filter.mode === 'month' ? { month: filter.month } : { from: filter.from, to: filter.to });
   const filtered = contas.filter(c => {
     if (tab !== 'todos' && c.tipo !== tab) return false;
-    if (status === 'pago' && !c.pago) return false;
-    if (status === 'pendente' && c.pago) return false;
+    if (status === 'pago' && !(c.pago && c.tipo === 'pagar')) return false;
+    if (status === 'recebido' && !(c.pago && c.tipo === 'receber')) return false;
     if (q && !(c.description.toLowerCase().includes(q.toLowerCase()) || c.category.toLowerCase().includes(q.toLowerCase()))) return false;
     return true;
   });
@@ -606,7 +606,7 @@ const ContasPage = ({ filter, setFilter }) => {
           </div>
           {/* Status */}
           <div style={{ display: 'flex', gap: 4, background: 'var(--bg-alt)', padding: 4, borderRadius: 999, border: '1px solid var(--line)' }}>
-            {[{k:'all',l:'Todos'},{k:'pago',l:'Pagos'},{k:'pendente',l:'Pendentes'}].map(t => (
+            {[{k:'all',l:'Todos'},{k:'pago',l:'Pagos'},{k:'recebido',l:'Recebidos'}].map(t => (
               <button key={t.k} onClick={() => setStatus(t.k)} style={tabBtnStyle(status === t.k)}>{t.l}</button>
             ))}
           </div>

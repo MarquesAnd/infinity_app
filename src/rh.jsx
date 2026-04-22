@@ -586,56 +586,137 @@ const ColabDetail = ({ colab, data, onClose, onEdit }) => {
 // ═════════════════════════════════════════════════════════════════════
 // Sub-aba: Férias
 // ═════════════════════════════════════════════════════════════════════
-const RHFerias = ({ data }) => {
-  const hoje = new Date();
+const RHFerias = ({ data, reload, toast }) => {
+  const { profile } = window.useAuth();
+  const canWrite = ['admin', 'editor'].includes(profile?.role);
+  const [modalColab, setModalColab] = React.useState(null); // colaborador selecionado para registrar férias
+
   const lista = data.colaboradores
     .filter(c => c.regime === 'CLT' && c.status === 'Ativo' && c.admissao)
     .map(c => ({ ...c, dias: diasFerias(c.limite_ferias) }))
     .sort((a, b) => (a.dias ?? 99999) - (b.dias ?? 99999));
 
   return (
-    <window.TiltCard interactive={false} padding={0}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--line)' }}>
-            {['Colaborador', 'Admissão', 'Limite legal', 'Dias restantes', 'Situação'].map(h => (
-              <th key={h} style={{
-                textAlign: 'left', padding: '12px 20px', fontSize: 11, fontWeight: 700,
-                letterSpacing: 0.5, color: 'var(--ink-mute)', textTransform: 'uppercase',
-              }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {lista.map((c, i) => {
-            let cor = 'var(--c-primary)', label = 'OK';
-            if (c.dias == null) { cor = 'var(--ink-mute)'; label = '—'; }
-            else if (c.dias < 0) { cor = 'var(--c-danger)'; label = `VENCIDA há ${Math.abs(c.dias)}d`; }
-            else if (c.dias < 60) { cor = 'var(--c-tertiary)'; label = `Vence em ${c.dias}d`; }
-            else if (c.dias < 180) { cor = 'var(--c-warning)'; label = 'Atenção'; }
-            return (
-              <tr key={c.id} style={{ borderBottom: i < lista.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                <td style={{ padding: '14px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <window.Avatar initials={iniRH(c.nome)} size={32} color={regimeColor(c.regime)} />
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>{c.nome}</span>
-                  </div>
-                </td>
-                <td style={{ padding: '14px 20px', fontSize: 12 }} className="mono">{fmtDateRH(c.admissao)}</td>
-                <td style={{ padding: '14px 20px', fontSize: 12 }} className="mono">{fmtDateRH(c.limite_ferias)}</td>
-                <td style={{ padding: '14px 20px', fontSize: 12 }} className="mono">{c.dias != null ? `${c.dias}d` : '—'}</td>
-                <td style={{ padding: '14px 20px' }}><window.Pill color={cor} size="sm">{label}</window.Pill></td>
-              </tr>
-            );
-          })}
-          {lista.length === 0 && (
-            <tr><td colSpan={5} style={{ padding: 60, textAlign: 'center', color: 'var(--ink-mute)', fontSize: 13 }}>
-              Nenhum colaborador CLT ativo com admissão cadastrada.
-            </td></tr>
-          )}
-        </tbody>
-      </table>
-    </window.TiltCard>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <window.TiltCard interactive={false} padding={0}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--line)' }}>
+              {['Colaborador', 'Admissão', 'Limite legal', 'Dias restantes', 'Situação', ''].map((h, i) => (
+                <th key={h} style={{
+                  textAlign: i === 5 ? 'right' : 'left', padding: '12px 20px', fontSize: 11, fontWeight: 700,
+                  letterSpacing: 0.5, color: 'var(--ink-mute)', textTransform: 'uppercase',
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map((c, i) => {
+              let cor = 'var(--c-primary)', label = 'OK';
+              if (c.dias == null) { cor = 'var(--ink-mute)'; label = '—'; }
+              else if (c.dias < 0) { cor = 'var(--c-danger)'; label = `VENCIDA há ${Math.abs(c.dias)}d`; }
+              else if (c.dias < 60) { cor = 'var(--c-tertiary)'; label = `Vence em ${c.dias}d`; }
+              else if (c.dias < 180) { cor = 'var(--c-warning)'; label = 'Atenção'; }
+              return (
+                <tr key={c.id} style={{ borderBottom: i < lista.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <window.Avatar initials={iniRH(c.nome)} size={32} color={regimeColor(c.regime)} />
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>{c.nome}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px', fontSize: 12 }} className="mono">{fmtDateRH(c.admissao)}</td>
+                  <td style={{ padding: '14px 20px', fontSize: 12 }} className="mono">{fmtDateRH(c.limite_ferias)}</td>
+                  <td style={{ padding: '14px 20px', fontSize: 12 }} className="mono">{c.dias != null ? `${c.dias}d` : '—'}</td>
+                  <td style={{ padding: '14px 20px' }}><window.Pill color={cor} size="sm">{label}</window.Pill></td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    {canWrite && (
+                      <window.Btn variant="ghost" size="sm" onClick={() => setModalColab(c)}>
+                        Registrar férias
+                      </window.Btn>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {lista.length === 0 && (
+              <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center', color: 'var(--ink-mute)', fontSize: 13 }}>
+                Nenhum colaborador CLT ativo com admissão cadastrada.
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </window.TiltCard>
+      {modalColab && (
+        <FeriasRealizadasModal
+          colab={modalColab}
+          onClose={() => setModalColab(null)}
+          onSaved={async (novoLimite) => {
+            try {
+              await rhUpdateColab(modalColab.id, { limite_ferias: novoLimite });
+              setModalColab(null);
+              await reload();
+              toast.show('Férias registradas com sucesso!');
+            } catch (e) { toast.show('Erro: ' + e.message, 'error'); }
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+const FeriasRealizadasModal = ({ colab, onClose, onSaved }) => {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = React.useState({
+    data_inicio: hoje,
+    data_fim: hoje,
+    tipo: 'Realizada',
+  });
+  const [saving, setSaving] = React.useState(false);
+
+  const save = async () => {
+    if (!form.data_inicio) { alert('Informe a data de início'); return; }
+    setSaving(true);
+    // Calcula novo limite de férias: 12 meses após o fim das férias
+    const dataFim = new Date(form.data_fim || form.data_inicio);
+    dataFim.setFullYear(dataFim.getFullYear() + 1);
+    const novoLimite = dataFim.toISOString().slice(0, 10);
+    await onSaved(novoLimite);
+    setSaving(false);
+  };
+
+  return (
+    <Modal title="Registrar férias" onClose={onClose} width={480}>
+      <div style={{ marginBottom: 16, padding: '10px 14px', background: 'color-mix(in oklch, var(--c-primary) 8%, transparent)', borderRadius: 'var(--r-sm)', border: '1px solid color-mix(in oklch, var(--c-primary) 20%, transparent)' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-primary)' }}>{colab.nome}</span>
+        {colab.limite_ferias && (
+          <span style={{ fontSize: 12, color: 'var(--ink-mute)', marginLeft: 10 }}>
+            Limite atual: {fmtDateRH(colab.limite_ferias)}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Field label="Tipo">
+          <select style={inputRH} value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}>
+            <option value="Realizada">Realizada</option>
+            <option value="Agendada">Agendada</option>
+          </select>
+        </Field>
+        <Field label="Data de início*">
+          <input type="date" style={inputRH} value={form.data_inicio} onChange={e => setForm({ ...form, data_inicio: e.target.value })} />
+        </Field>
+        <Field label="Data de fim">
+          <input type="date" style={inputRH} value={form.data_fim} onChange={e => setForm({ ...form, data_fim: e.target.value })} />
+        </Field>
+        <div style={{ fontSize: 12, color: 'var(--ink-mute)', padding: '8px 12px', background: 'var(--bg-alt)', borderRadius: 'var(--r-sm)' }}>
+          💡 O limite legal de férias será atualizado automaticamente para 12 meses após o fim das férias.
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+        <window.Btn variant="ghost" onClick={onClose}>Cancelar</window.Btn>
+        <window.Btn variant="primary" icon="check" onClick={save} disabled={saving}>{saving ? 'Salvando...' : 'Confirmar'}</window.Btn>
+      </div>
+    </Modal>
   );
 };
 
@@ -1435,15 +1516,15 @@ const Linha = ({ label, v }) => (
 // ═════════════════════════════════════════════════════════════════════
 const Modal = ({ title, children, onClose, width = 560 }) => (
   <div style={{
-    position: 'fixed', inset: 0, background: 'color-mix(in oklch, var(--ink) 50%, transparent)',
-    backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-    padding: 32, zIndex: 150, overflowY: 'auto',
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+    backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 24, zIndex: 9999, overflowY: 'auto',
   }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div style={{
       width: `min(${width}px, 100%)`, background: 'var(--surface)',
-      borderRadius: 'var(--r-lg)', padding: 28, boxShadow: 'var(--shadow-lg)',
-      border: '1px solid var(--line)', animation: 'popIn 0.35s cubic-bezier(.22,1,.36,1)',
-      maxHeight: 'calc(100vh - 64px)', overflowY: 'auto',
+      borderRadius: 'var(--r-lg)', padding: 28, boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+      border: '1px solid var(--line)', animation: 'popIn 0.3s cubic-bezier(.22,1,.36,1)',
+      maxHeight: 'calc(100vh - 48px)', overflowY: 'auto',
     }} onClick={(e) => e.stopPropagation()}>
       {title && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -1570,7 +1651,7 @@ const RHPage = () => {
       {/* Conteúdo */}
       {subPage === 'dashboard' && <RHDashboard data={rhData} setSubPage={setSubPage} />}
       {subPage === 'colaboradores' && <RHColaboradores data={rhData} reload={rhData.reload} toast={toast} />}
-      {subPage === 'ferias' && <RHFerias data={rhData} />}
+      {subPage === 'ferias' && <RHFerias data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'faltas' && <RHFaltas data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'atestados' && <RHAtestados data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'alertas' && <RHAlertas data={rhData} reload={rhData.reload} toast={toast} />}
