@@ -292,6 +292,8 @@ const UserChip = () => {
 // ─── Dashboard (with drag to reorder widgets) ───
 const Dashboard = ({ filter, setFilter }) => {
   const data = window.useWidgetData(filter);
+  const { profile, demo } = useAuth();
+  const nomeUsuario = demo ? 'Demo' : (profile?.name || profile?.email?.split('@')[0] || 'você');
   const [order, setOrder] = useState(() => {
     const saved = localStorage.getItem('infinity-widget-order-v2');
     if (saved) try { return JSON.parse(saved); } catch {}
@@ -329,7 +331,7 @@ const Dashboard = ({ filter, setFilter }) => {
             Visão geral
           </div>
           <h1 style={{ fontSize: 38, fontWeight: 700, letterSpacing: -1.4, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span>Olá, Dra. Marques</span>
+            <span>Olá, {nomeUsuario}</span>
             <span style={{ fontSize: 32 }} aria-hidden="true">👋</span>
           </h1>
           <p style={{ fontSize: 14, color: 'var(--ink-mute)', marginTop: 4 }}>
