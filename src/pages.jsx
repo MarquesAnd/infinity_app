@@ -544,17 +544,27 @@ const ImpostosPage = ({ filter, setFilter }) => {
   const [editando, setEditando] = React.useState(null);
 
   // Categorias consideradas impostos
+  // Apenas impostos fiscais — FGTS fica no RH, prestadores ficam em Contas
   const CATS_IMPOSTOS = [
-    'Impostos e Tributos','DAS','DARF','INSS','ISS','FGTS',
-    'Simples Nacional','IR','IRPJ','CSLL','PIS','COFINS',
-    'Imposto','Tributo','Taxa','Contribuição','Anuidade',
+    'Impostos e Tributos','INSS','ISS','DARF','DAS',
+    'IRPJ','CSLL','PIS','COFINS','Simples Nacional',
+    'DARF Aluguel','Aluguel DARF',
+  ];
+
+  const DESC_IMPOSTOS = [
+    'inss','iss','darf','das simples','irpj','csll','pis','cofins',
+    'simples nacional','imposto','tributo','contribuição social',
+    'darf aluguel',
   ];
 
   const isImposto = (c) => {
     const cat = (c.category || '').toLowerCase();
     const desc = (c.description || '').toLowerCase();
-    return CATS_IMPOSTOS.some(k => cat.includes(k.toLowerCase()) || desc.includes(k.toLowerCase()));
+    return CATS_IMPOSTOS.some(k => cat.includes(k.toLowerCase())) ||
+           DESC_IMPOSTOS.some(k => desc.includes(k));
   };
+
+
 
   // Buscar todas as contas sem filtro de mês (impostos do ano todo)
   const todasContas = window.CONTAS || [];

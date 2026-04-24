@@ -1573,6 +1573,142 @@ const selectStyleRH = {
 // ═════════════════════════════════════════════════════════════════════
 // Página principal RH com sub-navegação
 // ═════════════════════════════════════════════════════════════════════
+
+// ─── FGTS ─────────────────────────────────────────────────────────────────
+const RHFgts = ({ data, reload, toast }) => {
+  const [, tick] = React.useReducer(x => x + 1, 0);
+  const [mesRef, setMesRef] = React.useState(() => {
+    const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  });
+
+  const ativos = (data.colaboradores || []).filter(c => c.status === 'ativo' || c.status === 'ferias');
+  const clt = ativos.filter(c => c.tipo_contrato === 'CLT');
+
+  const fmtMoeda = v => 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmtDate  = d => d ? d.split('-').reverse().join('/') : '—';
+
+  // Calcular FGTS por colaborador (8% do salário bruto)
+  const rows = clt.map(col => {
+    const salario = col.salario || 0;
+    const fgts = salario * 0.08;
+    const [y, m] = mesRef.split('-').map(Number);
+    const venc = new Date(y, m, 7); // FGTS vence dia 7 do mês seguinte
+    const vencStr = venc.toISOString().slice(0, 10);
+    const hoje = new Date().toISOString().slice(0, 10);
+    const atrasado = vencStr < hoje;
+    return { col, salario, fgts, vencStr, atrasado };
+  });
+
+  const totalFgts = rows.reduce((s, r) => s + r.fgts, 0);
+  const vencimento = (() => {
+    const [y, m] = mesRef.split('-').map(Number);
+    return new Date(y, m, 7).toISOString().slice(0, 10);
+  })();
+  const hoje = new Date().toISOString().slice(0, 10);
+  const atrasado = vencimento < hoje;
+
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(); d.setMonth(d.getMonth() - i);
+    months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+  }
+
+  const inp = { padding: '9px 14px', borderRadius: 'var(--r-sm)', border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, outline: 'none' };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>FGTS — Fundo de Garantia</h3>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>8% do salário bruto · CLT · Vence dia 7 do mês seguinte</div>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <select value={mesRef} onChange={e => setMesRef(e.target.value)} style={inp}>
+            {months.map(m => <option key={m} value={m}>{m.split('-').reverse().join('/')}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Total FGTS', value: fmtMoeda(totalFgts), sub: clt.length + ' colaboradores CLT', color: '#3b82f6' },
+          { label: 'Vencimento', value: fmtDate(vencimento), sub: atrasado ? '⚠ Vencido!' : 'Dia 7 do próximo mês', color: atrasado ? '#ef4444' : '#22c55e' },
+          { label: 'Base de cálculo', value: fmtMoeda(rows.reduce((s,r) => s+r.salario, 0)), sub: 'Total salários CLT', color: '#8b5cf6' },
+        ].map(kpi => (
+          <div key={kpi.label} style={{ background: 'var(--surface)', borderRadius: 12, padding: '18px 22px', border: '1px solid var(--line)', flex: 1, minWidth: 160, borderTop: '3px solid ' + kpi.color }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)', marginBottom: 6 }}>{kpi.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>{kpi.value}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>{kpi.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Alerta vencido */}
+      {atrasado && (
+        <div style={{ padding: '14px 18px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 10, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+          ⚠ FGTS de {mesRef.split('-').reverse().join('/')} está vencido desde {fmtDate(vencimento)}. Recolha via SEFIP/eSocial pelo portal Conectividade Social da Caixa.
+        </div>
+      )}
+
+      {/* Tabela por colaborador */}
+      <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--line)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)', fontWeight: 700, fontSize: 15 }}>
+          Detalhamento por colaborador — {mesRef.split('-').reverse().join('/')}
+        </div>
+        {clt.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-soft)' }}>Nenhum colaborador CLT ativo.</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--surface-alt, var(--surface))', borderBottom: '1px solid var(--line)' }}>
+                {['Colaborador','Função','Salário bruto','FGTS (8%)','Vencimento',''].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ col, salario, fgts, vencStr, atrasado: at }) => (
+                <tr key={col.id} style={{ borderBottom: '1px solid var(--line)', background: at ? 'rgba(239,68,68,0.03)' : 'transparent' }}>
+                  <td style={{ padding: '13px 16px' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{col.nome}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>CPF: {col.cpf || '—'}</div>
+                  </td>
+                  <td style={{ padding: '13px 16px', fontSize: 13, color: 'var(--ink-soft)' }}>{col.funcao || col.cargo || '—'}</td>
+                  <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontWeight: 600 }}>{fmtMoeda(salario)}</td>
+                  <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontWeight: 700, color: '#3b82f6' }}>{fmtMoeda(fgts)}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 13, color: at ? '#dc2626' : 'var(--ink)' }}>{fmtDate(vencStr)}</td>
+                  <td style={{ padding: '13px 16px' }}>
+                    <span style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: at ? '#fee2e2' : '#dcfce7', color: at ? '#dc2626' : '#15803d' }}>
+                      {at ? 'Vencido' : 'Pendente'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop: '2px solid var(--line)', background: 'var(--surface)' }}>
+                <td colSpan={2} style={{ padding: '13px 16px', fontWeight: 700, fontSize: 13 }}>TOTAL ({clt.length} colaboradores)</td>
+                <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontWeight: 700 }}>{fmtMoeda(rows.reduce((s,r)=>s+r.salario,0))}</td>
+                <td style={{ padding: '13px 16px', fontFamily: 'monospace', fontWeight: 700, color: '#3b82f6' }}>{fmtMoeda(totalFgts)}</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+        )}
+      </div>
+
+      {/* Instruções */}
+      <div style={{ padding: '16px 20px', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 10, fontSize: 13, lineHeight: 1.6, color: 'var(--ink-soft)' }}>
+        <strong style={{ color: 'var(--ink)' }}>Como recolher o FGTS:</strong> Acesse o portal <strong>Conectividade Social</strong> (caixa.gov.br) → SEFIP ou via eSocial → gerar GFIP → gerar guia GRF → pagar na Caixa até o dia 7.
+        <br />Alíquota: <strong>8%</strong> do salário bruto para todos os CLTs. Aprendizes: <strong>2%</strong>.
+      </div>
+    </div>
+  );
+};
+
+
 const RHPage = () => {
   const { profile } = window.useAuth();
   const rhData = useRHData();
@@ -1585,6 +1721,7 @@ const RHPage = () => {
     { k: 'ferias', label: 'Férias', icon: '◈' },
     { k: 'faltas', label: 'Faltas', icon: '▲' },
     { k: 'atestados', label: 'Atestados', icon: '◎' },
+    { k: 'fgts', label: 'FGTS', icon: '₿' },
     { k: 'alertas', label: 'Alertas', icon: '⚠' },
     { k: 'pendencias', label: 'Pendências', icon: '◐' },
     { k: 'rescisoes', label: 'Rescisões', icon: '✕' },
@@ -1656,6 +1793,7 @@ const RHPage = () => {
       {subPage === 'atestados' && <RHAtestados data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'alertas' && <RHAlertas data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'pendencias' && <RHPendencias data={rhData} reload={rhData.reload} toast={toast} />}
+      {subPage === 'fgts' && <RHFgts data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'rescisoes' && <RHRescisoes data={rhData} reload={rhData.reload} toast={toast} />}
 
       <toast.ToastView />
