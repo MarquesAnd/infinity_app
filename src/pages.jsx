@@ -1371,6 +1371,53 @@ const AgendaPage = ({ filter, setFilter }) => {
   );
 };
 
+function CatSection({ type, label, list, loading, novaVal, setNova, cor, setCor, onAdd, onToggle, onDelete, saving }) {
+  const inp = { flex:1, padding:'9px 12px', borderRadius:8, border:'1px solid var(--line)', background:'var(--surface)', color:'var(--ink)', fontSize:13, outline:'none' };
+  return (
+    <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--line)', overflow:'hidden', marginBottom:16 }}>
+      <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--line)', display:'flex', alignItems:'center', gap:10 }}>
+        <span style={{ width:10, height:10, borderRadius:'50%', background: type==='entrada' ? '#22c55e' : '#ef4444', display:'inline-block' }} />
+        <span style={{ fontWeight:700, fontSize:14 }}>{label}</span>
+        <span style={{ marginLeft:'auto', fontSize:12, color:'var(--ink-soft)' }}>{list.filter(c=>c.is_active!==false).length} ativas</span>
+      </div>
+      <div>
+        {loading ? (
+          <div style={{ padding:'20px', textAlign:'center', color:'var(--ink-soft)', fontSize:13 }}>Carregando...</div>
+        ) : list.length === 0 ? (
+          <div style={{ padding:'20px', textAlign:'center', color:'var(--ink-soft)', fontSize:13 }}>Nenhuma categoria ainda.</div>
+        ) : list.map(cat => (
+          <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 20px', borderBottom:'1px solid var(--line)', opacity: cat.is_active===false ? 0.45 : 1 }}>
+            <span style={{ width:12, height:12, borderRadius:3, background: cat.color || '#6b7280', flexShrink:0 }} />
+            <span style={{ flex:1, fontSize:14, fontWeight:500 }}>{cat.name}</span>
+            <button onClick={() => onToggle(cat)} title={cat.is_active===false ? 'Ativar' : 'Desativar'}
+              style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', fontSize:12, cursor:'pointer' }}>
+              {cat.is_active===false ? '▶ Ativar' : '⏸ Ocultar'}
+            </button>
+            <button onClick={() => onDelete(cat)}
+              style={{ padding:'4px 8px', borderRadius:6, border:'none', background:'transparent', color:'#ef4444', fontSize:16, cursor:'pointer', lineHeight:1 }}>✕</button>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding:'14px 20px', background:'rgba(0,0,0,0.02)', display:'flex', gap:8, alignItems:'center' }}>
+        <input value={novaVal} onChange={e => setNova(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && onAdd(type)}
+          placeholder={'Nova categoria de ' + (type==='entrada'?'entrada':'saída') + '...'}
+          style={inp} />
+        <div style={{ display:'flex', gap:4, flexWrap:'wrap', maxWidth:160 }}>
+          {PRESET_COLORS.map(pc => (
+            <div key={pc} onClick={() => setCor(pc)}
+              style={{ width:18, height:18, borderRadius:4, background:pc, cursor:'pointer', border: cor===pc ? '2px solid var(--ink)' : '2px solid transparent', flexShrink:0 }} />
+          ))}
+        </div>
+        <button onClick={() => onAdd(type)} disabled={saving || !novaVal.trim()}
+          style={{ padding:'9px 18px', borderRadius:8, border:'none', background:'linear-gradient(135deg,var(--c-primary),var(--c-secondary))', color:'white', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', opacity: !novaVal.trim()||saving ? 0.6 : 1 }}>
+          + Adicionar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const PRESET_COLORS = [
   '#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#f59e0b',
   '#22c55e','#14b8a6','#3b82f6','#06b6d4','#64748b','#a855f7',
@@ -1435,56 +1482,6 @@ const ConfigPage = () => {
 
   const inp = { flex:1, padding:'9px 12px', borderRadius:8, border:'1px solid var(--line)', background:'var(--surface)', color:'var(--ink)', fontSize:13, outline:'none' };
 
-  const CatSection = ({ type, label, list, novaVal, setNova, cor, setCor }) => (
-    <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--line)', overflow:'hidden', marginBottom:16 }}>
-      {/* Header da seção */}
-      <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--line)', display:'flex', alignItems:'center', gap:10 }}>
-        <span style={{ width:10, height:10, borderRadius:'50%', background: type==='entrada' ? '#22c55e' : '#ef4444', display:'inline-block' }} />
-        <span style={{ fontWeight:700, fontSize:14 }}>{label}</span>
-        <span style={{ marginLeft:'auto', fontSize:12, color:'var(--ink-soft)' }}>{list.filter(c=>c.is_active!==false).length} ativas</span>
-      </div>
-
-      {/* Lista */}
-      <div>
-        {loading ? (
-          <div style={{ padding:'20px', textAlign:'center', color:'var(--ink-soft)', fontSize:13 }}>Carregando...</div>
-        ) : list.length === 0 ? (
-          <div style={{ padding:'20px', textAlign:'center', color:'var(--ink-soft)', fontSize:13 }}>Nenhuma categoria ainda.</div>
-        ) : list.map(cat => (
-          <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 20px', borderBottom:'1px solid var(--line)', opacity: cat.is_active===false ? 0.45 : 1 }}>
-            <span style={{ width:12, height:12, borderRadius:3, background: cat.color || '#6b7280', flexShrink:0 }} />
-            <span style={{ flex:1, fontSize:14, fontWeight:500 }}>{cat.name}</span>
-            <button onClick={() => toggleCat(cat)} title={cat.is_active===false ? 'Ativar' : 'Desativar'}
-              style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', fontSize:12, cursor:'pointer' }}>
-              {cat.is_active===false ? '▶ Ativar' : '⏸ Ocultar'}
-            </button>
-            <button onClick={() => delCat(cat)}
-              style={{ padding:'4px 8px', borderRadius:6, border:'none', background:'transparent', color:'#ef4444', fontSize:16, cursor:'pointer', lineHeight:1 }}>✕</button>
-          </div>
-        ))}
-      </div>
-
-      {/* Adicionar nova */}
-      <div style={{ padding:'14px 20px', background:'rgba(0,0,0,0.02)', display:'flex', gap:8, alignItems:'center' }}>
-        <input value={novaVal} onChange={e => setNova(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addCat(type)}
-          placeholder={'Nova categoria de ' + (type==='entrada'?'entrada':'saída') + '...'}
-          style={inp} />
-        {/* Seletor de cor */}
-        <div style={{ display:'flex', gap:4, flexWrap:'wrap', maxWidth:160 }}>
-          {PRESET_COLORS.map(pc => (
-            <div key={pc} onClick={() => setCor(pc)}
-              style={{ width:18, height:18, borderRadius:4, background:pc, cursor:'pointer', border: cor===pc ? '2px solid var(--ink)' : '2px solid transparent', flexShrink:0 }} />
-          ))}
-        </div>
-        <button onClick={() => addCat(type)} disabled={saving || !novaVal.trim()}
-          style={{ padding:'9px 18px', borderRadius:8, border:'none', background:'linear-gradient(135deg,var(--c-primary),var(--c-secondary))', color:'white', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', opacity: !novaVal.trim()||saving ? 0.6 : 1 }}>
-          + Adicionar
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:24, maxWidth:760 }}>
       <PageHeader title="Configurações" subtitle="Categorias, conta e preferências" />
@@ -1498,11 +1495,13 @@ const ConfigPage = () => {
           As categorias aparecem como lista suspensa ao criar contas e compras. Adicione, oculte ou exclua conforme necessário.
         </div>
         <CatSection type="entrada" label="Categorias de entrada (receitas)"
-          list={cats.entrada} novaVal={novaEntrada} setNova={setNovaEntrada}
-          cor={corEntrada} setCor={setCorEntrada} />
+          list={cats.entrada} loading={loading} novaVal={novaEntrada} setNova={setNovaEntrada}
+          cor={corEntrada} setCor={setCorEntrada}
+          onAdd={addCat} onToggle={toggleCat} onDelete={delCat} saving={saving} />
         <CatSection type="saida" label="Categorias de saída (despesas)"
-          list={cats.saida} novaVal={novaSaida} setNova={setNovaSaida}
-          cor={corSaida} setCor={setCorSaida} />
+          list={cats.saida} loading={loading} novaVal={novaSaida} setNova={setNovaSaida}
+          cor={corSaida} setCor={setCorSaida}
+          onAdd={addCat} onToggle={toggleCat} onDelete={delCat} saving={saving} />
       </div>
     </div>
   );
