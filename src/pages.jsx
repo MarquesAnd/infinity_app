@@ -531,267 +531,358 @@ const ConfirmarPagamentoModal = ({ conta, onClose, onSaved }) => {
 // ═══════════════════════════════════════════════════════════════
 // PÁGINA DE IMPOSTOS
 // ═══════════════════════════════════════════════════════════════
+
 const ImpostosPage = ({ filter, setFilter }) => {
-  const [, tick] = React.useReducer(x => x + 1, 0);
-  React.useEffect(() => {
-    const h = () => tick();
-    window.addEventListener('sb-data-hydrated', h);
-    return () => window.removeEventListener('sb-data-hydrated', h);
-  }, []);
-
-  const [statusFilter, setStatusFilter] = React.useState('pendente'); // pendente | pago | todos
+  const { user, profile } = useAuth();
+  const companyId = profile?.company_id;
+  const [impostos, setImpostos] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [statusFilter, setStatusFilter] = React.useState('pendente');
   const [q, setQ] = React.useState('');
+  const [showModal, setShowModal] = React.useState(false);
   const [editando, setEditando] = React.useState(null);
+  const [confirmDelete, setConfirmDelete] = React.useState(null);
 
-  // Categorias consideradas impostos
-  // Apenas impostos fiscais — FGTS fica no RH, prestadores ficam em Contas
-  const CATS_IMPOSTOS = [
-    'Impostos e Tributos','INSS','ISS','DARF','DAS',
-    'IRPJ','CSLL','PIS','COFINS','Simples Nacional',
-    'DARF Aluguel','Aluguel DARF',
-  ];
+  // Categorias fiscais aceitas
+  const CATS = ['INSS','ISS','DARF','IRPJ','CSLL','DARF Aluguel','Outros Tributos'];
 
-  const DESC_IMPOSTOS = [
-    'inss','iss','darf','das simples','irpj','csll','pis','cofins',
-    'simples nacional','imposto','tributo','contribuição social',
-    'darf aluguel',
-  ];
+  // Carregar impostos do banco — apenas categoria fiscal
+  const carregar = React.useCallback(async () => {
+    if (!companyId) return;
+    setLoading(true);
+    try {
+      const todas = await window.fetchContas(companyId);
+      const fiscais = todas.filter(c =>
+        c.tipo === 'pagar' &&
+        CATS.some(cat => (c.category || '').toLowerCase() === cat.toLowerCase())
+      );
+      fiscais.sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+      setImpostos(fiscais);
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [companyId]);
 
-  const isImposto = (c) => {
-    const cat = (c.category || '').toLowerCase();
-    const desc = (c.description || '').toLowerCase();
-    return CATS_IMPOSTOS.some(k => cat.includes(k.toLowerCase())) ||
-           DESC_IMPOSTOS.some(k => desc.includes(k));
+  React.useEffect(() => { carregar(); }, [carregar]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const fmtMoeda = v => 'R$\u00a0' + (v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmtDate  = d => d ? d.split('-').reverse().join('/') : '—';
+
+  const isAtrasado = c => !c.pago && c.vencimento < today;
+  const isHoje     = c => !c.pago && c.vencimento === today;
+
+  const statusPill = c => {
+    if (c.pago)        return { label: 'Pago',        bg: '#dcfce7', color: '#15803d' };
+    if (isAtrasado(c)) return { label: 'Atrasado',    bg: '#fee2e2', color: '#dc2626' };
+    if (isHoje(c))     return { label: 'Vence hoje',  bg: '#fef3c7', color: '#d97706' };
+    return               { label: 'Pendente',     bg: '#f1f5f9', color: '#64748b' };
   };
 
-
-
-  // Buscar todas as contas sem filtro de mês (impostos do ano todo)
-  const todasContas = window.CONTAS || [];
-  const impostos = todasContas.filter(c => c.tipo === 'pagar' && isImposto(c));
+  const catColor = cat => ({
+    'INSS': '#8b5cf6', 'ISS': '#ec4899', 'DARF': '#f59e0b',
+    'IRPJ': '#ef4444', 'CSLL': '#f97316', 'DARF Aluguel': '#3b82f6',
+  })[cat] || '#6b7280';
 
   const filtered = impostos.filter(c => {
     if (statusFilter === 'pendente' && c.pago) return false;
     if (statusFilter === 'pago' && !c.pago) return false;
     if (q && !(c.description.toLowerCase().includes(q.toLowerCase()) || c.category.toLowerCase().includes(q.toLowerCase()))) return false;
     return true;
-  }).sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
-
-  // KPIs
-  const totalPendente = impostos.filter(c => !c.pago).reduce((s, c) => s + (c.previsto || 0), 0);
-  const totalPago     = impostos.filter(c => c.pago).reduce((s, c) => s + (c.realizado || c.previsto || 0), 0);
-  const totalAno      = impostos.reduce((s, c) => s + (c.pago ? (c.realizado || c.previsto || 0) : (c.previsto || 0)), 0);
-  const vencendoHoje  = impostos.filter(c => !c.pago && c.vencimento === window.todayStr?.()).length;
-  const atrasados     = impostos.filter(c => !c.pago && c.vencimento < (window.todayStr?.() || new Date().toISOString().slice(0,10))).length;
-
-  // Agrupamento por categoria
-  const porCategoria = {};
-  filtered.forEach(c => {
-    const cat = c.category || 'Outros';
-    if (!porCategoria[cat]) porCategoria[cat] = { total: 0, pago: 0, pendente: 0, itens: [] };
-    porCategoria[cat].itens.push(c);
-    porCategoria[cat].total += c.previsto || 0;
-    if (c.pago) porCategoria[cat].pago += c.realizado || c.previsto || 0;
-    else porCategoria[cat].pendente += c.previsto || 0;
   });
 
-  const catColors = {
-    'Impostos e Tributos': '#ef4444',
-    'DAS': '#f97316', 'DAS Simples Nacional': '#f97316',
-    'INSS': '#8b5cf6', 'INSS patronal': '#8b5cf6',
-    'FGTS': '#3b82f6',
-    'ISS': '#ec4899',
-    'DARF': '#f59e0b',
-  };
-  const catColor = (cat) => catColors[cat] || '#6b7280';
+  // KPIs
+  const totalPendente = impostos.filter(c => !c.pago).reduce((s,c) => s+(c.previsto||0), 0);
+  const totalPago     = impostos.filter(c =>  c.pago).reduce((s,c) => s+(c.realizado||c.previsto||0), 0);
+  const atrasados     = impostos.filter(c => isAtrasado(c)).length;
+  const venceHoje     = impostos.filter(c => isHoje(c)).length;
 
-  const fmt = (v) => 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-  const fmtDate = (d) => d ? d.split('-').reverse().join('/') : '—';
-  const today = (window.todayStr?.() || new Date().toISOString().slice(0,10));
-
-  const isAtrasado = (c) => !c.pago && c.vencimento < today;
-  const isHoje     = (c) => !c.pago && c.vencimento === today;
-  const isProximo  = (c) => !c.pago && c.vencimento > today;
-
-  const statusPill = (c) => {
-    if (c.pago)          return { label: 'Pago', bg: '#dcfce7', color: '#15803d' };
-    if (isAtrasado(c))   return { label: 'Atrasado', bg: '#fee2e2', color: '#dc2626' };
-    if (isHoje(c))       return { label: 'Vence hoje', bg: '#fef3c7', color: '#d97706' };
-    return                      { label: 'Pendente', bg: '#f1f5f9', color: '#64748b' };
+  // Marcar pago/desmarcar
+  const marcarPago = async (imp) => {
+    try {
+      await window.updateConta(imp.id, {
+        status: 'pago',
+        actual_value: imp.previsto,
+        settled_at: today,
+      });
+      await carregar();
+    } catch(e) { alert('Erro: ' + e.message); }
   };
 
-  const kpiCard = (label, value, sub, color, icon) => (
-    <div style={{
-      background: 'var(--surface)', borderRadius: 14, padding: '20px 22px',
-      border: '1px solid var(--border)', flex: 1, minWidth: 160,
-      borderTop: '3px solid ' + color,
-    }}>
-      <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>{sub}</div>}
-    </div>
-  );
+  const desmarcarPago = async (imp) => {
+    try {
+      await window.updateConta(imp.id, { status: 'pendente', actual_value: null, settled_at: null });
+      await carregar();
+    } catch(e) { alert('Erro: ' + e.message); }
+  };
 
-  return (
-    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+  const excluir = async (id) => {
+    try {
+      await window.deleteConta(id);
+      setConfirmDelete(null);
+      await carregar();
+    } catch(e) { alert('Erro: ' + e.message); }
+  };
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: 'var(--ink)' }}>Impostos</h2>
-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
-            DAS, INSS, FGTS, ISS e demais obrigações fiscais
+  // Modal de criação/edição
+  const ModalImposto = ({ imp, onClose }) => {
+    const isNew = !imp?.id;
+    const [form, setForm] = React.useState({
+      description: imp?.description || '',
+      category: imp?.category || 'DARF',
+      vencimento: imp?.vencimento || '',
+      previsto: imp?.previsto || '',
+      pago: imp?.pago || false,
+      realizado: imp?.realizado || '',
+    });
+    const [saving, setSaving] = React.useState(false);
+    const set = (k, v) => setForm(f => ({...f, [k]: v}));
+    const inp = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
+    const lbl = { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)', marginBottom: 5 };
+
+    const save = async () => {
+      if (!form.description.trim() || !form.vencimento || !form.previsto) {
+        alert('Preencha descrição, vencimento e valor.'); return;
+      }
+      setSaving(true);
+      try {
+        const payload = {
+          description: form.description.trim(),
+          category: form.category,
+          tipo: 'pagar',
+          vencimento: form.vencimento,
+          previsto: parseFloat(String(form.previsto).replace(',','.')),
+          pago: form.pago,
+          realizado: form.pago ? parseFloat(String(form.realizado||form.previsto).replace(',','.')) : null,
+        };
+        if (isNew) {
+          await window.createConta(payload, companyId, user?.id);
+        } else {
+          await window.updateConta(imp.id, {
+            description: payload.description,
+            category: payload.category,
+            value: payload.previsto,
+            date: payload.vencimento,
+            status: payload.pago ? 'pago' : 'pendente',
+            actual_value: payload.pago ? payload.realizado : null,
+          });
+        }
+        await carregar();
+        onClose();
+      } catch(e) { alert('Erro ao salvar: ' + e.message); }
+      finally { setSaving(false); }
+    };
+
+    return (
+      <div style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)', display:'grid', placeItems:'center', padding:24 }}>
+        <div style={{ background:'var(--bg)', borderRadius:16, padding:28, width:'min(520px,100%)', boxShadow:'0 24px 60px rgba(0,0,0,0.3)', border:'1px solid var(--line)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
+            <h3 style={{ margin:0, fontSize:18 }}>{isNew ? 'Novo imposto' : 'Editar imposto'}</h3>
+            <button onClick={onClose} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'var(--ink-soft)' }}>✕</button>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={lbl}>Descrição</label>
+              <input value={form.description} onChange={e=>set('description',e.target.value)} style={inp} placeholder="Ex: DARF COFINS Mai/2026" autoFocus />
+            </div>
+            <div>
+              <label style={lbl}>Categoria</label>
+              <select value={form.category} onChange={e=>set('category',e.target.value)} style={inp}>
+                {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>Vencimento</label>
+              <input type="date" value={form.vencimento} onChange={e=>set('vencimento',e.target.value)} style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Valor previsto (R$)</label>
+              <input value={form.previsto} onChange={e=>set('previsto',e.target.value)} style={inp} placeholder="0,00" />
+            </div>
+            <div>
+              <label style={lbl}>Situação</label>
+              <select value={form.pago ? 'pago' : 'pendente'} onChange={e=>set('pago', e.target.value==='pago')} style={inp}>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+              </select>
+            </div>
+            {form.pago && (
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={lbl}>Valor pago (R$)</label>
+                <input value={form.realizado} onChange={e=>set('realizado',e.target.value)} style={inp} placeholder={String(form.previsto || '0,00')} />
+              </div>
+            )}
+          </div>
+
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
+            <button onClick={onClose} style={{ padding:'10px 20px', borderRadius:8, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', cursor:'pointer', fontSize:14 }}>Cancelar</button>
+            <button onClick={save} disabled={saving} style={{ padding:'10px 24px', borderRadius:8, border:'none', background:'linear-gradient(135deg,var(--c-primary),var(--c-secondary))', color:'white', fontWeight:700, cursor:'pointer', fontSize:14, opacity: saving?0.7:1 }}>
+              {saving ? 'Salvando...' : isNew ? '+ Adicionar' : 'Salvar'}
+            </button>
           </div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar imposto..."
-            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, outline: 'none', width: 200 }} />
+      </div>
+    );
+  };
+
+  return (
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:22 }}>
+
+      {/* Modal */}
+      {(showModal || editando) && (
+        <ModalImposto imp={editando} onClose={() => { setShowModal(false); setEditando(null); }} />
+      )}
+
+      {/* Confirm delete */}
+      {confirmDelete && (
+        <div style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)', display:'grid', placeItems:'center', padding:24 }}>
+          <div style={{ background:'var(--bg)', borderRadius:16, padding:28, width:'min(420px,100%)', border:'1px solid rgba(239,68,68,0.4)' }}>
+            <h3 style={{ margin:'0 0 10px' }}>Excluir imposto?</h3>
+            <p style={{ margin:'0 0 22px', color:'var(--ink-soft)', fontSize:14 }}>
+              <strong>{confirmDelete.description}</strong> será removido permanentemente.
+            </p>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding:'10px 18px', borderRadius:8, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', cursor:'pointer' }}>Cancelar</button>
+              <button onClick={() => excluir(confirmDelete.id)} style={{ padding:'10px 20px', borderRadius:8, border:'none', background:'#ef4444', color:'white', fontWeight:700, cursor:'pointer' }}>Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:26, fontWeight:700 }}>Impostos</h2>
+          <div style={{ fontSize:13, color:'var(--ink-soft)', marginTop:2 }}>INSS · ISS · DARF · IRPJ · CSLL · 100% banco de dados</div>
+        </div>
+        <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar..."
+            style={{ padding:'9px 14px', borderRadius:8, border:'1px solid var(--line)', background:'var(--surface)', color:'var(--ink)', fontSize:13, outline:'none', width:180 }} />
+          <button onClick={() => { setEditando(null); setShowModal(true); }}
+            style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'linear-gradient(135deg,var(--c-primary),var(--c-secondary))', color:'white', fontWeight:700, fontSize:13, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
+            + Novo imposto
+          </button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-        {kpiCard('Total pendente', fmt(totalPendente), impostos.filter(c=>!c.pago).length + ' obrigações', '#ef4444')}
-        {kpiCard('Total pago (ano)', fmt(totalPago), impostos.filter(c=>c.pago).length + ' quitados', '#22c55e')}
-        {kpiCard('Projeção anual', fmt(totalAno), 'previsto + realizado', '#6366f1')}
-        {atrasados > 0 && kpiCard('Atrasados', atrasados + (atrasados === 1 ? ' imposto' : ' impostos'), 'Requer atenção!', '#dc2626')}
-        {vencendoHoje > 0 && kpiCard('Vence hoje', vencendoHoje + (vencendoHoje === 1 ? ' imposto' : ' impostos'), 'Pague hoje!', '#f59e0b')}
-      </div>
-
-      {/* Filtro de status */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        {[['pendente','Pendentes'],['pago','Pagos'],['todos','Todos']].map(([k, l]) => (
-          <button key={k} onClick={() => setStatusFilter(k)}
-            style={{
-              padding: '7px 18px', borderRadius: 20, border: '1px solid var(--border)',
-              background: statusFilter === k ? 'var(--c-primary)' : 'var(--surface)',
-              color: statusFilter === k ? 'white' : 'var(--ink)', fontWeight: 600,
-              fontSize: 13, cursor: 'pointer',
-            }}>{l}</button>
-        ))}
-        <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--ink-soft)' }}>
-          {filtered.length} {filtered.length === 1 ? 'item' : 'itens'}
-        </span>
-      </div>
-
-      {/* Por categoria */}
-      {Object.keys(porCategoria).length > 0 && (
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {Object.entries(porCategoria).map(([cat, data]) => (
-            <div key={cat} style={{
-              background: 'var(--surface)', borderRadius: 10, padding: '14px 18px',
-              border: '1px solid var(--border)', minWidth: 180,
-              borderLeft: '4px solid ' + catColor(cat),
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>{cat}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: catColor(cat) }}>{fmt(data.total)}</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>
-                {data.pendente > 0 && <span style={{ color: '#ef4444' }}>R$ {data.pendente.toLocaleString('pt-BR',{minimumFractionDigits:2})} pendente</span>}
-                {data.pago > 0 && data.pendente > 0 && ' · '}
-                {data.pago > 0 && <span style={{ color: '#22c55e' }}>R$ {data.pago.toLocaleString('pt-BR',{minimumFractionDigits:2})} pago</span>}
-              </div>
+      {!loading && (
+        <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
+          {[
+            { label:'Total pendente',  value: fmtMoeda(totalPendente), sub: impostos.filter(c=>!c.pago).length + ' obrigações', color:'#ef4444' },
+            { label:'Total pago (ano)', value: fmtMoeda(totalPago),    sub: impostos.filter(c=>c.pago).length + ' quitados',   color:'#22c55e' },
+            atrasados > 0 && { label:'Atrasados', value: atrasados + (atrasados===1?' obrigação':' obrigações'), sub:'Requer atenção!', color:'#dc2626' },
+            venceHoje > 0 && { label:'Vence hoje', value: venceHoje + (venceHoje===1?' imposto':' impostos'), sub:'Pague hoje!', color:'#f59e0b' },
+          ].filter(Boolean).map(kpi => (
+            <div key={kpi.label} style={{ background:'var(--surface)', borderRadius:12, padding:'18px 22px', border:'1px solid var(--line)', flex:1, minWidth:160, borderTop:'3px solid '+kpi.color }}>
+              <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--ink-soft)', marginBottom:6 }}>{kpi.label}</div>
+              <div style={{ fontSize:22, fontWeight:700, color:'var(--ink)' }}>{kpi.value}</div>
+              <div style={{ fontSize:12, color:'var(--ink-soft)', marginTop:4 }}>{kpi.sub}</div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Filtros */}
+      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        {[['pendente','Pendentes'],['pago','Pagos'],['todos','Todos']].map(([k,l]) => (
+          <button key={k} onClick={() => setStatusFilter(k)}
+            style={{ padding:'7px 18px', borderRadius:20, border:'1px solid var(--line)', background: statusFilter===k ? 'var(--c-primary)' : 'var(--surface)', color: statusFilter===k ? 'white' : 'var(--ink-soft)', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+            {l}
+          </button>
+        ))}
+        <span style={{ marginLeft:8, fontSize:13, color:'var(--ink-soft)' }}>{filtered.length} {filtered.length===1?'item':'itens'}</span>
+      </div>
+
       {/* Tabela */}
-      <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
-        {filtered.length === 0 ? (
-          <div style={{ padding: 48, textAlign: 'center', color: 'var(--ink-soft)' }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
-            <div style={{ fontWeight: 600 }}>Nenhum imposto pendente</div>
-            <div style={{ fontSize: 13, marginTop: 4 }}>Todas as obrigações estão em dia!</div>
+      <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--line)', overflow:'hidden' }}>
+        {loading ? (
+          <div style={{ padding:48, textAlign:'center', color:'var(--ink-soft)' }}>Carregando...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding:56, textAlign:'center' }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>{impostos.length === 0 ? '📋' : '✅'}</div>
+            <div style={{ fontWeight:700, fontSize:16, color:'var(--ink)' }}>
+              {impostos.length === 0 ? 'Nenhum imposto cadastrado' : 'Nenhum imposto pendente'}
+            </div>
+            <div style={{ fontSize:13, color:'var(--ink-soft)', marginTop:6 }}>
+              {impostos.length === 0 ? 'Clique em "+ Novo imposto" para começar.' : 'Todas as obrigações estão em dia!'}
+            </div>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-alt, var(--surface))' }}>
-                {['Descrição','Categoria','Vencimento','Valor previsto','Valor pago','Status',''].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>{h}</th>
+              <tr style={{ borderBottom:'1px solid var(--line)', background:'var(--surface)' }}>
+                {['Descrição','Categoria','Vencimento','Valor previsto','Valor pago','Status','Ações'].map(h => (
+                  <th key={h} style={{ padding:'12px 16px', textAlign:'left', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color:'var(--ink-soft)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c, i) => {
-                const pill = statusPill(c);
+              {filtered.map(imp => {
+                const pill = statusPill(imp);
                 return (
-                  <tr key={c.id} style={{ borderBottom: '1px solid var(--border)', background: isAtrasado(c) ? 'rgba(239,68,68,0.04)' : 'transparent' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--hover, rgba(0,0,0,0.02))'}
-                    onMouseLeave={e => e.currentTarget.style.background = isAtrasado(c) ? 'rgba(239,68,68,0.04)' : 'transparent'}>
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{c.description}</div>
+                  <tr key={imp.id} style={{ borderBottom:'1px solid var(--line)', background: isAtrasado(imp)?'rgba(239,68,68,0.03)':'transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.background='var(--hover,rgba(0,0,0,0.02))'}
+                    onMouseLeave={e => e.currentTarget.style.background = isAtrasado(imp)?'rgba(239,68,68,0.03)':'transparent'}>
+                    <td style={{ padding:'13px 16px' }}>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{imp.description}</div>
                     </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 6, background: catColor(c.category) + '20', color: catColor(c.category), fontSize: 12, fontWeight: 600 }}>
-                        {c.category}
+                    <td style={{ padding:'13px 16px' }}>
+                      <span style={{ display:'inline-block', padding:'3px 10px', borderRadius:6, background:catColor(imp.category)+'20', color:catColor(imp.category), fontSize:12, fontWeight:600 }}>
+                        {imp.category}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontSize: 13, color: isAtrasado(c) ? '#dc2626' : 'var(--ink)' }}>
-                      {fmtDate(c.vencimento)}
+                    <td style={{ padding:'13px 16px', fontFamily:'monospace', fontSize:13, color: isAtrasado(imp)?'#dc2626':'var(--ink)', fontWeight: isAtrasado(imp)?700:400 }}>
+                      {fmtDate(imp.vencimento)}
                     </td>
-                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: 'var(--ink)' }}>
-                      {fmt(c.previsto)}
+                    <td style={{ padding:'13px 16px', fontFamily:'monospace', fontWeight:600 }}>{fmtMoeda(imp.previsto)}</td>
+                    <td style={{ padding:'13px 16px', fontFamily:'monospace', color: imp.pago?'#15803d':'var(--ink-soft)' }}>
+                      {imp.pago ? fmtMoeda(imp.realizado||imp.previsto) : '—'}
                     </td>
-                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', color: c.pago ? '#15803d' : 'var(--ink-soft)' }}>
-                      {c.pago ? fmt(c.realizado || c.previsto) : '—'}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: pill.bg, color: pill.color, fontSize: 12, fontWeight: 700 }}>
+                    <td style={{ padding:'13px 16px' }}>
+                      <span style={{ display:'inline-block', padding:'4px 10px', borderRadius:6, background:pill.bg, color:pill.color, fontSize:12, fontWeight:700 }}>
                         {pill.label}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      {!c.pago && (
-                        <button onClick={async () => {
-                          await window.updateContaLocal(c.id, { pago: true, realizado: c.previsto });
-                          tick();
-                        }}
-                          style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#22c55e', color: 'white', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                          ✓ Marcar pago
-                        </button>
-                      )}
-                      {c.pago && (
-                        <button onClick={async () => {
-                          await window.updateContaLocal(c.id, { pago: false, realizado: 0 });
-                          tick();
-                        }}
-                          style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--ink-soft)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                          Desfazer
-                        </button>
-                      )}
+                    <td style={{ padding:'13px 16px' }}>
+                      <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                        {!imp.pago ? (
+                          <button onClick={() => marcarPago(imp)}
+                            style={{ padding:'5px 12px', borderRadius:7, border:'none', background:'#22c55e', color:'white', fontWeight:600, fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
+                            ✓ Pagar
+                          </button>
+                        ) : (
+                          <button onClick={() => desmarcarPago(imp)}
+                            style={{ padding:'5px 12px', borderRadius:7, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', fontSize:12, cursor:'pointer' }}>
+                            Desfazer
+                          </button>
+                        )}
+                        <button onClick={() => setEditando(imp)}
+                          style={{ padding:'5px 10px', borderRadius:7, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', fontSize:12, cursor:'pointer' }}>✏</button>
+                        <button onClick={() => setConfirmDelete(imp)}
+                          style={{ padding:'5px 10px', borderRadius:7, border:'none', background:'transparent', color:'#ef4444', fontSize:14, cursor:'pointer' }}>✕</button>
+                      </div>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface)' }}>
-                <td colSpan={3} style={{ padding: '14px 16px', fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>
-                  Total ({filtered.length} {filtered.length === 1 ? 'item' : 'itens'})
-                </td>
-                <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: 'var(--ink)' }}>
-                  {fmt(filtered.reduce((s,c) => s + (c.previsto||0), 0))}
-                </td>
-                <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: '#15803d' }}>
-                  {fmt(filtered.filter(c=>c.pago).reduce((s,c) => s + (c.realizado||c.previsto||0), 0))}
-                </td>
+              <tr style={{ borderTop:'2px solid var(--line)' }}>
+                <td colSpan={3} style={{ padding:'13px 16px', fontWeight:700, fontSize:13 }}>Total ({filtered.length} {filtered.length===1?'item':'itens'})</td>
+                <td style={{ padding:'13px 16px', fontFamily:'monospace', fontWeight:700 }}>{fmtMoeda(filtered.reduce((s,c)=>s+(c.previsto||0),0))}</td>
+                <td style={{ padding:'13px 16px', fontFamily:'monospace', fontWeight:700, color:'#15803d' }}>{fmtMoeda(filtered.filter(c=>c.pago).reduce((s,c)=>s+(c.realizado||c.previsto||0),0))}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>
           </table>
         )}
       </div>
-
-      {/* Aviso se não há dados de impostos */}
-      {impostos.length === 0 && (
-        <div style={{ padding: '20px 24px', background: '#fef3c7', borderRadius: 12, border: '1px solid #fbbf24', fontSize: 14, color: '#92400e' }}>
-          <strong>Nenhum imposto cadastrado.</strong> Adicione contas com categoria "Impostos e Tributos", "DAS", "INSS", "FGTS" ou similar nas Contas para que apareçam aqui.
-        </div>
-      )}
     </div>
   );
 };
+
+
 
 const ContasPage = ({ filter, setFilter }) => {
   const [editing, setEditing] = React.useState(null);
