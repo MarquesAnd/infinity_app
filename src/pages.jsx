@@ -541,9 +541,15 @@ const ContasPage = ({ filter, setFilter }) => {
   const [q, setQ] = React.useState('');
   const contas = window.filterContas(filter.mode === 'month' ? { month: filter.month } : { from: filter.from, to: filter.to });
   const filtered = contas.filter(c => {
-    if (tab !== 'todos' && c.tipo !== tab) return false;
-    if (status === 'pago' && !(c.pago && c.tipo === 'pagar')) return false;
-    if (status === 'recebido' && !(c.pago && c.tipo === 'receber')) return false;
+    // Aba "A pagar" → só saídas NÃO pagas
+    if (tab === 'pagar' && (c.tipo !== 'pagar' || c.pago)) return false;
+    // Aba "A receber" → só entradas NÃO recebidas
+    if (tab === 'receber' && (c.tipo !== 'receber' || c.pago)) return false;
+    // Aba "Todos" com filtro de status
+    if (tab === 'todos') {
+      if (status === 'pago'     && !(c.pago && c.tipo === 'pagar'))   return false;
+      if (status === 'recebido' && !(c.pago && c.tipo === 'receber')) return false;
+    }
     if (q && !(c.description.toLowerCase().includes(q.toLowerCase()) || c.category.toLowerCase().includes(q.toLowerCase()))) return false;
     return true;
   });
