@@ -641,8 +641,8 @@ const ImpostosPage = ({ filter, setFilter }) => {
 
       {/* KPIs */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-        {kpiCard('Total pendente', fmt(totalPendente), {impostos.filter(c=>!c.pago).length + ' obrigações'}, '#ef4444')}
-        {kpiCard('Total pago (ano)', fmt(totalPago), {impostos.filter(c=>c.pago).length + ' quitados'}, '#22c55e')}
+        {kpiCard('Total pendente', fmt(totalPendente), impostos.filter(c=>!c.pago).length + ' obrigações', '#ef4444')}
+        {kpiCard('Total pago (ano)', fmt(totalPago), impostos.filter(c=>c.pago).length + ' quitados', '#22c55e')}
         {kpiCard('Projeção anual', fmt(totalAno), 'previsto + realizado', '#6366f1')}
         {atrasados > 0 && kpiCard('Atrasados', atrasados + (atrasados === 1 ? ' imposto' : ' impostos'), 'Requer atenção!', '#dc2626')}
         {vencendoHoje > 0 && kpiCard('Vence hoje', vencendoHoje + (vencendoHoje === 1 ? ' imposto' : ' impostos'), 'Pague hoje!', '#f59e0b')}
