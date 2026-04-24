@@ -527,6 +527,262 @@ const ConfirmarPagamentoModal = ({ conta, onClose, onSaved }) => {
 };
 
 // ─── PÁGINA CONTAS (a pagar / a receber — previsto × realizado) ──────
+
+// ═══════════════════════════════════════════════════════════════
+// PÁGINA DE IMPOSTOS
+// ═══════════════════════════════════════════════════════════════
+const ImpostosPage = ({ filter, setFilter }) => {
+  const [, tick] = React.useReducer(x => x + 1, 0);
+  React.useEffect(() => {
+    const h = () => tick();
+    window.addEventListener('sb-data-hydrated', h);
+    return () => window.removeEventListener('sb-data-hydrated', h);
+  }, []);
+
+  const [statusFilter, setStatusFilter] = React.useState('pendente'); // pendente | pago | todos
+  const [q, setQ] = React.useState('');
+  const [editando, setEditando] = React.useState(null);
+
+  // Categorias consideradas impostos
+  const CATS_IMPOSTOS = [
+    'Impostos e Tributos','DAS','DARF','INSS','ISS','FGTS',
+    'Simples Nacional','IR','IRPJ','CSLL','PIS','COFINS',
+    'Imposto','Tributo','Taxa','Contribuição','Anuidade',
+  ];
+
+  const isImposto = (c) => {
+    const cat = (c.category || '').toLowerCase();
+    const desc = (c.description || '').toLowerCase();
+    return CATS_IMPOSTOS.some(k => cat.includes(k.toLowerCase()) || desc.includes(k.toLowerCase()));
+  };
+
+  // Buscar todas as contas sem filtro de mês (impostos do ano todo)
+  const todasContas = window.CONTAS || [];
+  const impostos = todasContas.filter(c => c.tipo === 'pagar' && isImposto(c));
+
+  const filtered = impostos.filter(c => {
+    if (statusFilter === 'pendente' && c.pago) return false;
+    if (statusFilter === 'pago' && !c.pago) return false;
+    if (q && !(c.description.toLowerCase().includes(q.toLowerCase()) || c.category.toLowerCase().includes(q.toLowerCase()))) return false;
+    return true;
+  }).sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+
+  // KPIs
+  const totalPendente = impostos.filter(c => !c.pago).reduce((s, c) => s + (c.previsto || 0), 0);
+  const totalPago     = impostos.filter(c => c.pago).reduce((s, c) => s + (c.realizado || c.previsto || 0), 0);
+  const totalAno      = impostos.reduce((s, c) => s + (c.pago ? (c.realizado || c.previsto || 0) : (c.previsto || 0)), 0);
+  const vencendoHoje  = impostos.filter(c => !c.pago && c.vencimento === window.todayStr?.()).length;
+  const atrasados     = impostos.filter(c => !c.pago && c.vencimento < (window.todayStr?.() || new Date().toISOString().slice(0,10))).length;
+
+  // Agrupamento por categoria
+  const porCategoria = {};
+  filtered.forEach(c => {
+    const cat = c.category || 'Outros';
+    if (!porCategoria[cat]) porCategoria[cat] = { total: 0, pago: 0, pendente: 0, itens: [] };
+    porCategoria[cat].itens.push(c);
+    porCategoria[cat].total += c.previsto || 0;
+    if (c.pago) porCategoria[cat].pago += c.realizado || c.previsto || 0;
+    else porCategoria[cat].pendente += c.previsto || 0;
+  });
+
+  const catColors = {
+    'Impostos e Tributos': '#ef4444',
+    'DAS': '#f97316', 'DAS Simples Nacional': '#f97316',
+    'INSS': '#8b5cf6', 'INSS patronal': '#8b5cf6',
+    'FGTS': '#3b82f6',
+    'ISS': '#ec4899',
+    'DARF': '#f59e0b',
+  };
+  const catColor = (cat) => catColors[cat] || '#6b7280';
+
+  const fmt = (v) => 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmtDate = (d) => d ? d.split('-').reverse().join('/') : '—';
+  const today = (window.todayStr?.() || new Date().toISOString().slice(0,10));
+
+  const isAtrasado = (c) => !c.pago && c.vencimento < today;
+  const isHoje     = (c) => !c.pago && c.vencimento === today;
+  const isProximo  = (c) => !c.pago && c.vencimento > today;
+
+  const statusPill = (c) => {
+    if (c.pago)          return { label: 'Pago', bg: '#dcfce7', color: '#15803d' };
+    if (isAtrasado(c))   return { label: 'Atrasado', bg: '#fee2e2', color: '#dc2626' };
+    if (isHoje(c))       return { label: 'Vence hoje', bg: '#fef3c7', color: '#d97706' };
+    return                      { label: 'Pendente', bg: '#f1f5f9', color: '#64748b' };
+  };
+
+  const kpiCard = (label, value, sub, color, icon) => (
+    <div style={{
+      background: 'var(--surface)', borderRadius: 14, padding: '20px 22px',
+      border: '1px solid var(--border)', flex: 1, minWidth: 160,
+      borderTop: \`3px solid \${color}\`,
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: 'var(--ink)' }}>Impostos</h2>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
+            DAS, INSS, FGTS, ISS e demais obrigações fiscais
+          </div>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar imposto..."
+            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, outline: 'none', width: 200 }} />
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        {kpiCard('Total pendente', fmt(totalPendente), \`\${impostos.filter(c=>!c.pago).length} obrigações\`, '#ef4444')}
+        {kpiCard('Total pago (ano)', fmt(totalPago), \`\${impostos.filter(c=>c.pago).length} quitados\`, '#22c55e')}
+        {kpiCard('Projeção anual', fmt(totalAno), 'previsto + realizado', '#6366f1')}
+        {atrasados > 0 && kpiCard('Atrasados', atrasados + (atrasados === 1 ? ' imposto' : ' impostos'), 'Requer atenção!', '#dc2626')}
+        {vencendoHoje > 0 && kpiCard('Vence hoje', vencendoHoje + (vencendoHoje === 1 ? ' imposto' : ' impostos'), 'Pague hoje!', '#f59e0b')}
+      </div>
+
+      {/* Filtro de status */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {[['pendente','Pendentes'],['pago','Pagos'],['todos','Todos']].map(([k, l]) => (
+          <button key={k} onClick={() => setStatusFilter(k)}
+            style={{
+              padding: '7px 18px', borderRadius: 20, border: '1px solid var(--border)',
+              background: statusFilter === k ? 'var(--c-primary)' : 'var(--surface)',
+              color: statusFilter === k ? 'white' : 'var(--ink)', fontWeight: 600,
+              fontSize: 13, cursor: 'pointer',
+            }}>{l}</button>
+        ))}
+        <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--ink-soft)' }}>
+          {filtered.length} {filtered.length === 1 ? 'item' : 'itens'}
+        </span>
+      </div>
+
+      {/* Por categoria */}
+      {Object.keys(porCategoria).length > 0 && (
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          {Object.entries(porCategoria).map(([cat, data]) => (
+            <div key={cat} style={{
+              background: 'var(--surface)', borderRadius: 10, padding: '14px 18px',
+              border: '1px solid var(--border)', minWidth: 180,
+              borderLeft: \`4px solid \${catColor(cat)}\`,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>{cat}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: catColor(cat) }}>{fmt(data.total)}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>
+                {data.pendente > 0 && <span style={{ color: '#ef4444' }}>R$ {data.pendente.toLocaleString('pt-BR',{minimumFractionDigits:2})} pendente</span>}
+                {data.pago > 0 && data.pendente > 0 && ' · '}
+                {data.pago > 0 && <span style={{ color: '#22c55e' }}>R$ {data.pago.toLocaleString('pt-BR',{minimumFractionDigits:2})} pago</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tabela */}
+      <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: 48, textAlign: 'center', color: 'var(--ink-soft)' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+            <div style={{ fontWeight: 600 }}>Nenhum imposto pendente</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>Todas as obrigações estão em dia!</div>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-alt, var(--surface))' }}>
+                {['Descrição','Categoria','Vencimento','Valor previsto','Valor pago','Status',''].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c, i) => {
+                const pill = statusPill(c);
+                return (
+                  <tr key={c.id} style={{ borderBottom: '1px solid var(--border)', background: isAtrasado(c) ? 'rgba(239,68,68,0.04)' : 'transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--hover, rgba(0,0,0,0.02))'}
+                    onMouseLeave={e => e.currentTarget.style.background = isAtrasado(c) ? 'rgba(239,68,68,0.04)' : 'transparent'}>
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{c.description}</div>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 6, background: catColor(c.category) + '20', color: catColor(c.category), fontSize: 12, fontWeight: 600 }}>
+                        {c.category}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontSize: 13, color: isAtrasado(c) ? '#dc2626' : 'var(--ink)' }}>
+                      {fmtDate(c.vencimento)}
+                    </td>
+                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, color: 'var(--ink)' }}>
+                      {fmt(c.previsto)}
+                    </td>
+                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', color: c.pago ? '#15803d' : 'var(--ink-soft)' }}>
+                      {c.pago ? fmt(c.realizado || c.previsto) : '—'}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: pill.bg, color: pill.color, fontSize: 12, fontWeight: 700 }}>
+                        {pill.label}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {!c.pago && (
+                        <button onClick={async () => {
+                          await window.updateContaLocal(c.id, { pago: true, realizado: c.previsto });
+                          tick();
+                        }}
+                          style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#22c55e', color: 'white', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                          ✓ Marcar pago
+                        </button>
+                      )}
+                      {c.pago && (
+                        <button onClick={async () => {
+                          await window.updateContaLocal(c.id, { pago: false, realizado: 0 });
+                          tick();
+                        }}
+                          style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--ink-soft)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                          Desfazer
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface)' }}>
+                <td colSpan={3} style={{ padding: '14px 16px', fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>
+                  Total ({filtered.length} {filtered.length === 1 ? 'item' : 'itens'})
+                </td>
+                <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: 'var(--ink)' }}>
+                  {fmt(filtered.reduce((s,c) => s + (c.previsto||0), 0))}
+                </td>
+                <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: '#15803d' }}>
+                  {fmt(filtered.filter(c=>c.pago).reduce((s,c) => s + (c.realizado||c.previsto||0), 0))}
+                </td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+        )}
+      </div>
+
+      {/* Aviso se não há dados de impostos */}
+      {impostos.length === 0 && (
+        <div style={{ padding: '20px 24px', background: '#fef3c7', borderRadius: 12, border: '1px solid #fbbf24', fontSize: 14, color: '#92400e' }}>
+          <strong>Nenhum imposto cadastrado.</strong> Adicione contas com categoria "Impostos e Tributos", "DAS", "INSS", "FGTS" ou similar nas Contas para que apareçam aqui.
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ContasPage = ({ filter, setFilter }) => {
   const [editing, setEditing] = React.useState(null);
   const [confirmando, setConfirmando] = React.useState(null); // conta sendo confirmada
@@ -1029,3 +1285,5 @@ const PageHeader = ({ title, subtitle, action }) => (
 );
 
 Object.assign(window, { ContasPage, ComprasPage, PacientesPage, AgendaPage, ConfigPage, PageHeader, FilterBar, ExcelImporter, KPI });
+
+window.ImpostosPage = ImpostosPage;

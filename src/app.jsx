@@ -66,6 +66,7 @@ const Sidebar = ({ page, setPage, collapsed, setCollapsed }) => {
   const allItems = [
     { k: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { k: 'contas', label: 'Contas', icon: 'file' },
+    { k: 'impostos', label: 'Impostos', icon: 'alert' },
     { k: 'compras', label: 'Compras', icon: 'wallet' },
     { k: 'agenda', label: 'Agenda', icon: 'calendar' },
     { k: 'relatorios', label: 'Relatórios', icon: 'chart' },
@@ -673,6 +674,7 @@ const AppShell = () => {
   const pages = {
     dashboard: <Dashboard filter={filter} setFilter={setFilter} />,
     contas: <ContasPage filter={filter} setFilter={setFilter} />,
+    impostos: <window.ImpostosPage filter={filter} setFilter={setFilter} />,
     compras: <ComprasPage filter={filter} setFilter={setFilter} />,
     agenda: <AgendaPage filter={filter} setFilter={setFilter} />,
     relatorios: <RelatoriosPage />,
