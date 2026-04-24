@@ -308,7 +308,17 @@ const EditModal = ({ kind, record, onClose, onSaved }) => {
               </FormField>
             </div>
             <FormField label="Categoria">
-              <input value={form.category || ''} onChange={(e) => set('category', e.target.value)} style={editInput} />
+              <select value={form.category || ''} onChange={e => set('category', e.target.value)} style={editInput}>
+                <option value="">— Selecione —</option>
+                {((window.APP_CATEGORIES?.[form.tipo === 'receber' ? 'entrada' : 'saida'] || [])
+                  .filter(c => c.is_active !== false)
+                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                )}
+                {/* Valor atual não está na lista */}
+                {form.category && !(window.APP_CATEGORIES?.[form.tipo === 'receber' ? 'entrada' : 'saida'] || []).some(c => c.name === form.category) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
+              </select>
             </FormField>
             <FormField label="Valor previsto">
               <input type="number" step="0.01" value={form.previsto || 0} onChange={(e) => set('previsto', parseFloat(e.target.value))} style={editInput} />
@@ -339,8 +349,17 @@ const EditModal = ({ kind, record, onClose, onSaved }) => {
                 <input value={form.description || ''} onChange={(e) => set('description', e.target.value)} style={editInput} required />
               </FormField>
             </div>
-            <FormField label="Categoria / Fornecedor">
-              <input value={form.category || ''} onChange={(e) => set('category', e.target.value)} style={editInput} />
+            <FormField label="Categoria">
+              <select value={form.category || ''} onChange={e => set('category', e.target.value)} style={editInput}>
+                <option value="">— Selecione —</option>
+                {((window.APP_CATEGORIES?.saida || [])
+                  .filter(c => c.is_active !== false)
+                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                )}
+                {form.category && !(window.APP_CATEGORIES?.saida || []).some(c => c.name === form.category) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
+              </select>
             </FormField>
             <FormField label="Valor">
               <input type="number" step="0.01" value={form.amount || 0} onChange={(e) => set('amount', parseFloat(e.target.value))} style={editInput} />
@@ -1352,27 +1371,142 @@ const AgendaPage = ({ filter, setFilter }) => {
   );
 };
 
-const ConfigPage = () => (
-  <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 700 }}>
-    <PageHeader title="Configurações" subtitle="Personalize sua experiência" />
-    <TiltCard interactive={false} padding={28}>
-      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 18 }}>Conta</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {[
-          { label: 'Nome da clínica', value: 'Infinity Clínica' },
-          { label: 'E-mail', value: 'contato@infinity.clinic' },
-          { label: 'CNPJ', value: '12.345.678/0001-90' },
-          { label: 'Plano atual', value: 'Profissional' },
-        ].map((f, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--line)' }}>
-            <span style={{ fontSize: 13, color: 'var(--ink-mute)', fontWeight: 500 }}>{f.label}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{f.value}</span>
+const PRESET_COLORS = [
+  '#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#f59e0b',
+  '#22c55e','#14b8a6','#3b82f6','#06b6d4','#64748b','#a855f7',
+];
+
+const ConfigPage = () => {
+  const { user, profile } = useAuth();
+  const companyId = profile?.company_id;
+  const [cats, setCats] = React.useState({ entrada: [], saida: [] });
+  const [loading, setLoading] = React.useState(true);
+  const [novaEntrada, setNovaEntrada] = React.useState('');
+  const [novaSaida, setNovaSaida] = React.useState('');
+  const [corEntrada, setCorEntrada] = React.useState(PRESET_COLORS[0]);
+  const [corSaida, setCorSaida] = React.useState(PRESET_COLORS[3]);
+  const [saving, setSaving] = React.useState(false);
+
+  const carregar = React.useCallback(async () => {
+    if (!companyId) return;
+    setLoading(true);
+    try {
+      const rows = await window.fetchCategories(companyId);
+      setCats({
+        entrada: rows.filter(r => r.type === 'entrada'),
+        saida:   rows.filter(r => r.type === 'saida'),
+      });
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [companyId]);
+
+  React.useEffect(() => { carregar(); }, [carregar]);
+
+  const addCat = async (type) => {
+    const nome = type === 'entrada' ? novaEntrada.trim() : novaSaida.trim();
+    const cor  = type === 'entrada' ? corEntrada : corSaida;
+    if (!nome) return;
+    setSaving(true);
+    try {
+      await window.createCategory(companyId, user?.id, { name: nome, type, color: cor });
+      if (type === 'entrada') setNovaEntrada(''); else setNovaSaida('');
+      await carregar();
+      window.reloadCategories?.();
+    } catch(e) { alert('Erro: ' + e.message); }
+    finally { setSaving(false); }
+  };
+
+  const toggleCat = async (cat) => {
+    try {
+      await window.updateCategory(cat.id, { is_active: !cat.is_active });
+      await carregar();
+      window.reloadCategories?.();
+    } catch(e) { alert('Erro: ' + e.message); }
+  };
+
+  const delCat = async (cat) => {
+    if (!confirm('Excluir categoria "' + cat.name + '"?')) return;
+    try {
+      await window.deleteCategory(cat.id);
+      await carregar();
+      window.reloadCategories?.();
+    } catch(e) { alert('Erro: ' + e.message); }
+  };
+
+  const inp = { flex:1, padding:'9px 12px', borderRadius:8, border:'1px solid var(--line)', background:'var(--surface)', color:'var(--ink)', fontSize:13, outline:'none' };
+
+  const CatSection = ({ type, label, list, novaVal, setNova, cor, setCor }) => (
+    <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--line)', overflow:'hidden', marginBottom:16 }}>
+      {/* Header da seção */}
+      <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--line)', display:'flex', alignItems:'center', gap:10 }}>
+        <span style={{ width:10, height:10, borderRadius:'50%', background: type==='entrada' ? '#22c55e' : '#ef4444', display:'inline-block' }} />
+        <span style={{ fontWeight:700, fontSize:14 }}>{label}</span>
+        <span style={{ marginLeft:'auto', fontSize:12, color:'var(--ink-soft)' }}>{list.filter(c=>c.is_active!==false).length} ativas</span>
+      </div>
+
+      {/* Lista */}
+      <div>
+        {loading ? (
+          <div style={{ padding:'20px', textAlign:'center', color:'var(--ink-soft)', fontSize:13 }}>Carregando...</div>
+        ) : list.length === 0 ? (
+          <div style={{ padding:'20px', textAlign:'center', color:'var(--ink-soft)', fontSize:13 }}>Nenhuma categoria ainda.</div>
+        ) : list.map(cat => (
+          <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 20px', borderBottom:'1px solid var(--line)', opacity: cat.is_active===false ? 0.45 : 1 }}>
+            <span style={{ width:12, height:12, borderRadius:3, background: cat.color || '#6b7280', flexShrink:0 }} />
+            <span style={{ flex:1, fontSize:14, fontWeight:500 }}>{cat.name}</span>
+            <button onClick={() => toggleCat(cat)} title={cat.is_active===false ? 'Ativar' : 'Desativar'}
+              style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', fontSize:12, cursor:'pointer' }}>
+              {cat.is_active===false ? '▶ Ativar' : '⏸ Ocultar'}
+            </button>
+            <button onClick={() => delCat(cat)}
+              style={{ padding:'4px 8px', borderRadius:6, border:'none', background:'transparent', color:'#ef4444', fontSize:16, cursor:'pointer', lineHeight:1 }}>✕</button>
           </div>
         ))}
       </div>
-    </TiltCard>
-  </div>
-);
+
+      {/* Adicionar nova */}
+      <div style={{ padding:'14px 20px', background:'rgba(0,0,0,0.02)', display:'flex', gap:8, alignItems:'center' }}>
+        <input value={novaVal} onChange={e => setNova(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addCat(type)}
+          placeholder={'Nova categoria de ' + (type==='entrada'?'entrada':'saída') + '...'}
+          style={inp} />
+        {/* Seletor de cor */}
+        <div style={{ display:'flex', gap:4, flexWrap:'wrap', maxWidth:160 }}>
+          {PRESET_COLORS.map(pc => (
+            <div key={pc} onClick={() => setCor(pc)}
+              style={{ width:18, height:18, borderRadius:4, background:pc, cursor:'pointer', border: cor===pc ? '2px solid var(--ink)' : '2px solid transparent', flexShrink:0 }} />
+          ))}
+        </div>
+        <button onClick={() => addCat(type)} disabled={saving || !novaVal.trim()}
+          style={{ padding:'9px 18px', borderRadius:8, border:'none', background:'linear-gradient(135deg,var(--c-primary),var(--c-secondary))', color:'white', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', opacity: !novaVal.trim()||saving ? 0.6 : 1 }}>
+          + Adicionar
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="anim-fade" style={{ display:'flex', flexDirection:'column', gap:24, maxWidth:760 }}>
+      <PageHeader title="Configurações" subtitle="Categorias, conta e preferências" />
+
+      {/* Categorias */}
+      <div>
+        <h3 style={{ fontSize:18, fontWeight:700, margin:'0 0 16px', color:'var(--ink)' }}>
+          📂 Categorias de lançamento
+        </h3>
+        <div style={{ fontSize:13, color:'var(--ink-soft)', marginBottom:18, lineHeight:1.6 }}>
+          As categorias aparecem como lista suspensa ao criar contas e compras. Adicione, oculte ou exclua conforme necessário.
+        </div>
+        <CatSection type="entrada" label="Categorias de entrada (receitas)"
+          list={cats.entrada} novaVal={novaEntrada} setNova={setNovaEntrada}
+          cor={corEntrada} setCor={setCorEntrada} />
+        <CatSection type="saida" label="Categorias de saída (despesas)"
+          list={cats.saida} novaVal={novaSaida} setNova={setNovaSaida}
+          cor={corSaida} setCor={setCorSaida} />
+      </div>
+    </div>
+  );
+};
 
 // Page header
 const PageHeader = ({ title, subtitle, action }) => (

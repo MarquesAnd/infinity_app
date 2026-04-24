@@ -263,7 +263,25 @@ async function deleteCompra(id) {
 
 // ---- Categories ----
 async function fetchCategories(companyId) {
-  return sbRest(`/categories?company_id=eq.${companyId}&is_active=eq.true&select=*&order=name.asc`);
+  const rows = await sbRest(`/categories?company_id=eq.${companyId}&select=*&order=name.asc`);
+  return rows || [];
+}
+async function createCategory(companyId, userId, { name, type, color }) {
+  return sbRest('/categories', {
+    method: 'POST',
+    body: JSON.stringify({ company_id: companyId, created_by: userId, name, type, color: color || '#6b7280', is_active: true }),
+    prefer: 'return=representation',
+  });
+}
+async function updateCategory(id, patch) {
+  return sbRest(`/categories?id=eq.${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+    prefer: 'return=representation',
+  });
+}
+async function deleteCategory(id) {
+  return sbRest(`/categories?id=eq.${id}`, { method: 'DELETE' });
 }
 
 // ---- Audit log ----
@@ -302,6 +320,6 @@ Object.assign(window, {
   getProfile, updateProfile, listTeam, inviteMember, updateMemberRole, removeMember,
   fetchContas, createConta, updateConta, deleteConta, markContaPaga, rowToConta, contaToRow,
   fetchCompras, createCompra, updateCompra, deleteCompra, rowToCompra, compraToRow,
-  fetchCategories, fetchAuditLog, logAction,
+  fetchCategories, createCategory, updateCategory, deleteCategory, fetchAuditLog, logAction,
   ROLE_ACCESS, canAccess,
 });

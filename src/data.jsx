@@ -31,6 +31,14 @@ const CATS_SAIDA = [
   { cat: 'Marketing e Comercial', color: 'var(--c-pink)' },
 ];
 const catColor = (name, type) => {
+  // Priorizar categorias do banco se disponíveis
+  const appCats = window.APP_CATEGORIES;
+  if (appCats) {
+    const list = type === 'entrada' ? appCats.entrada : appCats.saida;
+    const found = list?.find(c => c.name === name);
+    if (found?.color) return found.color;
+  }
+  // Fallback para categorias hardcoded
   const list = type === 'entrada' ? CATS_ENTRADA : CATS_SAIDA;
   return list.find(c => c.cat === name)?.color || 'var(--c-secondary)';
 };
