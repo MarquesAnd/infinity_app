@@ -269,7 +269,7 @@ async function fetchCategories(companyId) {
 async function createCategory(companyId, userId, { name, type, color }) {
   return sbRest('/categories', {
     method: 'POST',
-    body: JSON.stringify({ company_id: companyId, created_by: userId, name, type, color: color || '#6b7280', is_active: true }),
+    body: JSON.stringify({ company_id: companyId, name, type, color: color || '#6b7280', is_active: true }),
     prefer: 'return=representation',
   });
 }
