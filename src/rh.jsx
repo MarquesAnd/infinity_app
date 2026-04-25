@@ -1749,6 +1749,7 @@ const RHPage = () => {
   const subs = [
     { k: 'dashboard', label: 'Dashboard', icon: '●' },
     { k: 'colaboradores', label: 'Colaboradores', icon: '◆' },
+    { k: 'salas', label: 'Salas', icon: '▦' },
     { k: 'ferias', label: 'Férias', icon: '◈' },
     { k: 'faltas', label: 'Faltas', icon: '▲' },
     { k: 'atestados', label: 'Atestados', icon: '◎' },
@@ -1819,6 +1820,7 @@ const RHPage = () => {
       {/* Conteúdo */}
       {subPage === 'dashboard' && <RHDashboard data={rhData} setSubPage={setSubPage} />}
       {subPage === 'colaboradores' && <RHColaboradores data={rhData} reload={rhData.reload} toast={toast} />}
+      {subPage === 'salas' && <window.RHSalas rhData={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'ferias' && <RHFerias data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'faltas' && <RHFaltas data={rhData} reload={rhData.reload} toast={toast} />}
       {subPage === 'atestados' && <RHAtestados data={rhData} reload={rhData.reload} toast={toast} />}
