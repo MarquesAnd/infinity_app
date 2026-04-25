@@ -93,11 +93,17 @@ const useSalasData = () => {
 // Helpers
 // ═════════════════════════════════════════════════════════════════════
 const fmtHora = (t) => t ? String(t).slice(0, 5) : '';
-const labelSala = (sala) => sala ? `S${sala.numero} · ${sala.andar}` : 'sem sala';
+// Helpers de exibição de sala (numeração casa centenal — andar ignorado)
+const labelSala = (sala) => {
+  if (!sala) return 'sem sala';
+  if (sala.apelido) return sala.apelido;
+  return `Sala ${sala.numero}`;
+};
 const codigoSala = (sala, unidades) => {
   if (!sala) return '—';
   const u = unidades.find(x => x.id === sala.unidade_id);
-  return `${u?.codigo || '?'}-S${sala.numero}-${sala.andar.replace(/[^A-Z0-9º]/g, '')}`;
+  if (sala.apelido) return `${u?.codigo || '?'} · ${sala.apelido}`;
+  return `${u?.codigo || '?'} · ${sala.numero}`;
 };
 
 // Filtra escalas ativas hoje (vigência ok + não fechadas)
@@ -323,7 +329,11 @@ const SalasDisponibilidade = ({ data }) => {
     const ua = data.unidades.find(u => u.id === a.unidade_id);
     const ub = data.unidades.find(u => u.id === b.unidade_id);
     if (ua?.ordem_exibicao !== ub?.ordem_exibicao) return (ua?.ordem_exibicao||0) - (ub?.ordem_exibicao||0);
-    return a.numero.localeCompare(b.numero) || a.andar.localeCompare(b.andar);
+    // Ordenação numérica quando ambos são numéricos; alfabética caso contrário (Auditório etc.)
+    const na = parseInt(a.numero, 10);
+    const nb = parseInt(b.numero, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return String(a.numero).localeCompare(String(b.numero));
   });
 
   // Para cada sala × dia, calcula turnos livres
@@ -359,7 +369,7 @@ const SalasDisponibilidade = ({ data }) => {
             return (
               <tr key={sala.id}>
                 <td style={{ padding: '10px 12px', fontWeight: 600, fontSize: 12, color: 'var(--ink)', background: 'var(--surface-2)', borderRadius: 4 }}>
-                  <span style={{ color: `#${u?.cor_hex || '888'}`, fontWeight: 700 }}>{u?.codigo}</span> · S{sala.numero} · {sala.andar}
+                  <span style={{ color: `#${u?.cor_hex || '888'}`, fontWeight: 700 }}>{u?.codigo}</span> · {sala.apelido || `Sala ${sala.numero}`}
                 </td>
                 {[1,2,3,4,5,6].map(d => {
                   const livres = turnosLivres(sala.id, d);
@@ -518,7 +528,7 @@ const SalasGestao = ({ data, colaboradores, reload, toast }) => {
                       <span style={{ opacity: 0.7 }}>·</span>
                       <span>{fmtHora(e.hora_inicio)}–{fmtHora(e.hora_fim)}</span>
                       <span style={{ opacity: 0.7 }}>·</span>
-                      <span>{sala ? `S${sala.numero}` : 'itin.'}</span>
+                      <span>{sala ? (sala.apelido || sala.numero) : 'itin.'}</span>
                       <button onClick={(ev) => { ev.stopPropagation(); excluir(e.id); }} style={{
                         marginLeft: 4, background: 'transparent', border: 'none', color: 'currentColor',
                         cursor: 'pointer', opacity: 0.5, fontSize: 14,
@@ -580,7 +590,7 @@ const SalasGestao = ({ data, colaboradores, reload, toast }) => {
                 <option value="">— sem sala (itinerante) —</option>
                 {data.salas.map(s => {
                   const u = data.unidades.find(x => x.id === s.unidade_id);
-                  return <option key={s.id} value={s.id}>{u?.codigo} · S{s.numero} · {s.andar}</option>;
+                  return <option key={s.id} value={s.id}>{u?.codigo} · {s.apelido || `Sala ${s.numero}`}</option>;
                 })}
               </select>
             </div>
@@ -728,7 +738,7 @@ const SalasAlertas = ({ data, colaboradores }) => {
       {salasDensas.length > 0 && (
         <Card tipo="atenção" titulo="Salas com 3+ profissionais"
           descricao="Salas com alta densidade de uso. Cuidado ao encaixar novos horários."
-          items={salasDensas.map(s => `${s.sala ? `S${s.sala.numero}-${s.sala.andar}` : '?'}: ${s.profs.join(', ')}`)}
+          items={salasDensas.map(s => `${s.sala ? (s.sala.apelido || `Sala ${s.sala.numero}`) : '?'}: ${s.profs.join(', ')}`)}
         />
       )}
       {itinerantes.length > 0 && (
