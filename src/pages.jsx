@@ -903,9 +903,269 @@ const ImpostosPage = ({ filter, setFilter }) => {
 
 
 
+// ═══════════════════════════════════════════════════════
+// REPLICAR PRESTADORES — detecta do banco e replica meses
+// ═══════════════════════════════════════════════════════
+const ReplicarPrestadoresModal = ({ onClose }) => {
+  const { user, profile } = useAuth();
+  const companyId = profile?.company_id;
+
+  const [step, setStep]             = React.useState('selecionar'); // selecionar | meses | confirmando | done
+  const [todasContas, setTodasContas] = React.useState([]);
+  const [loading, setLoading]       = React.useState(true);
+  const [selecionados, setSelecionados] = React.useState(new Set());
+  const [mesesSel, setMesesSel]     = React.useState(new Set());
+  const [diaVenc, setDiaVenc]       = React.useState(20);
+  const [progresso, setProgresso]   = React.useState('');
+  const [erro, setErro]             = React.useState('');
+
+  const fmt = v => 'R$ ' + (v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+  // Carregar todas as contas e detectar prestadores
+  React.useEffect(() => {
+    if (!companyId) return;
+    window.fetchContas(companyId).then(contas => {
+      setTodasContas(contas);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [companyId]);
+
+  // Detectar prestadores únicos (categoria "Profissionais / Prestadores" ou REPASSE no nome)
+  const prestadores = React.useMemo(() => {
+    const isPrestador = c =>
+      (c.category || '').toLowerCase().includes('prestador') ||
+      (c.category || '').toLowerCase().includes('profissional') ||
+      (c.description || '').toUpperCase().includes('REPASSE');
+
+    const map = {};
+    todasContas.filter(isPrestador).forEach(c => {
+      const key = c.description.trim().toUpperCase();
+      if (!map[key] || new Date(c.vencimento) > new Date(map[key].vencimento)) {
+        map[key] = c; // guardar a mais recente
+      }
+    });
+    return Object.values(map).sort((a, b) => a.description.localeCompare(b.description));
+  }, [todasContas]);
+
+  // Gerar próximos 12 meses a partir de hoje
+  const meses = React.useMemo(() => {
+    const hoje = new Date();
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+      return {
+        key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'),
+        label: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+      };
+    });
+  }, []);
+
+  const togglePrestador = id => {
+    setSelecionados(s => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+
+  const toggleMes = key => {
+    setMesesSel(s => {
+      const n = new Set(s);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+  };
+
+  const totalGerar = selecionados.size * mesesSel.size;
+
+  const replicar = async () => {
+    setStep('confirmando');
+    setErro('');
+    const lista = prestadores.filter(p => selecionados.has(p.id));
+    const mesesArr = [...mesesSel].sort();
+    let criados = 0;
+
+    for (const mes of mesesArr) {
+      const [y, m] = mes.split('-').map(Number);
+      const vencimento = `${y}-${String(m).padStart(2,'0')}-${String(diaVenc).padStart(2,'0')}`;
+      for (const p of lista) {
+        try {
+          await window.createConta({
+            description: p.description,
+            category: p.category,
+            tipo: 'pagar',
+            previsto: p.previsto,
+            vencimento,
+            pago: false,
+          }, companyId, user?.id);
+          criados++;
+          setProgresso(`Criando... ${criados}/${totalGerar}`);
+        } catch(e) {
+          setErro('Erro em ' + p.description + ': ' + e.message);
+        }
+      }
+    }
+
+    // Recarregar dados
+    const novas = await window.fetchContas(companyId).catch(() => []);
+    if (novas.length) window.CONTAS = novas;
+    window.dispatchEvent(new CustomEvent('sb-data-hydrated'));
+    setStep('done');
+    setProgresso(`${criados} contas criadas com sucesso!`);
+  };
+
+  const inp = { padding: '8px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, outline: 'none' };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)', display:'grid', placeItems:'center', padding:24 }}>
+      <div style={{ background:'var(--bg)', borderRadius:16, width:'min(680px,100%)', maxHeight:'85vh', display:'flex', flexDirection:'column', boxShadow:'0 24px 60px rgba(0,0,0,0.3)', border:'1px solid var(--line)' }}>
+
+        {/* Header */}
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--line)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <div style={{ fontWeight:800, fontSize:17 }}>Replicar Prestadores</div>
+            <div style={{ fontSize:13, color:'var(--ink-soft)', marginTop:2 }}>
+              {step === 'selecionar' && 'Selecione os prestadores para replicar'}
+              {step === 'meses'     && 'Escolha os meses e dia de vencimento'}
+              {(step === 'confirmando' || step === 'done') && progresso}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'var(--ink-soft)', lineHeight:1 }}>✕</button>
+        </div>
+
+        {/* Conteúdo */}
+        <div style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
+
+          {/* STEP 1: selecionar prestadores */}
+          {step === 'selecionar' && (
+            <div>
+              {loading ? (
+                <div style={{ textAlign:'center', padding:40, color:'var(--ink-soft)' }}>A carregar prestadores...</div>
+              ) : prestadores.length === 0 ? (
+                <div style={{ textAlign:'center', padding:40, color:'var(--ink-soft)' }}>
+                  <div style={{ fontSize:32, marginBottom:12 }}>🔍</div>
+                  <div style={{ fontWeight:700 }}>Nenhum prestador encontrado</div>
+                  <div style={{ fontSize:13, marginTop:6 }}>Contas com categoria "Profissionais/Prestadores" ou "REPASSE" no nome aparecem aqui.</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                    <span style={{ fontSize:13, color:'var(--ink-soft)' }}>{prestadores.length} prestadores encontrados</span>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <button onClick={() => setSelecionados(new Set(prestadores.map(p=>p.id)))}
+                        style={{ ...inp, cursor:'pointer', fontSize:12 }}>Selecionar todos</button>
+                      <button onClick={() => setSelecionados(new Set())}
+                        style={{ ...inp, cursor:'pointer', fontSize:12 }}>Limpar</button>
+                    </div>
+                  </div>
+                  <div style={{ border:'1px solid var(--line)', borderRadius:10, overflow:'hidden' }}>
+                    {prestadores.map((p, i) => (
+                      <div key={p.id} onClick={() => togglePrestador(p.id)}
+                        style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom: i < prestadores.length-1 ? '1px solid var(--line)' : 'none', cursor:'pointer', background: selecionados.has(p.id) ? 'rgba(99,102,241,0.06)' : 'transparent' }}>
+                        <div style={{ width:18, height:18, borderRadius:5, border:`2px solid ${selecionados.has(p.id) ? 'var(--c-primary)' : 'var(--line)'}`, background: selecionados.has(p.id) ? 'var(--c-primary)' : 'transparent', display:'grid', placeItems:'center', flexShrink:0 }}>
+                          {selecionados.has(p.id) && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontWeight:600, fontSize:14 }}>{p.description}</div>
+                          <div style={{ fontSize:12, color:'var(--ink-soft)' }}>{p.category}</div>
+                        </div>
+                        <div style={{ fontFamily:'monospace', fontWeight:700, fontSize:14 }}>{fmt(p.previsto)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* STEP 2: meses */}
+          {step === 'meses' && (
+            <div>
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontWeight:700, fontSize:14, marginBottom:10 }}>Dia de vencimento</div>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <input type="number" min={1} max={31} value={diaVenc} onChange={e => setDiaVenc(Number(e.target.value))}
+                    style={{ ...inp, width:80, textAlign:'center', fontSize:16, fontWeight:700 }} />
+                  <span style={{ fontSize:13, color:'var(--ink-soft)' }}>de cada mês</span>
+                </div>
+              </div>
+              <div style={{ fontWeight:700, fontSize:14, marginBottom:10 }}>
+                Selecione os meses
+                <button onClick={() => setMesesSel(new Set(meses.map(m=>m.key)))}
+                  style={{ marginLeft:12, ...inp, fontSize:12, cursor:'pointer' }}>Todos</button>
+                <button onClick={() => setMesesSel(new Set())}
+                  style={{ marginLeft:6, ...inp, fontSize:12, cursor:'pointer' }}>Limpar</button>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {meses.map(mes => (
+                  <div key={mes.key} onClick={() => toggleMes(mes.key)}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1px solid ${mesesSel.has(mes.key) ? 'var(--c-primary)' : 'var(--line)'}`, cursor:'pointer', background: mesesSel.has(mes.key) ? 'rgba(99,102,241,0.06)' : 'transparent' }}>
+                    <div style={{ width:16, height:16, borderRadius:4, border:`2px solid ${mesesSel.has(mes.key) ? 'var(--c-primary)' : 'var(--line)'}`, background: mesesSel.has(mes.key) ? 'var(--c-primary)' : 'transparent', display:'grid', placeItems:'center', flexShrink:0 }}>
+                      {mesesSel.has(mes.key) && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </div>
+                    <span style={{ fontSize:13, fontWeight:500, textTransform:'capitalize' }}>{mes.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STEP confirmando/done */}
+          {(step === 'confirmando' || step === 'done') && (
+            <div style={{ textAlign:'center', padding:'40px 20px' }}>
+              {step === 'confirmando' && (
+                <div style={{ width:52, height:52, border:'5px solid var(--line)', borderTopColor:'var(--c-primary)', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 20px' }} />
+              )}
+              {step === 'done' && <div style={{ fontSize:48, marginBottom:16 }}>✅</div>}
+              <div style={{ fontSize:16, fontWeight:700, color: step==='done' ? 'var(--c-primary)' : 'var(--ink)' }}>{progresso}</div>
+              {erro && <div style={{ marginTop:12, fontSize:13, color:'var(--c-danger)', background:'rgba(239,68,68,0.08)', padding:'10px 16px', borderRadius:8 }}>{erro}</div>}
+              {step === 'done' && (
+                <div style={{ fontSize:13, color:'var(--ink-soft)', marginTop:8 }}>
+                  {selecionados.size} prestadores × {mesesSel.size} meses = {totalGerar} contas
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'16px 24px', borderTop:'1px solid var(--line)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontSize:13, color:'var(--ink-soft)' }}>
+            {step === 'selecionar' && `${selecionados.size} selecionados`}
+            {step === 'meses' && `${mesesSel.size} meses · ${totalGerar} contas a criar`}
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            {step === 'done' ? (
+              <button onClick={onClose} style={{ padding:'10px 24px', borderRadius:8, border:'none', background:'var(--c-primary)', color:'white', fontWeight:700, cursor:'pointer' }}>Fechar</button>
+            ) : step === 'selecionar' ? (
+              <>
+                <button onClick={onClose} style={{ padding:'10px 18px', borderRadius:8, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', cursor:'pointer' }}>Cancelar</button>
+                <button onClick={() => setStep('meses')} disabled={selecionados.size === 0}
+                  style={{ padding:'10px 24px', borderRadius:8, border:'none', background: selecionados.size > 0 ? 'var(--c-primary)' : 'var(--line)', color:'white', fontWeight:700, cursor: selecionados.size > 0 ? 'pointer' : 'not-allowed' }}>
+                  Próximo →
+                </button>
+              </>
+            ) : step === 'meses' ? (
+              <>
+                <button onClick={() => setStep('selecionar')} style={{ padding:'10px 18px', borderRadius:8, border:'1px solid var(--line)', background:'transparent', color:'var(--ink-soft)', cursor:'pointer' }}>← Voltar</button>
+                <button onClick={replicar} disabled={mesesSel.size === 0}
+                  style={{ padding:'10px 24px', borderRadius:8, border:'none', background: mesesSel.size > 0 ? 'var(--c-primary)' : 'var(--line)', color:'white', fontWeight:700, cursor: mesesSel.size > 0 ? 'pointer' : 'not-allowed' }}>
+                  ✓ Criar {totalGerar} contas
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+};
+
+
 const ContasPage = ({ filter, setFilter }) => {
   const [editing, setEditing] = React.useState(null);
   const [confirmando, setConfirmando] = React.useState(null); // conta sendo confirmada
+  const [showReplicar, setShowReplicar] = React.useState(false);
   const [, tick] = React.useReducer(x => x + 1, 0);
   React.useEffect(() => {
     const h = () => tick();
@@ -957,11 +1217,13 @@ const ContasPage = ({ filter, setFilter }) => {
 
   return (
     <div className="anim-fade" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {showReplicar && <ReplicarPrestadoresModal onClose={() => setShowReplicar(false)} />}
       <PageHeader title="Contas"
         subtitle="Controle de contas a pagar e a receber — previsto × realizado"
         action={
           <div style={{ display: 'flex', gap: 10 }}>
             <ExcelImporter target="contas" />
+            <Btn variant="secondary" icon="copy" onClick={() => setShowReplicar(true)}>Replicar prestadores</Btn>
             <Btn variant="primary" icon="plus" onClick={() => setEditing({tipo:'pagar', pago:false, previsto:0, realizado:0})}>Nova conta</Btn>
           </div>
         } />
